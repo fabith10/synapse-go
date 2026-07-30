@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fabith10/agent-framework/internal/sanitizer"
+	"github.com/fabith10/synapse-go/internal/sanitizer"
 )
 
 // ---------------------------------------------------------------------------

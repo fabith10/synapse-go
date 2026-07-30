@@ -9,9 +9,9 @@ import (
 	"time"
 
 	dockerclient "github.com/docker/docker/client"
-	"github.com/fabith10/agent-framework/adk"
-	"github.com/fabith10/agent-framework/internal/tools"
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/adk"
+	"github.com/fabith10/synapse-go/internal/tools"
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // MultiTierSandbox acts as the central router for tool sandboxes.

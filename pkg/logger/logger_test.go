@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 func TestLogger_TextFormat(t *testing.T) {

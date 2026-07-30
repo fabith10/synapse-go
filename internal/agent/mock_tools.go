@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fabith10/agent-framework/adk"
+	"github.com/fabith10/synapse-go/adk"
 )
 
 // Default baseURL for server mock endpoints during test/local execution.

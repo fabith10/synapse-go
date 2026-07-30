@@ -3,7 +3,7 @@ package adk
 import (
 	"context"
 
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------

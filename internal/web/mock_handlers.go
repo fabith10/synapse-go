@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fabith10/agent-framework/internal/agent"
+	"github.com/fabith10/synapse-go/internal/agent"
 )
 
 // MockTask represents an asynchronous compute/data task submitted to the mock server.

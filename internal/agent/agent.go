@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fabith10/agent-framework/adk"
-	"github.com/fabith10/agent-framework/internal/memory"
-	"github.com/fabith10/agent-framework/internal/orchestrator"
-	toolpkg "github.com/fabith10/agent-framework/internal/tools"
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/adk"
+	"github.com/fabith10/synapse-go/internal/memory"
+	"github.com/fabith10/synapse-go/internal/orchestrator"
+	toolpkg "github.com/fabith10/synapse-go/internal/tools"
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // ExtractTargetDir parses message metadata and task content for target project directory paths.

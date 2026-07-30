@@ -2,24 +2,25 @@ import pandas as pd
 import json
 import os
 
-# Data from Pricing Oracle
-prices = {'H100_SXM': 2.49, 'Forward_30d': 2.5522, 'Option_Call': 0.0448}
+# Pricing data
+data = {
+    'gpu': ['H100', 'A100'],
+    'price': [2.49, 1.50]  # Using representative spot prices
+}
 
-# Portfolio Calculation: Allocation based on inverse cost
-# (Simulating allocation strategy across multiple tiers)
-assets = ['H100_SXM', 'Forward_30d']
-costs = [prices['H100_SXM'], prices['Forward_30d']]
-weights = [1/c for c in costs]
-normalized_weights = [w / sum(weights) for w in weights]
+df = pd.DataFrame(data)
 
-df = pd.DataFrame({'Asset': assets, 'Cost': costs, 'Weight': normalized_weights})
+# Calculate simple inverse weight allocation (allocate more to cheaper GPUs)
+df['inverse_price'] = 1 / df['price']
+df['weight'] = df['inverse_price'] / df['inverse_price'].sum()
 
-# Ensure reports directory exists
+# Prepare output
+report = df.to_dict(orient='records')
+
+# Create directory if it doesn't exist
 os.makedirs('reports', exist_ok=True)
 
-# Save report
-report_data = df.to_dict(orient='records')
 with open('reports/gpu_portfolio_report.json', 'w') as f:
-    json.dump(report_data, f, indent=4)
+    json.dump(report, f, indent=4)
 
-print(f'Portfolio report generated: {report_data}')
+print(f'Report saved: {report}')

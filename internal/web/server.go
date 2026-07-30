@@ -17,10 +17,10 @@ import (
 	"time"
 
 	dockerclient "github.com/docker/docker/client"
-	"github.com/fabith10/agent-framework/adk"
-	"github.com/fabith10/agent-framework/internal/agent"
-	"github.com/fabith10/agent-framework/internal/memory"
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/adk"
+	"github.com/fabith10/synapse-go/internal/agent"
+	"github.com/fabith10/synapse-go/internal/memory"
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 //go:embed static/*

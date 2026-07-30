@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabith10/agent-framework/adk"
-	"github.com/fabith10/agent-framework/internal/orchestrator"
+	"github.com/fabith10/synapse-go/adk"
+	"github.com/fabith10/synapse-go/internal/orchestrator"
 )
 
 func TestGrepDocumentsTool(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/fabith10/agent-framework
+module github.com/fabith10/synapse-go
 
 go 1.26.5
 

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/fabith10/agent-framework/internal/memory"
+	"github.com/fabith10/synapse-go/internal/memory"
 )
 
 // ---------------------------------------------------------------------------

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabith10/agent-framework/internal/agent"
-	"github.com/fabith10/agent-framework/internal/web"
+	"github.com/fabith10/synapse-go/internal/agent"
+	"github.com/fabith10/synapse-go/internal/web"
 )
 
 func TestMockToolsWithServer(t *testing.T) {

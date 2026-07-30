@@ -17,7 +17,7 @@ import (
 )
 
 func runE2ETestCase(t *testing.T, promptText string, logFilename string, timeoutSecs string, extraEnv ...string) (string, string) {
-	binaryPath := filepath.Join("..", "..", "bin", "agent-framework")
+	binaryPath := filepath.Join("..", "..", "bin", "synapse-go")
 	_ = os.MkdirAll(filepath.Join("..", "..", "bin"), 0755)
 	_ = os.MkdirAll("output", 0755)
 	_ = os.MkdirAll(filepath.Join("testdata", "reports"), 0755)

@@ -1,6 +1,6 @@
 .PHONY: build test test-e2e clean help
 
-BINARY_NAME=agent-framework
+BINARY_NAME=synapse-go
 BUILD_DIR=bin
 
 help: ## Display available Makefile commands

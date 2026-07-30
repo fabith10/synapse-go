@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // Blueprints contains the static system prompts for core orchestrator agents (triage, supervisor, planner).

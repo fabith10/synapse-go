@@ -2,7 +2,7 @@ package agent
 
 import (
 	"context"
-	"github.com/fabith10/agent-framework/internal/memory"
+	"github.com/fabith10/synapse-go/internal/memory"
 )
 
 // VectorStore defines the interface for RAG document retrieval providers.

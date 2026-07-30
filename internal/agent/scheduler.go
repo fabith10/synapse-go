@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fabith10/agent-framework/adk"
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/adk"
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // Schedule represents a recurring agent task that fires on a cron expression.

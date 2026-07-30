@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabith10/agent-framework/internal/memory"
+	"github.com/fabith10/synapse-go/internal/memory"
 )
 
 func TestRAG_TurnMemoryPersistenceAndRetrieval(t *testing.T) {

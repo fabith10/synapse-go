@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fabith10/agent-framework/adk"
+	"github.com/fabith10/synapse-go/adk"
 	"github.com/ledongthuc/pdf"
 )
 

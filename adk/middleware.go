@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fabith10/agent-framework/internal/broker"
-	"github.com/fabith10/agent-framework/internal/sanitizer"
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/internal/broker"
+	"github.com/fabith10/synapse-go/internal/sanitizer"
+	"github.com/fabith10/synapse-go/pkg/logger"
 	"github.com/ollama/ollama/api"
 )
 

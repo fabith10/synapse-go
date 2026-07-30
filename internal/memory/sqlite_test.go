@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabith10/agent-framework/internal/memory"
+	"github.com/fabith10/synapse-go/internal/memory"
 )
 
 // openTestStore returns an in-memory SQLite store that is automatically closed

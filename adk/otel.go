@@ -13,10 +13,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 
-	syslog "github.com/fabith10/agent-framework/pkg/logger"
+	syslog "github.com/fabith10/synapse-go/pkg/logger"
 )
 
-const TracerName = "github.com/fabith10/agent-framework/adk"
+const TracerName = "github.com/fabith10/synapse-go/adk"
 
 // SetupOTLPTracer configures a global OpenTelemetry TracerProvider using an OTLP stdout/http exporter.
 // Returns a shutdown function that flushes pending spans on application exit.

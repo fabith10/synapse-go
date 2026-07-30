@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fabith10/agent-framework/internal/memory"
-	"github.com/fabith10/agent-framework/internal/orchestrator"
-	"github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/internal/memory"
+	"github.com/fabith10/synapse-go/internal/orchestrator"
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // LastUsedModel tracks the winning model name for each agent ID thread-safely.

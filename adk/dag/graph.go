@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/fabith10/agent-framework/internal/memory"
-	syslog "github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/internal/memory"
+	syslog "github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // State represents the runtime context passed between nodes in a DAG workflow graph.

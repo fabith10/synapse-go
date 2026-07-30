@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/fabith10/agent-framework/internal/broker"
-	"github.com/fabith10/agent-framework/internal/memory"
-	"github.com/fabith10/agent-framework/internal/orchestrator"
-	"github.com/fabith10/agent-framework/internal/tools"
-	syslog "github.com/fabith10/agent-framework/pkg/logger"
+	"github.com/fabith10/synapse-go/internal/broker"
+	"github.com/fabith10/synapse-go/internal/memory"
+	"github.com/fabith10/synapse-go/internal/orchestrator"
+	"github.com/fabith10/synapse-go/internal/tools"
+	syslog "github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------

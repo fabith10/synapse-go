@@ -7,7 +7,7 @@ package broker
 import (
 	"context"
 
-	"github.com/fabith10/agent-framework/internal/orchestrator"
+	"github.com/fabith10/synapse-go/internal/orchestrator"
 )
 
 // ---------------------------------------------------------------------------

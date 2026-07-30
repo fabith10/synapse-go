@@ -3,7 +3,7 @@ package agent
 import (
 	"sync"
 
-	"github.com/fabith10/agent-framework/adk"
+	"github.com/fabith10/synapse-go/adk"
 )
 
 var (

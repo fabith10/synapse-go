@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/fabith10/agent-framework/adk"
+	"github.com/fabith10/synapse-go/adk"
 )
 
 // GetWriteStateVariableTool returns the Tier 1 native tool to write blackboard state.

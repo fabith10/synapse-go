@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fabith10/agent-framework/adk"
-	"github.com/fabith10/agent-framework/internal/memory"
+	"github.com/fabith10/synapse-go/adk"
+	"github.com/fabith10/synapse-go/internal/memory"
 )
 
 // GetSaveLongTermMemoryTool returns a tool that saves persistent learnings/facts.

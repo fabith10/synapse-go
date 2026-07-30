@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fabith10/agent-framework/internal/orchestrator"
-	"github.com/fabith10/agent-framework/internal/tools"
+	"github.com/fabith10/synapse-go/internal/orchestrator"
+	"github.com/fabith10/synapse-go/internal/tools"
 )
 
 func TestToolSchemaValidation(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fabith10/agent-framework/internal/tools"
+	"github.com/fabith10/synapse-go/internal/tools"
 )
 
 // ---------------------------------------------------------------------------

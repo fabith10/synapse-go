@@ -3,8 +3,8 @@ package adk
 import (
 	"context"
 
-	"github.com/fabith10/agent-framework/internal/broker"
-	"github.com/fabith10/agent-framework/internal/tools"
+	"github.com/fabith10/synapse-go/internal/broker"
+	"github.com/fabith10/synapse-go/internal/tools"
 )
 
 // ---------------------------------------------------------------------------

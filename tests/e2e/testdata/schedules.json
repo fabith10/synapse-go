@@ -1,3 +1,12 @@
 {
-  "schedules": []
+  "schedules": [
+    {
+      "id": "sched-1785435984693414000",
+      "name": "quick_health_audit",
+      "cron": "*/3 * * * * *",
+      "task": "Use write_file to save the text Health Check PASSED to reports/scheduled_job_output.txt",
+      "enabled": true,
+      "created": "2026-07-30T20:26:24+02:00"
+    }
+  ]
 }
