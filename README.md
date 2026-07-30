@@ -1,5 +1,10 @@
 # ⚡ SynapseGo (`synapse-go`)
 
+[![Go Version](https://img.shields.io/badge/go-1.26+-00ADD8?style=flat-square&logo=go)](https://go.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![Sandboxing](https://img.shields.io/badge/Sandboxing-WASM%20%7C%20Docker-blueviolet?style=flat-square)]()
+[![Build Status](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)]()
+
 A high-speed, secure multi-agent orchestrator framework built strictly in Go. This framework implements a three-tier sandbox execution strategy (Native Go, WebAssembly, and Docker), centralized orchestrator event-loop routing, real-time HTMX-powered mobile steering dashboard, and robust semantic prompt-injection firewalls.
 
 ---
@@ -7,55 +12,126 @@ A high-speed, secure multi-agent orchestrator framework built strictly in Go. Th
 ## Architecture Overview
 
 ```
-                      +-----------------------------+
-                      |        HTTP Dashboard       |
-                      |   (Go Templates + HTMX)     |
-                      +--------------+--------------+
-                                     | Event Logs & HITL Replies
-                                     v
-                      +-----------------------------+
-                      |    Orchestrator Router      | <--- Middleware Pipeline
-                      |      (Central Event Loop)   |      (Logging, Auth, Tracing,
-                      +--------------+--------------+       InjectionGuardrail, CostLimit)
-                                     |
-         +---------------------------+---------------------------+
-         |                           |                           |
-         v                           v                           v
-+------------------+       +------------------+       +------------------+
-|  triage-agent    |       |  etl-agent       |       |  quant-agent     |
-|  (Gatekeeper)    |       |  (Data Harvester)|       |  (Math Sandbox)  |
-+--------+---------+       +--------+---------+       +--------+---------+
-         |                          |                          |
-         | (Tier 1 Native)          | (Tier 2 WASM)            | (Tier 3 Docker)
-         | - [Pricing Oracle]       | - [wazero Sandbox]       | - [Docker Container]
-         |                          | - [wasm_json_mapper]     | - [execute_python]
-         |                                                     |
-         +---------------------------+-------------------------+
-                                     |
-                                     v
-                  +-------------------------------------+
-                  | excel-agent & researcher-agent      |
-                  | (Excel Hero & Deep Researcher)      |
-                  +------------------+------------------+
-                                     |
-                                     | (Tier 1 Native Extensions)
-                                     | - [modify_excel_workbook]
-                                     | - [web_search_and_extract]
-                                     | - [generate_pdf_report]
+                      +---------------------------------------+
+                      |          HTTP Dashboard (HTMX)        |
+                      |   (Real-Time Mobile & Web HITL Panel) |
+                      +-------------------+-------------------+
+                                          | Real-Time Event Logs & HITL Approvals
+                                          v
+                      +---------------------------------------+
+                      |     SynapseGo Orchestrator Router      | <--- Middleware Pipeline
+                      |         (Central Event Loop)          |      (Logging, Tracing, Guardrails,
+                      +-------------------+-------------------+       InjectionFilter, CostLimits)
+                                          |
+         +--------------------------------+--------------------------------+
+         |                                |                                |
+         v                                v                                v
++------------------+             +------------------+             +------------------+
+|   triage-agent   |             |    etl-agent     |             |   quant-agent    |
+|   (Gatekeeper)   |             | (Data Harvester) |             |  (Math Engine)   |
++--------+---------+             +--------+---------+             +--------+---------+
+         |                                |                                |
+         | (Tier 1 Native Go)             | (Tier 2 WASM Sandbox)          | (Tier 3 Docker SDK)
+         | - [query_pricing_oracle]       | - [wazero Engine]              | - [execute_python_docker]
+         | - [sqlite_checkpoints]         | - [wasm_json_mapper]           | - [execute_bash_docker]
+         |                                                                 |
+         +--------------------------------+--------------------------------+
+                                          |
+                                          v
+                      +---------------------------------------+
+                      |     excel-agent & researcher-agent    |
+                      |     (Spreadsheet Hero & Deep Research)|
+                      +-------------------+-------------------+
+                                          |
+                                          | (Tier 1 Native Tool Extensions)
+                                          | - [modify_excel_workbook]
+                                          | - [web_search_and_extract]
+                                          | - [generate_pdf_report]
 ```
 
 ### 1. Central Event Loop & Orchestrator
 All communication—User-to-Agent (U2A) and Agent-to-Agent (A2A)—flows through the Go Orchestrator's central `MessageBus`. A unified dispatcher compiles and executes a chain of composeable middlewares before delivering payloads to the target agent mailboxes.
 - **Human-in-the-Loop (HITL):** Messages targeting the `"USER"` recipient park execution and block the orchestrator goroutine on an unbuffered approval channel until operators submit a steering reply (`APPROVED`/`DENIED`).
 
-### 2. Multi-Agent Blueprints
-- **triage-agent (Compute Gatekeeper):** Routes prompts to appropriate downstream agents, querying the `query_pricing_oracle` Tier 1 native tool to identify the most cost-effective compute nodes.
-- **etl-agent (Data Harvester):** Scrapes unstructured website HTML and cleans the data securely.
-- **quant-agent (Quantitative Analyst):** Conducts high-performance regressions and options calculations in Python.
-- **excel-agent (Excel Hero):** Natively parses and updates cash flow sheets.
-- **researcher-agent (Deep Researcher):** Gathers real-time web context using clean Markdown extraction via the `web_search_and_extract` tool, bypassing browser bloat. Automatically compiles beautiful, board-ready summaries using the `generate_pdf_report` native Go compiler.
+### 2. Built-in Base Agents
 
-### 3. Three-Tier Sandbox Strategy
+SynapseGo ships out-of-the-box with **Core Orchestrator Agents** and **Specialist Domain Agents**:
+
+#### A. Core Orchestrator Agents
+| Agent ID | Role | Description & Primary Responsibilities |
+| :--- | :--- | :--- |
+| **`triage-agent`** | **System Gatekeeper** | Outermost entry point. Classifies incoming prompts, enriches underspecified user requests, queries `query_pricing_oracle` to select cost-effective compute nodes, and routes tasks. |
+| **`planner-agent`** | **Task Dissector & Planner** | Dissects complex multi-step goals into directed task graphs with explicit dependencies and targeted agent assignments. |
+| **`supervisor-agent`** | **Goal Supervisor & QA** | Evaluates specialist output against the original user goal (`DONE`, `RETRY`, `ESCALATE`), enforcing strict validation rules (e.g. script execution for math vs LLM mental math). |
+
+#### B. Specialist Domain Agents
+| Agent ID | Role | Tier & Primary Capabilities |
+| :--- | :--- | :--- |
+| **`etl-agent`** | **Data Harvester** | Tier 2 (WASM): Unstructured web scraping, raw HTML cleaning via `bluemonday`, and JSON mapping. |
+| **`quant-agent`** | **Quantitative Analyst** | Tier 3 (Docker SDK): Monte Carlo simulations, options chain pricing, forward curves, and Python math regressions. |
+| **`excel-agent`** | **Spreadsheet Hero** | Tier 1 (Native Go): Direct XML parsing, updating, and formula calculation across Excel workbooks via `excelize/v2`. |
+| **`researcher-agent`** | **Deep Researcher** | Tier 1 (Native Go): Real-time web search/extraction and automated board-ready PDF generation via `generate_pdf_report`. |
+| **`developer-agent`** | **Software Engineer** | Tier 3 (Docker SDK): Code generation, complexity analysis, refactoring verification, and script execution. |
+| **`writer-agent`** | **Technical Copywriter** | Tier 1 (Native Go): Executive summaries, technical documentation synthesis, and report drafting. |
+| **`browser-agent`** | **Browser Automation** | Tier 1 (Native Go): Headed/headless navigation, DOM inspection, form filling, and screenshot capture. |
+| **`email-agent`** | **Communication Assistant**| Tier 1 (Native Go): Writing draft emails, user notifications, and Human-in-the-Loop approval workflows. |
+| **`sales-agent`** | **Sales & Lead Scoring** | Tier 1 (Native Go): Analyzing lead metrics, scoring prospect data via `check_lead_score`, and outreach drafting. |
+| **`generalist-agent`**| **Generalist Specialist** | Tier 1 (Native Go): Fallback agent for general knowledge queries, text transformation, and unmapped tasks. |
+
+---
+
+### 3. How to Add Custom Agents
+
+Adding custom agents to SynapseGo is designed to be modular and zero-friction. You can register custom agents using any of the 3 approaches below:
+
+#### Approach A: Markdown System Prompts (`agents/` Directory)
+Place a markdown file inside the `agents/` directory (e.g. `agents/security-auditor-agent.md`). SynapseGo automatically discovers and loads the system prompt:
+
+```markdown
+# Security Auditor Agent
+You are a senior security engineer. Your job is to analyze code snippets for vulnerabilities, secrets leakage, and injection risks.
+
+## Guidelines
+1. Always check user inputs against strict validation regex.
+2. Flag hardcoded secret keys immediately.
+```
+
+#### Approach B: Dynamic JSON Configuration (`agents.json`)
+Define or override agent prompts without re-compiling Go code by placing an `agents.json` file in your workspace root:
+
+```json
+{
+  "custom-security-agent": {
+    "system_prompt": "You are a specialized security agent auditing infrastructure scripts...",
+    "tools": ["read_file", "execute_python_docker"]
+  }
+}
+```
+
+#### Approach C: Programmatic Go ADK API
+Register custom agents programmatically in Go source code using `adk.AgentBlueprint`:
+
+```go
+package main
+
+import "github.com/fabith10/synapse-go/adk"
+
+func main() {
+    rt, _ := adk.NewRuntime(cfg)
+    
+    // Register custom agent blueprint
+    rt.RegisterAgent(adk.AgentBlueprint{
+        ID:           "custom-risk-agent",
+        Name:         "Custom Risk Analyst",
+        SystemPrompt: "You evaluate portfolio Value-at-Risk using Monte Carlo math...",
+        Tools:        []string{"execute_python_docker", "write_file"},
+    })
+}
+```
+
+---
+
+### 4. Three-Tier Sandbox Strategy
 - **Tier 1 (Native Go):** Fast execution in Go memory space (e.g. `excelize/v2` spreadsheet adjustments, native oracle check).
 - **Tier 2 (WebAssembly):** Safe computation of dynamic mapping code via `wazero`. Completely sandboxed from network/filesystem.
 - **Tier 3 (Docker SDK):** Ephemeral Alpine Python containers running heavy financial equations.
@@ -153,7 +229,7 @@ To prevent checking sensitive API keys into public repositories, the framework u
 
 1. **Local Development (.env):** Rename `.env.example` to `.env` in the root folder and add your credentials:
    ```env
-   TAVILY_API_KEY=your_key_here
+   GEMINI_API_KEY=your_key_here
    OPENAI_API_KEY=your_key_here
    ```
    At boot time, `godotenv` automatically loads `.env` variables into system environment memory.
@@ -171,6 +247,21 @@ To prevent checking sensitive API keys into public repositories, the framework u
 - `internal/tools/` — Wazero WASM sandboxes and Docker host configuration controls.
 - `internal/web/` — Minimalist SSE logs broker and control dashboard.
 - `cmd/main.go` — Launcher bootstrap script.
+- `Makefile` — Build, test, and cleanup task runner.
+
+---
+
+## Build & Development Commands
+
+A top-level `Makefile` is provided for standard developer commands:
+
+```bash
+make build       # Compiles the binary to bin/synapse-go
+make test        # Runs unit and package integration tests
+make test-e2e    # Runs the end-to-end test suite
+make clean       # Removes temporary build files, test databases, and binaries
+make help        # Displays available Makefile commands
+```
 
 ---
 
@@ -184,13 +275,23 @@ To execute the full multi-sandbox execution suite, ensure your machine satisfies
 - **Ollama Client Daemon:** Local Ollama runner (listening on default `http://127.0.0.1:11434`) with the `llama3` model pulled (`ollama pull llama3`) to support semantic prompt injection classifications.
 
 ### 2. Core Go Dependencies
-The framework utilizes the following specialized libraries:
-- **`github.com/tetratelabs/wazero`:** Pure Go WebAssembly compilation sandbox (Tier 2).
-- **`github.com/docker/docker`:** Official Docker SDK client wrapper (Tier 3).
-- **`github.com/xuri/excelize/v2`:** Native binary XML spreadsheet reader and writer (Tier 1 Excel Hero).
-- **`github.com/microcosm-cc/bluemonday`:** Strict HTML sanitizer protecting against indirect web injections.
-- **`github.com/ollama/ollama`:** Official Ollama client SDK for local guardrail classifications.
-- **`modernc.org/sqlite`:** Pure Go SQLite package managing database checkpoints and audit logs.
+
+SynapseGo relies on key open-source Go libraries for sandboxing, database persistence, security, and document parsing:
+
+| Package | Version | Purpose & Usage |
+| :--- | :--- | :--- |
+| **`github.com/tetratelabs/wazero`** | `v1.12.0` | Pure Go WebAssembly runtime for Tier 2 sandboxed code execution. |
+| **`github.com/docker/docker`** | `v28.5.2` | Official Docker SDK client managing Tier 3 ephemeral Python/Bash container sandboxes. |
+| **`modernc.org/sqlite`** | `v1.53.0` | Pure Go (CGo-free) SQLite engine for checkpoint persistence, memory logs, and auditing. |
+| **`github.com/xuri/excelize/v2`** | `v2.11.0` | Native XML spreadsheet parser and calculation engine (`excel-agent`). |
+| **`github.com/chromedp/chromedp`** | `v0.16.0` | Headless & headed Chrome browser automation driver (`browser-agent`). |
+| **`github.com/microcosm-cc/bluemonday`** | `v1.0.27` | Strict HTML sanitizer for prompt injection defense on scraped web pages (`etl-agent`). |
+| **`github.com/ollama/ollama`** | `v0.32.1` | Official Ollama SDK for local Llama-based semantic injection classification. |
+| **`github.com/ledongthuc/pdf`** | `v0.0.0` | Native Go PDF text extraction engine (`extract_pdf_text` tool). |
+| **`go.opentelemetry.io/otel`** | `v1.44.0` | OpenTelemetry distributed tracing and observability. |
+| **`github.com/joho/godotenv`** | `v1.5.1` | Automated environment variable loading from local `.env` files. |
+| **`github.com/google/uuid`** | `v1.6.0` | Cryptographically safe UUID generation for agent sessions and execution trace IDs. |
+| **`github.com/pkg/browser`** | `v0.0.0` | Native browser launcher for the HTMX steering dashboard. |
 
 ---
 
@@ -215,7 +316,7 @@ ollama pull llama3
 #### Step 3: Run the Local Test Suite
 Ensure your local Docker daemon (e.g. Docker Desktop) is online:
 ```bash
-go test -v ./...
+make test
 ```
 
 #### Step 4: Boot the Control Center
@@ -229,17 +330,17 @@ Open **`http://localhost:8080`** in your browser.
 
 ### Mode B: Standalone Compilation (No Go Installation Required)
 
-Yes! Go compiles down to a **single, standalone, statically linked binary** that contains all its dependencies. A user does not need to have Go installed at all on their target host machine to run the compiled framework.
+Go compiles down to a **single, standalone, statically linked binary** containing all its dependencies. Target host machines do not require Go installed.
 
 To build and run the compiled binary:
 
 1. **Compile for your host architecture:**
    ```bash
-   go build -o agent-framework ./cmd/main.go
+   make build
    ```
 2. **Execute the compiled binary directly:**
    ```bash
-   ./agent-framework
+   ./bin/synapse-go
    ```
 
 #### Cross-Compilation Mappings
@@ -247,19 +348,19 @@ You can cross-compile binaries from your local machine to any other operating sy
 
 * **macOS (Apple Silicon M-series):**
   ```bash
-  GOOS=darwin GOARCH=arm64 go build -o agent-framework ./cmd/main.go
+  GOOS=darwin GOARCH=arm64 go build -o bin/synapse-go ./cmd/main.go
   ```
 * **macOS (Intel):**
   ```bash
-  GOOS=darwin GOARCH=amd64 go build -o agent-framework ./cmd/main.go
+  GOOS=darwin GOARCH=amd64 go build -o bin/synapse-go ./cmd/main.go
   ```
 * **Linux (Statically linked, zero external runtime dependency):**
   ```bash
-  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o agent-framework-linux ./cmd/main.go
+  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/synapse-go-linux ./cmd/main.go
   ```
 * **Windows:**
   ```bash
-  GOOS=windows GOARCH=amd64 go build -o agent-framework.exe ./cmd/main.go
+  GOOS=windows GOARCH=amd64 go build -o bin/synapse-go.exe ./cmd/main.go
   ```
 
 ---
@@ -272,7 +373,7 @@ When deploying to a cloud environment (e.g., AWS, GCP, or a private VPS), the sy
 Set the routing configurations to separate the runtime environment from local assumptions:
 ```bash
 # Point to a persistent directory for SQLite database logs
-export SQLITE_DSN="/var/lib/agent-framework/data.db"
+export SQLITE_DSN="/var/lib/synapse-go/data.db"
 
 # Route semantic classifications to a shared or dedicated local Ollama container
 export OLLAMA_HOST="http://ollama-service.internal:11434"
@@ -291,7 +392,7 @@ Since HITL steering requests are designed to be managed from mobile devices, the
 
 Example Caddyfile setup:
 ```caddy
-agent-framework.yourdomain.com {
+synapse.yourdomain.com {
     reverse_proxy localhost:8080
 }
 ```
@@ -323,12 +424,10 @@ Launch the infrastructure:
 ```bash
 docker-compose up -d
 ```
-Access the dashboard securely on your phone via `https://agent-framework.yourdomain.com` to steer workflows anywhere.
+Access the dashboard securely on your phone via `https://synapse.yourdomain.com` to steer workflows anywhere.
 
 ---
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
