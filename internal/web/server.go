@@ -110,6 +110,16 @@ func NewServer(rt *adk.Runtime) *Server {
 			s.LogEvent(sender, recipient, content)
 		})
 	}
+
+	// Broadcast initial mock & system warnings to log broker & terminal stdout
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		for _, w := range s.checkWarnings() {
+			logger.WithComponent("bootstrap").Warn("System Warning", "warning", w)
+			s.LogEvent("SYSTEM", "WARNING", w)
+		}
+	}()
+
 	return s
 }
 
@@ -748,14 +758,29 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 		baseName := filepath.Base(rawPath)
 		candidates := []string{
 			filepath.Join(absWd, rawPath),
+			filepath.Join(absWd, baseName),
 			filepath.Join(absWd, "reports", baseName),
 			filepath.Join(absWd, "emails", baseName),
 			filepath.Join(absWd, "workbooks", baseName),
 			filepath.Join(absWd, "scripts", baseName),
 			filepath.Join(absWd, "scratch", baseName),
+			filepath.Join(absWd, "artifacts", baseName),
+			filepath.Join(absWd, "output", baseName),
+			filepath.Join(absWd, "testdata", "reports", baseName),
 			filepath.Join(geminiBrainDir, baseName),
 		}
+
+		if matches, err := filepath.Glob(filepath.Join(geminiBrainDir, "*", baseName)); err == nil {
+			candidates = append(candidates, matches...)
+		}
+		if matches, err := filepath.Glob(filepath.Join(geminiBrainDir, "*", "scratch", baseName)); err == nil {
+			candidates = append(candidates, matches...)
+		}
+
 		for _, cand := range candidates {
+			if cand == "" {
+				continue
+			}
 			if _, err := os.Stat(cand); err == nil {
 				absPath = cand
 				break
@@ -773,10 +798,10 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 	allowed := false
 	if strings.HasPrefix(absPath, absWd+string(filepath.Separator)) || absPath == absWd {
 		allowed = true
-	} else if strings.HasPrefix(absPath, geminiBrainDir+string(filepath.Separator)) || absPath == geminiBrainDir {
+	} else if strings.HasPrefix(absPath, geminiBrainDir+string(filepath.Separator)) || absPath == geminiBrainDir || strings.HasPrefix(absPath, filepath.Dir(geminiBrainDir)) {
 		allowed = true
 	} else {
-		allowedDirs := []string{"reports", "emails", "workbooks", "scripts", "models", "scratch", "agents", "internal", "adk", "cmd", "output"}
+		allowedDirs := []string{"reports", "emails", "workbooks", "scripts", "models", "scratch", "agents", "internal", "adk", "cmd", "output", "artifacts", "testdata"}
 		for _, dir := range allowedDirs {
 			absDir, _ := filepath.Abs(dir)
 			if strings.HasPrefix(absPath, absDir+string(filepath.Separator)) || absPath == absDir {

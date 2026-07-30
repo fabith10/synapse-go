@@ -428,6 +428,129 @@ Access the dashboard securely on your phone via `https://synapse.yourdomain.com`
 
 ---
 
+## 🏁 Making Your First Run
+
+Follow this step-by-step walkthrough to run your first multi-agent workflow and explore the framework tools:
+
+### Step 1: Launch the Control Dashboard
+Start the native Web Control Server:
+```bash
+go run ./cmd/main.go
+```
+*Alternatively, if compiled, run `./bin/synapse-go` or execute `./start.sh`.*
+
+Open **`http://localhost:8080`** in your browser.
+
+---
+
+### Step 2: Dispatch Your First Task
+
+1. On the **⚡ Control Center** tab, choose one of the preset task templates or type a custom prompt:
+   - **Single-step Task**: *"Calculate 30-day hosting costs for an H100 GPU cluster on Akash vs AWS."*
+   - **Multi-step Research & Synthesis**: *"Perform web research on current AI market trends, synthesize a summary, and generate an executive PDF report."*
+2. Click **⚡ Launch Task Workflow**.
+
+---
+
+### Step 3: Monitor Execution & Visual Insights
+
+- **📜 Live Log Console**: Watch real-time Server-Sent Events (SSE) stream detailed progress logs from `triage-agent`, `planner-agent`, specialist agents, and supervisor checks.
+- **🕸️ Agent Network Topology Graph**: Click the **🕸️ Network Graph** tab to see an interactive, real-time force-directed canvas. Glowing signal pulses travel along edges as agents delegate tasks and execute tools.
+- **📊 Cost & Telemetry Ledger**: Click the **📊 Cost & Audit** tab to inspect token consumption per model, USD cost breakdowns, and export downloadable CSV execution reports.
+
+---
+
+### Step 4: Run via Command Line Interface (CLI Mode)
+
+You can also execute tasks headlessly straight from your terminal:
+```bash
+go run ./cmd/main.go -prompt "Research options volatility trends and save a summary report"
+```
+
+---
+
+## 🛠️ Making the Framework Yours
+
+This framework is built for maximum extensibility. Here is how you can customize agents, tools, LLM providers, and UI workflows:
+
+### 1. Adding Custom Specialist Agents
+
+You can add custom agents either through the visual UI or by dropping markdown files into the repository:
+
+#### Option A: Via Agent Studio (Visual UI)
+1. Open `http://localhost:8080` and switch to the **🎨 Agent Studio** tab.
+2. Fill in the **Agent ID** (e.g. `market-analyst`), **Role Description**, **System Prompt**, and check the tools you want to grant.
+3. Click **🚀 Deploy Agent to Framework**. The agent is instantly compiled and ready for routing!
+
+#### Option B: Via Markdown Blueprints (Code Base)
+Add a markdown file to `agents/my-specialist.md`:
+```markdown
+---
+description: "Custom Financial Analyst specialist for quantitative reporting"
+capabilities:
+  - "financial_modeling"
+  - "options_pricing"
+tools:
+  - "query_options_chain"
+  - "execute_python_docker"
+  - "write_file"
+---
+You are a quantitative financial analyst. Your job is to process financial datasets, calculate greeks, and produce structured summaries.
+
+CRITICAL RULES:
+1. Calculations MUST be computed via script tools ('execute_python_docker' or native tools).
+2. Deliver clear markdown tables summarizing key metrics.
+```
+*The framework's dynamic discovery engine automatically registers your markdown agent into the Gatekeeper intent router and Planner DAG scheduler at boot—no code changes required!*
+
+---
+
+### 2. Registering Custom Tools
+
+To grant agents new capabilities (e.g., querying internal databases, calling external APIs, or executing local scripts):
+
+1. **Define the Tool in Go** (`adk/tools.go` or `internal/agent/tool_alias.go`):
+   ```go
+   func MyCustomAPITool(ctx context.Context, payload string) (string, error) {
+       // Your API logic or custom computation
+       return "Processed data result", nil
+   }
+   ```
+2. **Register the Tool Schema**:
+   Add the tool metadata to `GetAvailableToolsList()`:
+   ```go
+   ToolMetadata{
+       Name:        "query_custom_api",
+       Description: "Fetches live analytical data from internal enterprise endpoint",
+       Category:    "API",
+   }
+   ```
+
+---
+
+### 3. Configuring LLM Providers & Cost Rates
+
+The framework supports hybrid multi-provider LLM setups (Ollama, OpenAI, Anthropic, DeepSeek, Azure):
+
+1. **Environment Configuration** (`.env` or system environment):
+   ```bash
+   export OPENAI_API_KEY="sk-..."
+   export ANTHROPIC_API_KEY="sk-ant-..."
+   export OLLAMA_HOST="http://localhost:11434"
+   ```
+2. **Custom Pricing Oracle Rates**:
+   Modify pricing tiers in `internal/agent/pricing_oracle.go` to match your enterprise LLM discount rates or custom local cluster costs.
+
+---
+
+### 4. Customizing Dashboard Themes & Control Views
+
+- **Theme Preference**: Toggle between Dark Mode and high-contrast Light Mode via the header ☀️/🌙 toggle. Preferences are saved automatically in local browser storage.
+- **Extending Web UI**: Add new tabs, metrics, or custom HTMX endpoints in `internal/web/templates.go` and `internal/web/server.go`.
+
+---
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+

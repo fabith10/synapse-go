@@ -92,41 +92,134 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         .md-content th { background: rgba(39, 39, 42, 0.8); font-weight: 700; color: #f4f4f5; }
         .md-content th, .md-content td { border: 1px solid rgba(63, 63, 70, 0.5); padding: 5px 8px; text-align: left; }
 
-        /* Light Theme Overrides */
-        body.light-theme {
+        /* ----------------------------------------------------------------- */
+        /* Complete Premium Light Theme Overrides                            */
+        /* ----------------------------------------------------------------- */
+        html.light-theme,
+        body.light-theme,
+        html.light-theme body {
             background-color: #f8fafc !important;
             color: #0f172a !important;
             background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.04) 0px, transparent 50%),
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.04) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.03) 0px, transparent 50%),
                 radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%) !important;
         }
+
         body.light-theme header,
         body.light-theme footer,
         body.light-theme nav,
+        body.light-theme section,
         body.light-theme .backdrop-blur-md,
         body.light-theme .backdrop-blur-xl {
-            background-color: rgba(255, 255, 255, 0.9) !important;
+            background-color: rgba(255, 255, 255, 0.95) !important;
             border-color: #cbd5e1 !important;
             color: #0f172a !important;
         }
-        body.light-theme .glass-card {
-            background: rgba(255, 255, 255, 0.95) !important;
+
+        body.light-theme .glass-card,
+        body.light-theme .log-entry,
+        body.light-theme [id^="approval-"],
+        body.light-theme #artifact-viewer-modal > div,
+        body.light-theme #console-logs {
+            background-color: #ffffff !important;
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid #cbd5e1 !important;
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06) !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+            box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05) !important;
         }
+
         body.light-theme .glass-card-hover:hover {
-            border-color: rgba(99, 102, 241, 0.6) !important;
+            border-color: #6366f1 !important;
             box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.15) !important;
         }
+
+        /* High Contrast Typography */
         body.light-theme .text-zinc-100,
-        body.light-theme .text-zinc-200 { color: #0f172a !important; }
+        body.light-theme .text-zinc-200,
         body.light-theme .text-zinc-300,
+        body.light-theme .text-white { color: #0f172a !important; }
         body.light-theme .text-zinc-400 { color: #334155 !important; }
         body.light-theme .text-zinc-500 { color: #64748b !important; }
 
+        /* Sender & Recipient Badges in Light Theme */
+        body.light-theme .sender-badge[data-sender="SYSTEM"],
+        body.light-theme [data-sender="SYSTEM"] .sender-badge {
+            background-color: #fef3c7 !important;
+            color: #92400e !important;
+            border-color: #fcd34d !important;
+        }
+        body.light-theme .sender-badge[data-sender="USER"],
+        body.light-theme [data-sender="USER"] .sender-badge {
+            background-color: #e0e7ff !important;
+            color: #3730a3 !important;
+            border-color: #c7d2fe !important;
+        }
+        body.light-theme .sender-badge[data-sender="ADMIN"],
+        body.light-theme [data-sender="ADMIN"] .sender-badge {
+            background-color: #ffe4e6 !important;
+            color: #9f1239 !important;
+            border-color: #fecdd3 !important;
+        }
+        body.light-theme .sender-badge {
+            background-color: #e2e8f0 !important;
+            color: #1e293b !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light-theme .recipient-badge {
+            background-color: #f1f5f9 !important;
+            color: #475569 !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        /* Solid Action Buttons: Preserve White Text */
+        body.light-theme .bg-indigo-600,
+        body.light-theme .bg-indigo-700,
+        body.light-theme .bg-emerald-600,
+        body.light-theme .bg-rose-600,
+        body.light-theme button.bg-indigo-600,
+        body.light-theme button.bg-emerald-600,
+        body.light-theme a.bg-indigo-600 {
+            color: #ffffff !important;
+        }
+
+        /* Universal Light Background & Border Overrides */
+        body.light-theme .bg-zinc-950,
+        body.light-theme .bg-zinc-900,
+        body.light-theme .bg-zinc-850,
+        body.light-theme .bg-zinc-800,
+        body.light-theme .bg-zinc-700,
+        body.light-theme .bg-slate-950,
+        body.light-theme .bg-slate-900,
+        body.light-theme .bg-slate-800,
+        body.light-theme .bg-black,
+        body.light-theme .bg-black\/80,
+        body.light-theme .bg-zinc-950\/80,
+        body.light-theme .bg-zinc-950\/60,
+        body.light-theme .bg-zinc-950\/40,
+        body.light-theme .bg-zinc-900\/90,
+        body.light-theme .bg-zinc-900\/80,
+        body.light-theme .bg-zinc-900\/60,
+        body.light-theme .bg-zinc-900\/50,
+        body.light-theme .bg-zinc-900\/40,
+        body.light-theme #artifact-modal-content-wrapper {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+
+        body.light-theme .border-zinc-800,
+        body.light-theme .border-zinc-800\/90,
+        body.light-theme .border-zinc-800\/80,
+        body.light-theme .border-zinc-800\/60,
+        body.light-theme .border-zinc-800\/40,
+        body.light-theme .border-zinc-700,
+        body.light-theme .border-zinc-900 {
+            border-color: #cbd5e1 !important;
+        }
+
+        /* Form Controls & Inputs */
         body.light-theme input[type="text"],
         body.light-theme textarea,
         body.light-theme select {
@@ -138,45 +231,136 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         body.light-theme textarea::placeholder {
             color: #94a3b8 !important;
         }
-        body.light-theme .bg-zinc-950,
-        body.light-theme .bg-zinc-900 {
-            background-color: #f1f5f9 !important;
-            border-color: #cbd5e1 !important;
+
+        /* Preset Task Buttons in Light Theme */
+        body.light-theme .bg-indigo-950\/60 {
+            background-color: #e0e7ff !important;
+            color: #3730a3 !important;
+            border-color: #c7d2fe !important;
         }
-        body.light-theme .bg-zinc-950\/80,
-        body.light-theme .bg-zinc-950\/60,
-        body.light-theme .bg-zinc-950\/40,
-        body.light-theme .bg-zinc-900\/90,
-        body.light-theme .bg-zinc-900\/80,
-        body.light-theme .bg-zinc-900\/50 {
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            border-color: #cbd5e1 !important;
+        body.light-theme .bg-emerald-950\/60 {
+            background-color: #d1fae5 !important;
+            color: #065f46 !important;
+            border-color: #a7f3d0 !important;
         }
-        body.light-theme .border-zinc-800,
-        body.light-theme .border-zinc-800\/90,
-        body.light-theme .border-zinc-800\/80,
-        body.light-theme .border-zinc-800\/60,
-        body.light-theme .border-zinc-800\/40 {
-            border-color: #cbd5e1 !important;
+        body.light-theme .bg-cyan-950\/60 {
+            background-color: #cffaff !important;
+            color: #164e63 !important;
+            border-color: #a5f3fc !important;
         }
-        body.light-theme .md-content code {
-            background: #e2e8f0;
-            border-color: #cbd5e1;
-            color: #0284c7;
+
+        /* High Visibility Warning & Amber Styling in Light Theme */
+        body.light-theme .warning-banner,
+        html.light-theme .warning-banner {
+            background-color: #fffbeb !important; /* Soft warm amber-50 background */
+            border-color: #fcd34d !important; /* Gold border */
+            color: #78350f !important;
         }
-        body.light-theme .md-content pre {
-            background: #0f172a;
-            color: #f8fafc;
+
+        body.light-theme .warning-title-badge,
+        html.light-theme .warning-title-badge {
+            background-color: #b45309 !important; /* Rich dark amber badge fill */
+            color: #ffffff !important; /* CRISP WHITE TEXT */
         }
+
+        body.light-theme .warning-subtitle,
+        html.light-theme .warning-subtitle {
+            color: #92400e !important; /* Deep amber-800 text */
+            font-weight: 700 !important;
+        }
+
+        body.light-theme .warning-list,
+        body.light-theme .warning-list li,
+        html.light-theme .warning-list li {
+            color: #78350f !important; /* Deep amber-900 text */
+            font-weight: 600 !important;
+        }
+
+        body.light-theme .text-amber-400,
+        body.light-theme .text-amber-300,
+        body.light-theme .text-amber-200,
+        body.light-theme .text-yellow-400,
+        body.light-theme .text-yellow-300,
+        body.light-theme .text-yellow-500 {
+            color: #92400e !important; /* Dark amber-800 for high readability */
+            font-weight: 700 !important;
+        }
+
+        body.light-theme .bg-amber-500\/10,
+        body.light-theme .bg-amber-500\/20,
+        body.light-theme .bg-amber-950\/60,
+        body.light-theme .bg-amber-900\/40,
+        body.light-theme .bg-amber-950\/40 {
+            background-color: #fef3c7 !important; /* Rich amber-100 tint */
+            color: #92400e !important;
+        }
+
+        body.light-theme .border-amber-500\/20,
+        body.light-theme .border-amber-500\/30,
+        body.light-theme .border-amber-800,
+        body.light-theme .border-l-amber-500 {
+            border-color: #d97706 !important;
+        }
+
+        /* Emerald / Success Overrides */
+        body.light-theme .text-emerald-400,
+        body.light-theme .text-emerald-300 {
+            color: #047857 !important;
+            font-weight: 700 !important;
+        }
+        body.light-theme .bg-emerald-500\/10,
+        body.light-theme .bg-emerald-500\/20,
+        body.light-theme .bg-emerald-950\/60 {
+            background-color: #d1fae5 !important;
+            color: #065f46 !important;
+        }
+
+        /* Indigo / Primary Overrides */
+        body.light-theme .text-indigo-400,
+        body.light-theme .text-indigo-300 {
+            color: #4338ca !important;
+            font-weight: 700 !important;
+        }
+        body.light-theme .bg-indigo-500\/10,
+        body.light-theme .bg-indigo-500\/20,
+        body.light-theme .bg-indigo-950\/60 {
+            background-color: #e0e7ff !important;
+            color: #3730a3 !important;
+        }
+
+        /* Rose / Danger Overrides */
+        body.light-theme .text-rose-400,
+        body.light-theme .text-rose-300 {
+            color: #be123c !important;
+            font-weight: 700 !important;
+        }
+        body.light-theme .bg-rose-500\/10,
+        body.light-theme .bg-rose-500\/20,
+        body.light-theme .bg-rose-950\/60 {
+            background-color: #ffe4e6 !important;
+            color: #9f1239 !important;
+        }
+
+        /* Markdown Overrides */
         body.light-theme .md-content h1,
         body.light-theme .md-content h2,
         body.light-theme .md-content h3,
         body.light-theme .md-content strong {
             color: #0f172a !important;
         }
-        body.light-theme #console-logs {
-            background-color: #f8fafc !important;
+        body.light-theme .md-content p,
+        body.light-theme .md-content li {
+            color: #1e293b !important;
+        }
+        body.light-theme .md-content code {
+            background: #e2e8f0 !important;
             border-color: #cbd5e1 !important;
+            color: #0369a1 !important;
+        }
+        body.light-theme .md-content pre {
+            background: #0f172a !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
         }
     </style>
 </head>
@@ -205,6 +389,12 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 <button id="theme-toggle-btn" onclick="toggleTheme()" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 rounded-full text-xs font-mono font-bold transition-all cursor-pointer shadow-sm">
                     <span id="theme-toggle-icon">☀️</span> <span id="theme-toggle-text" class="hidden sm:inline">Light Mode</span>
                 </button>
+
+                {{ if .Warnings }}
+                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider" title="System warnings or mock settings connected">
+                    <span>⚠️</span> <span>Mock/Warnings Active</span>
+                </div>
+                {{ end }}
 
                 <div class="hidden md:flex items-center gap-3 border-r border-zinc-800 pr-4">
                     <div class="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
@@ -256,13 +446,13 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
 
     <!-- System Config Warnings Banner -->
     {{ if .Warnings }}
-    <div class="bg-amber-950/40 border-b border-amber-500/30 px-4 py-3 text-amber-200 backdrop-blur-md">
+    <div class="bg-amber-950/40 border-b border-amber-500/30 px-4 py-3 text-amber-200 backdrop-blur-md warning-banner">
         <div class="max-w-7xl mx-auto flex flex-col gap-2">
             <div class="flex items-center gap-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-zinc-950 px-2 py-0.5 rounded font-mono shadow-sm">System Warnings</span>
-                <span class="text-xs text-amber-300 font-mono">Environment setup recommendations:</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-zinc-950 px-2 py-0.5 rounded font-mono shadow-sm warning-title-badge">System Warnings</span>
+                <span class="text-xs text-amber-300 font-mono warning-subtitle">Environment setup recommendations:</span>
             </div>
-            <ul class="list-disc list-inside text-xs space-y-1 text-amber-200/90 font-mono">
+            <ul class="list-disc list-inside text-xs space-y-1 text-amber-200/90 font-mono warning-list">
                 {{ range .Warnings }}
                 <li>{{ . }}</li>
                 {{ end }}
@@ -835,8 +1025,8 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             <!-- Canvas Container & Side Inspector Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-[550px]">
                 <!-- Interactive Canvas (3 Cols) -->
-                <div class="lg:col-span-3 glass-card rounded-2xl p-2 relative overflow-hidden border border-zinc-800 flex flex-col">
-                    <canvas id="network-canvas" class="w-full h-full min-h-[520px] rounded-xl bg-zinc-950/80 cursor-grab active:cursor-grabbing block"></canvas>
+                <div class="lg:col-span-3 glass-card rounded-2xl p-2 relative overflow-hidden border border-zinc-800 flex flex-col min-h-[520px]">
+                    <canvas id="network-canvas" class="w-full h-full min-h-[520px] rounded-xl bg-zinc-950/80 cursor-grab active:cursor-grabbing block" style="min-height: 520px; width: 100%; height: 520px;"></canvas>
                 </div>
 
                 <!-- Node Inspector Drawer (1 Col) -->
@@ -910,6 +1100,13 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
     <script>
         function toggleTheme() {
             const isLight = document.body.classList.toggle('light-theme');
+            if (isLight) {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light-theme');
+            } else {
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light-theme');
+            }
             localStorage.setItem('theme_preference', isLight ? 'light' : 'dark');
             updateThemeUI(isLight);
         }
@@ -925,6 +1122,8 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             const saved = localStorage.getItem('theme_preference');
             if (saved === 'light') {
                 document.body.classList.add('light-theme');
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light-theme');
                 updateThemeUI(true);
             }
         });
@@ -952,6 +1151,20 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     consoleDiv.scrollTop = consoleDiv.scrollHeight;
                 }
             }, 50);
+        });
+
+        document.addEventListener('htmx:afterSwap', function(e) {
+            if (e.target && (e.target.id === 'console-logs' || (e.target.classList && e.target.classList.contains('log-entry')))) {
+                const logs = e.target.querySelectorAll ? e.target.querySelectorAll('.log-entry') : [e.target];
+                if (logs.length > 0) {
+                    const lastLog = logs[logs.length - 1];
+                    const sender = lastLog.getAttribute('data-sender') || '';
+                    const recipient = lastLog.getAttribute('data-recipient') || '';
+                    if (typeof emitLiveNetworkPulse === 'function') {
+                        emitLiveNetworkPulse(sender, recipient);
+                    }
+                }
+            }
         });
 
         window.currentLogFilter = 'all';
@@ -1336,6 +1549,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         }
 
         window.addEventListener('DOMContentLoaded', function() {
+            setTimeout(initNetworkVisualizer, 50);
             if (window.location.hash) {
                 const hash = window.location.hash.replace('#', '');
                 if (['dashboard', 'studio', 'audit', 'network', 'config', 'scheduler'].includes(hash)) {
@@ -1358,23 +1572,36 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         function initNetworkVisualizer() {
             const canvas = document.getElementById('network-canvas');
             if (!canvas) return;
-            const ctx = canvas.getContext('2d');
 
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * (window.devicePixelRatio || 1);
-            canvas.height = (rect.height || 520) * (window.devicePixelRatio || 1);
-            ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+            const container = canvas.parentElement;
+            const w = Math.max(300, (container && container.clientWidth > 0 ? container.clientWidth - 16 : 800));
+            const h = Math.max(300, (container && container.clientHeight > 0 ? container.clientHeight - 16 : 520));
+
+            const hasNaN = networkNodes.some(n => isNaN(n.x) || isNaN(n.y));
+
+            if (!networkNodes || networkNodes.length === 0 || hasNaN) {
+                setupGraphTopology([], [], w, h);
+            }
+
+            if (!isSimulating) {
+                isSimulating = true;
+                requestAnimationFrame(renderNetworkLoop);
+            }
 
             fetch('/api/network/topology')
                 .then(res => res.json())
                 .then(data => {
-                    setupGraphTopology(data.nodes || [], data.edges || [], rect.width, rect.height || 520);
-                    if (!isSimulating) {
-                        isSimulating = true;
-                        requestAnimationFrame(renderNetworkLoop);
+                    if (data && data.nodes && data.nodes.length > 0) {
+                        const curCanvas = document.getElementById('network-canvas');
+                        const curContainer = curCanvas ? curCanvas.parentElement : null;
+                        const curW = Math.max(300, (curContainer && curContainer.clientWidth > 0 ? curContainer.clientWidth - 16 : w));
+                        const curH = Math.max(300, (curContainer && curContainer.clientHeight > 0 ? curContainer.clientHeight - 16 : h));
+                        setupGraphTopology(data.nodes, data.edges || [], curW, curH);
                     }
                 })
-                .catch(err => console.error('Failed to load network topology:', err));
+                .catch(err => {
+                    console.warn('Network topology fetch warning:', err);
+                });
 
             canvas.onmousedown = function(e) {
                 const pos = getCanvasMousePos(canvas, e);
@@ -1418,6 +1645,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         function findNodeAtPos(x, y) {
             for (let i = networkNodes.length - 1; i >= 0; i--) {
                 const n = networkNodes[i];
+                if (!n || isNaN(n.x) || isNaN(n.y)) continue;
                 const dx = n.x - x;
                 const dy = n.y - y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1427,36 +1655,82 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         }
 
         function setupGraphTopology(rawNodes, rawEdges, width, height) {
-            const cx = width / 2;
-            const cy = height / 2;
+            const cx = (width && width > 100) ? width / 2 : 400;
+            const cy = (height && height > 100) ? height / 2 : 260;
 
-            networkNodes = rawNodes.map((rn, idx) => {
-                let radius = 18;
-                let color = '#818cf8';
-                if (rn.category === 'user') { radius = 22; color = '#f59e0b'; }
-                else if (rn.category === 'orchestrator') { radius = 20; color = '#6366f1'; }
-                else if (rn.category === 'specialist') { radius = 18; color = '#10b981'; }
-                else if (rn.category === 'tool') { radius = 12; color = '#0284c7'; }
+            if (!rawNodes || rawNodes.length === 0) {
+                rawNodes = [
+                    { id: "USER", label: "User / Client", category: "user", role: "Task Dispatcher" },
+                    { id: "triage-agent", label: "Triage Agent", category: "orchestrator", role: "Intent Router & Gatekeeper" },
+                    { id: "planner-agent", label: "Planner Agent", category: "orchestrator", role: "Task Decomposer & DAG Planner" },
+                    { id: "supervisor-agent", label: "Supervisor Agent", category: "orchestrator", role: "Goal Verifier" },
+                    { id: "developer-agent", label: "Developer Agent", category: "specialist", role: "Code Generation & Execution", tools: ["read_file", "write_file", "execute_python_docker"] },
+                    { id: "researcher-agent", label: "Researcher Agent", category: "specialist", role: "Deep Web Search & PDF Synthesis", tools: ["web_search_and_extract", "generate_pdf_report"] },
+                    { id: "quant-agent", label: "Quant Agent", category: "specialist", role: "Options Pricing & Forward Curves", tools: ["query_compute_prices", "query_options_chain"] },
+                    { id: "writer-agent", label: "Writer Agent", category: "specialist", role: "Document Synthesis", tools: ["write_file"] },
+                    { id: "tool:web_search_and_extract", label: "web_search", category: "tool", role: "Live Web Search" },
+                    { id: "tool:execute_python_docker", label: "python_docker", category: "tool", role: "Docker Python Sandbox" },
+                    { id: "tool:generate_pdf_report", label: "pdf_report", category: "tool", role: "PDF Generator" }
+                ];
+                rawEdges = [
+                    { source: "USER", target: "triage-agent", weight: 10 },
+                    { source: "triage-agent", target: "planner-agent", weight: 5 },
+                    { source: "triage-agent", target: "developer-agent", weight: 8 },
+                    { source: "triage-agent", target: "researcher-agent", weight: 8 },
+                    { source: "triage-agent", target: "quant-agent", weight: 6 },
+                    { source: "triage-agent", target: "writer-agent", weight: 6 },
+                    { source: "supervisor-agent", target: "triage-agent", weight: 3 },
+                    { source: "developer-agent", target: "tool:execute_python_docker", weight: 2 },
+                    { source: "researcher-agent", target: "tool:web_search_and_extract", weight: 2 },
+                    { source: "researcher-agent", target: "tool:generate_pdf_report", weight: 2 }
+                ];
+            }
 
-                const angle = (idx / rawNodes.length) * Math.PI * 2;
-                const dist = rn.category === 'user' ? 0 : (rn.category === 'orchestrator' ? 90 : (rn.category === 'specialist' ? 180 : 250));
-                
-                return {
-                    id: rn.id,
-                    label: rn.label,
-                    category: rn.category,
-                    role: rn.role,
-                    tools: rn.tools || [],
-                    radius: radius,
-                    color: color,
-                    x: cx + Math.cos(angle) * dist + (Math.random() - 0.5) * 20,
-                    y: cy + Math.sin(angle) * dist + (Math.random() - 0.5) * 20,
-                    vx: 0,
-                    vy: 0,
-                    fx: null,
-                    fy: null
-                };
-            });
+            const userNodes = rawNodes.filter(n => n.category === 'user');
+            const orchNodes = rawNodes.filter(n => n.category === 'orchestrator');
+            const specNodes = rawNodes.filter(n => n.category === 'specialist');
+            const toolNodes = rawNodes.filter(n => n.category === 'tool');
+            const otherNodes = rawNodes.filter(n => !['user', 'orchestrator', 'specialist', 'tool'].includes(n.category));
+
+            const placeRing = (nodes, radius, baseAngleOffset = 0) => {
+                const count = nodes.length;
+                return nodes.map((rn, idx) => {
+                    const angle = baseAngleOffset + (count > 0 ? (idx / count) * Math.PI * 2 : 0);
+                    let nodeRadius = 18;
+                    let color = '#818cf8';
+                    if (rn.category === 'user') { nodeRadius = 22; color = '#f59e0b'; }
+                    else if (rn.category === 'orchestrator') { nodeRadius = 20; color = '#6366f1'; }
+                    else if (rn.category === 'specialist') { nodeRadius = 18; color = '#10b981'; }
+                    else if (rn.category === 'tool') { nodeRadius = 12; color = '#0284c7'; }
+
+                    const initX = cx + (radius === 0 ? 0 : Math.cos(angle) * radius) + (Math.random() - 0.5) * 10;
+                    const initY = cy + (radius === 0 ? 0 : Math.sin(angle) * radius) + (Math.random() - 0.5) * 10;
+
+                    return {
+                        id: rn.id,
+                        label: rn.label,
+                        category: rn.category,
+                        role: rn.role,
+                        tools: rn.tools || [],
+                        radius: nodeRadius,
+                        color: color,
+                        x: isNaN(initX) ? cx : initX,
+                        y: isNaN(initY) ? cy : initY,
+                        vx: 0,
+                        vy: 0,
+                        fx: null,
+                        fy: null
+                    };
+                });
+            };
+
+            const placedUser = placeRing(userNodes, 0);
+            const placedOrch = placeRing(orchNodes, Math.min(cx, cy) * 0.35);
+            const placedSpec = placeRing(specNodes, Math.min(cx, cy) * 0.65, Math.PI / 8);
+            const placedTool = placeRing(toolNodes, Math.min(cx, cy) * 0.88, Math.PI / 4);
+            const placedOther = placeRing(otherNodes, Math.min(cx, cy) * 0.95);
+
+            networkNodes = [...placedUser, ...placedOrch, ...placedSpec, ...placedTool, ...placedOther];
 
             const nodeMap = {};
             networkNodes.forEach(n => { nodeMap[n.id] = n; });
@@ -1478,16 +1752,30 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 return;
             }
             const ctx = canvas.getContext('2d');
-            const width = canvas.width / (window.devicePixelRatio || 1);
-            const height = canvas.height / (window.devicePixelRatio || 1);
+            const dpr = window.devicePixelRatio || 1;
+            const container = canvas.parentElement;
+            const width = Math.max(300, (container && container.clientWidth > 0 ? container.clientWidth - 16 : 800));
+            const height = Math.max(300, (container && container.clientHeight > 0 ? container.clientHeight - 16 : 520));
 
-            updatePhysics(width, height);
+            if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+                canvas.width = Math.floor(width * dpr);
+                canvas.height = Math.floor(height * dpr);
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+            }
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            if (container && container.clientWidth > 0) {
+                updatePhysics(width, height);
+            }
 
             const isLight = document.body.classList.contains('light-theme');
             ctx.fillStyle = isLight ? '#f8fafc' : '#09090b';
             ctx.fillRect(0, 0, width, height);
 
             networkEdges.forEach(e => {
+                if (!e.source || !e.target) return;
+                if (isNaN(e.source.x) || isNaN(e.source.y) || isNaN(e.target.x) || isNaN(e.target.y)) return;
                 ctx.beginPath();
                 ctx.moveTo(e.source.x, e.source.y);
                 ctx.lineTo(e.target.x, e.target.y);
@@ -1503,6 +1791,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     networkPulses.splice(i, 1);
                     continue;
                 }
+                if (isNaN(p.source.x) || isNaN(p.source.y) || isNaN(p.target.x) || isNaN(p.target.y)) continue;
                 const px = p.source.x + (p.target.x - p.source.x) * p.progress;
                 const py = p.source.y + (p.target.y - p.source.y) * p.progress;
 
@@ -1510,26 +1799,28 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 ctx.arc(px, py, 5, 0, Math.PI * 2);
                 ctx.fillStyle = p.color || '#38bdf8';
                 ctx.shadowColor = p.color || '#38bdf8';
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 12;
                 ctx.fill();
                 ctx.shadowBlur = 0;
             }
 
             networkNodes.forEach(n => {
+                if (!n || isNaN(n.x) || isNaN(n.y)) return;
                 const isSelected = selectedNode && selectedNode.id === n.id;
+                const isGlowing = n.glowUntil && n.glowUntil > Date.now();
 
                 ctx.beginPath();
-                ctx.arc(n.x, n.y, n.radius + (isSelected ? 3 : 0), 0, Math.PI * 2);
+                ctx.arc(n.x, n.y, n.radius + (isSelected ? 4 : (isGlowing ? 3 : 0)), 0, Math.PI * 2);
                 ctx.fillStyle = n.color;
-                if (isSelected) {
+                if (isSelected || isGlowing) {
                     ctx.shadowColor = n.color;
-                    ctx.shadowBlur = 16;
+                    ctx.shadowBlur = isGlowing ? 20 : 14;
                 }
                 ctx.fill();
                 ctx.shadowBlur = 0;
 
-                ctx.strokeStyle = isLight ? '#ffffff' : '#18181b';
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = isGlowing ? '#ffffff' : (isLight ? '#ffffff' : '#18181b');
+                ctx.lineWidth = isGlowing ? 3 : 2;
                 ctx.stroke();
 
                 ctx.font = (n.category === 'tool' ? '9px' : '11px') + ' JetBrains Mono, monospace';
@@ -1542,18 +1833,34 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         }
 
         function updatePhysics(width, height) {
-            const k = 0.05;
-            const rep = 800;
+            if (!networkNodes || networkNodes.length === 0) return;
+
             const cx = width / 2;
             const cy = height / 2;
+            const nodeCount = networkNodes.length;
+            const k = 0.04;
+            const rep = Math.min(1000, Math.max(150, 12000 / Math.max(1, nodeCount)));
+            const maxSpeed = 10;
 
-            for (let i = 0; i < networkNodes.length; i++) {
+            for (let i = 0; i < nodeCount; i++) {
                 const na = networkNodes[i];
-                for (let j = i + 1; j < networkNodes.length; j++) {
+                if (!na || isNaN(na.x) || isNaN(na.y)) {
+                    if (na) { na.x = cx; na.y = cy; na.vx = 0; na.vy = 0; }
+                    continue;
+                }
+                for (let j = i + 1; j < nodeCount; j++) {
                     const nb = networkNodes[j];
-                    const dx = nb.x - na.x;
-                    const dy = nb.y - na.y;
-                    const distSq = dx * dx + dy * dy + 0.1;
+                    if (!nb || isNaN(nb.x) || isNaN(nb.y)) {
+                        if (nb) { nb.x = cx; nb.y = cy; nb.vx = 0; nb.vy = 0; }
+                        continue;
+                    }
+                    let dx = nb.x - na.x;
+                    let dy = nb.y - na.y;
+                    if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
+                        dx = (Math.random() - 0.5) * 4;
+                        dy = (Math.random() - 0.5) * 4;
+                    }
+                    const distSq = dx * dx + dy * dy + 1.0;
                     const dist = Math.sqrt(distSq);
                     const force = rep / distSq;
 
@@ -1566,10 +1873,13 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             }
 
             networkEdges.forEach(e => {
-                const dx = e.target.x - e.source.x;
-                const dy = e.target.y - e.source.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) + 0.1;
-                const desired = e.target.category === 'tool' ? 60 : 130;
+                if (!e.source || !e.target) return;
+                if (isNaN(e.source.x) || isNaN(e.source.y) || isNaN(e.target.x) || isNaN(e.target.y)) return;
+
+                let dx = e.target.x - e.source.x;
+                let dy = e.target.y - e.source.y;
+                let dist = Math.sqrt(dx * dx + dy * dy) + 0.1;
+                const desired = e.target.category === 'tool' ? 70 : 130;
                 const delta = dist - desired;
                 const force = delta * k;
 
@@ -1581,6 +1891,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             });
 
             networkNodes.forEach(n => {
+                if (!n || isNaN(n.x) || isNaN(n.y)) return;
                 if (n.fx !== null) {
                     n.x = n.fx;
                     n.y = n.fy;
@@ -1589,14 +1900,27 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 n.vx += (cx - n.x) * 0.002;
                 n.vy += (cy - n.y) * 0.002;
 
-                n.vx *= 0.85;
-                n.vy *= 0.85;
+                n.vx *= 0.82;
+                n.vy *= 0.82;
+
+                const speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+                if (speed > maxSpeed) {
+                    n.vx = (n.vx / speed) * maxSpeed;
+                    n.vy = (n.vy / speed) * maxSpeed;
+                }
 
                 n.x += n.vx;
                 n.y += n.vy;
 
-                n.x = Math.max(n.radius + 10, Math.min(width - n.radius - 10, n.x));
-                n.y = Math.max(n.radius + 10, Math.min(height - n.radius - 10, n.y));
+                const minX = n.radius + 12;
+                const maxX = width - n.radius - 12;
+                const minY = n.radius + 12;
+                const maxY = height - n.radius - 12;
+
+                if (n.x < minX) { n.x = minX; n.vx = 0; }
+                if (n.x > maxX) { n.x = maxX; n.vx = 0; }
+                if (n.y < minY) { n.y = minY; n.vy = 0; }
+                if (n.y > maxY) { n.y = maxY; n.vy = 0; }
             });
         }
 
@@ -1667,6 +1991,36 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
 
         function resetNetworkLayout() {
             initNetworkVisualizer();
+        }
+
+        function emitLiveNetworkPulse(sender, recipient) {
+            if (!networkNodes || networkNodes.length === 0) return;
+
+            let srcId = sender || 'USER';
+            let tgtId = recipient || 'triage-agent';
+
+            let srcNode = networkNodes.find(n => n.id === srcId || n.id.toLowerCase() === srcId.toLowerCase());
+            let tgtNode = networkNodes.find(n => n.id === tgtId || n.id.toLowerCase() === tgtId.toLowerCase());
+
+            if (!srcNode) {
+                srcNode = networkNodes.find(n => n.category === 'user' || n.id === 'USER') || networkNodes[0];
+            }
+            if (!tgtNode) {
+                tgtNode = networkNodes.find(n => n.category === 'orchestrator' || n.id === 'triage-agent') || networkNodes[1] || networkNodes[0];
+            }
+
+            if (srcNode && tgtNode) {
+                srcNode.glowUntil = Date.now() + 2500;
+                tgtNode.glowUntil = Date.now() + 2500;
+
+                networkPulses.push({
+                    source: srcNode,
+                    target: tgtNode,
+                    progress: 0,
+                    speed: 0.02 + Math.random() * 0.01,
+                    color: srcNode.color || '#f59e0b'
+                });
+            }
         }
 
         let currentArtifactRawText = "";
@@ -1748,6 +2102,27 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeArtifactViewer();
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a');
+            if (link) {
+                const href = link.getAttribute('href') || '';
+                if (href.startsWith('file:') || href.startsWith('file://')) {
+                    e.preventDefault();
+                    const cleanPath = href.replace(/^file:\/\//, '').replace(/^file:/, '').replace(/[.,;:\s]+$/, '');
+                    const baseName = cleanPath.split('/').pop().split('?')[0];
+                    let type = 'file';
+                    const lower = baseName.toLowerCase();
+                    if (lower.endsWith('.pdf')) type = 'pdf';
+                    else if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp')) type = 'image';
+                    else if (lower.endsWith('.md') || lower.endsWith('.txt')) type = 'doc';
+                    else if (lower.endsWith('.json')) type = 'json';
+                    else if (lower.endsWith('.py') || lower.endsWith('.sh') || lower.endsWith('.go')) type = 'code';
+
+                    openArtifactViewer(cleanPath, baseName, type, 'agent');
+                }
             }
         });
     </script>
@@ -1840,9 +2215,9 @@ var LogSnippetTemplate = template.Must(template.New("log").Parse(`
 <div class="log-entry py-2.5 px-3 rounded-lg border border-zinc-900 hover:border-zinc-800 hover:bg-zinc-900/40 flex gap-3 items-start text-zinc-300 transition-all group" data-sender="{{.Sender}}" data-recipient="{{.Recipient}}">
     <span class="text-zinc-500 shrink-0 select-none font-mono text-[9px] pt-0.5 whitespace-nowrap">[{{.Time}}]</span>
     <div class="flex items-center gap-1.5 shrink-0 text-[10px] font-mono">
-        <span class="px-2 py-0.5 rounded font-bold uppercase shadow-sm bg-zinc-800 text-zinc-200 border border-zinc-700">{{.Sender}}</span>
-        <span class="text-zinc-600">➔</span>
-        <span class="px-2 py-0.5 rounded font-bold uppercase shadow-sm bg-zinc-900 text-zinc-400 border border-zinc-800">{{.Recipient}}</span>
+        <span class="sender-badge px-2 py-0.5 rounded font-bold uppercase shadow-sm bg-zinc-800 text-zinc-200 border border-zinc-700" data-sender="{{.Sender}}">{{.Sender}}</span>
+        <span class="text-zinc-400">➔</span>
+        <span class="recipient-badge px-2 py-0.5 rounded font-bold uppercase shadow-sm bg-zinc-900 text-zinc-400 border border-zinc-800" data-recipient="{{.Recipient}}">{{.Recipient}}</span>
     </div>
     <div id="md-{{.Time}}-{{.Sender}}" class="md-content text-zinc-200 flex-1 min-w-0 text-[11px] leading-relaxed"></div>
 </div>

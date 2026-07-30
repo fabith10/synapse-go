@@ -134,7 +134,20 @@ func CheckSystemWarnings() []string {
 		}
 	}
 
-	// 5. Evaluate User-Defined Custom Warning Checks
+	// 5. Mock Mode & Environment Settings Checks
+	if os.Getenv("USE_MOCK_PRICING") == "true" || os.Getenv("MOCK_PRICING") == "true" || os.Getenv("PRICING_PROVIDER") == "mock" {
+		warnings = append(warnings, "⚠️ Mock Pricing Mode Active: Pricing Oracle is returning synthetic compute & option pricing data.")
+	}
+
+	if os.Getenv("USE_MOCK_MODELS") == "true" || os.Getenv("MOCK_MODELS") == "true" || os.Getenv("MOCK_LLM") == "true" {
+		warnings = append(warnings, "⚠️ Mock Models Mode Active: LLM inference is using fallback simulated model responses.")
+	}
+
+	if os.Getenv("USE_MOCK_TOOLS") == "true" || os.Getenv("MOCK_TOOLS") == "true" || os.Getenv("MOCK_COMPUTE") == "true" || activeTools["submit_mock_task"] || activeTools["check_mock_task"] || activeTools["query_compute_prices"] || activeTools["query_forward_curves"] || activeTools["query_options_chain"] || activeTools["query_vol_surface"] {
+		warnings = append(warnings, "⚠️ Mock Compute Tools Connected: Specialist agents are interacting with simulated mock API endpoints (/api/mock/*).")
+	}
+
+	// 6. Evaluate User-Defined Custom Warning Checks
 	for _, custom := range cfg.CustomChecks {
 		checkID := strings.ToLower(strings.TrimSpace(custom.ID))
 		if checkID != "" && disabledMap[checkID] {
