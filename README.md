@@ -1,7 +1,6 @@
 # ⚡ SynapseGo (`synapse-go`)
 
 [![Go Version](https://img.shields.io/badge/go-1.26+-00ADD8?style=flat-square&logo=go)](https://go.dev)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Sandboxing](https://img.shields.io/badge/Sandboxing-WASM%20%7C%20Docker-blueviolet?style=flat-square)]()
 [![Build Status](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)]()
 
