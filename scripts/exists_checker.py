@@ -1,0 +1,1 @@
+import os; if os.path.exists('scripts/gpu_cost_optimizer.py') and os.path.isfile('scripts/gpu_cost_optimizer.py'): print('Found existing script'); else: print('No existing script found')

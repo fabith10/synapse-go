@@ -1,0 +1,83 @@
+{
+  "active_provider": "mock",
+  "deferral_policy": {
+    "enabled": true,
+    "bypass_all": false,
+    "cost_threshold_usd": 1,
+    "token_threshold": 50000,
+    "peak_start_hour_utc": 8,
+    "peak_end_hour_utc": 18,
+    "spot_multipliers": [
+      0.82,
+      0.8,
+      0.79,
+      0.79,
+      0.8,
+      0.83,
+      0.9,
+      0.95,
+      1.08,
+      1.15,
+      1.18,
+      1.2,
+      1.22,
+      1.22,
+      1.2,
+      1.18,
+      1.15,
+      1.1,
+      1.05,
+      0.98,
+      0.95,
+      0.92,
+      0.88,
+      0.85
+    ],
+    "vol_multipliers": [
+      0.32,
+      0.7,
+      0.75,
+      0.78,
+      0.72,
+      0.45,
+      0.35,
+      0.32,
+      0.28,
+      0.25,
+      0.25,
+      0.26,
+      0.27,
+      0.28,
+      0.28,
+      0.29,
+      0.3,
+      0.31,
+      0.32,
+      0.33,
+      0.34,
+      0.33,
+      0.32,
+      0.31
+    ]
+  },
+  "providers": {
+    "coingecko": {
+      "type": "coingecko",
+      "description": "Dynamic provider coingecko"
+    },
+    "mock": {
+      "type": "mock",
+      "description": "Internal mock compute pricing and task execution endpoints",
+      "base_url": "http://localhost:8080"
+    },
+    "nonexistent_provider": {
+      "type": "nonexistent_provider",
+      "description": "Dynamic provider nonexistent_provider"
+    },
+    "static_json": {
+      "type": "static_json",
+      "description": "Local workspace static JSON pricing matrix",
+      "file_path": "pricing_matrix.json"
+    }
+  }
+}

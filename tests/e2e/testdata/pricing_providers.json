@@ -1,0 +1,34 @@
+{
+  "active_provider": "mock",
+  "deferral_policy": {
+    "enabled": true,
+    "bypass_all": false,
+    "cost_threshold_usd": 1.0,
+    "token_threshold": 50000,
+    "peak_start_hour_utc": 0,
+    "peak_end_hour_utc": 23
+  },
+  "providers": {
+    "coingecko": {
+      "type": "coingecko",
+      "description": "Live Ethereum benchmark spot price index from CoinGecko API",
+      "api_url": "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+    },
+    "custom_http": {
+      "type": "custom_http",
+      "description": "External custom HTTP compute pricing API",
+      "base_url": "https://api.example.com",
+      "api_key_env": "PRICING_API_KEY"
+    },
+    "mock": {
+      "type": "mock",
+      "description": "Internal mock compute pricing and task execution endpoints",
+      "base_url": "http://localhost:8080"
+    },
+    "static_json": {
+      "type": "static_json",
+      "description": "Local workspace static JSON pricing matrix",
+      "file_path": "pricing_matrix.json"
+    }
+  }
+}

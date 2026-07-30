@@ -1,0 +1,1 @@
+import os; from scripts.gpu_cost_optimizer import optimize_costs; optimize_costs()

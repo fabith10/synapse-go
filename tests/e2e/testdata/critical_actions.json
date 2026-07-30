@@ -1,0 +1,17 @@
+{
+  "risky_python_keywords": [
+    "os.system",
+    "subprocess",
+    "eval",
+    "exec",
+    "sh",
+    "pty"
+  ],
+  "production_excel_patterns": [
+    "production",
+    "prod"
+  ],
+  "internal_email_domains": [
+    "company.com"
+  ]
+}

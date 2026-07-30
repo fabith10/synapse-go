@@ -1,0 +1,37 @@
+# Environment variables containing sensitive credentials
+.env
+.env.local
+
+# Local database files & locks
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+
+# Compiled binaries, test executables & build folders
+agent-framework
+main
+*.test
+bin/
+
+# Runtime logs, output directories & scratch files
+*.log
+logs/
+uploads/
+emails/
+scratch/
+reports/
+
+# Spreadsheets & analysis dumps
+*.xlsx
+security_analysis_report.txt
+
+# Python bytecode and cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Operating system & IDE artifacts
+.DS_Store
+.vscode/
+.idea/
