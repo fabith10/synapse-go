@@ -576,9 +576,13 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                         <span class="text-[9px] font-mono text-zinc-400">Reports, Code, PDF &amp; Workbooks</span>
                     </div>
                     <div id="artifacts-list" sse-swap="artifact-ready" hx-swap="afterbegin" class="space-y-3">
-                        <div id="artifacts-empty" class="text-[11px] text-zinc-400 italic p-6 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
-                            NO ARTIFACTS PRODUCED YET. GENERATED DELIVERABLES WILL BE CAPTURED HERE.
-                        </div>
+                        {{if .ArtifactsHTML}}
+                            {{.ArtifactsHTML}}
+                        {{else}}
+                            <div id="artifacts-empty" class="text-[11px] text-zinc-400 italic p-6 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
+                                NO ARTIFACTS PRODUCED YET. GENERATED DELIVERABLES WILL BE CAPTURED HERE.
+                            </div>
+                        {{end}}
                     </div>
                 </section>
             </div>

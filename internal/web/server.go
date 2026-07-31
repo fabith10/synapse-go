@@ -80,6 +80,14 @@ type ConvTurn struct {
 	Content string
 }
 
+type ArtifactItem struct {
+	Path         string
+	Filename     string
+	ArtifactType string
+	Agent        string
+	Time         string
+}
+
 // Server acts as the web backend serving dashboard templates and HTMX requests.
 type Server struct {
 	runtime     *adk.Runtime
@@ -91,6 +99,9 @@ type Server struct {
 	// dispatch arrives at triage with full conversation context.
 	convHistory []ConvTurn
 	historyMu   sync.Mutex
+
+	artifacts   []ArtifactItem
+	artifactsMu sync.Mutex
 
 	mockTaskStore   *MockTaskStore
 	mockTaskStoreMu sync.Once
@@ -378,6 +389,125 @@ type DashboardData struct {
 	RiskyPythonKeywordsStr  string
 	RequireApprovalToolsStr string
 	Schedules               []*ScheduleWithNext
+	ArtifactsHTML           template.HTML
+}
+
+func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
+	s.artifactsMu.Lock()
+	defer s.artifactsMu.Unlock()
+
+	discovered := make([]ArtifactItem, 0)
+	seen := make(map[string]bool)
+
+	for _, art := range s.artifacts {
+		if !seen[art.Path] {
+			seen[art.Path] = true
+			discovered = append(discovered, art)
+		}
+	}
+
+	absWd, err := os.Getwd()
+	if err != nil {
+		return discovered
+	}
+
+	searchDirs := []string{"reports", "uploads", "emails", "workbooks", "scripts", "scratch", "output", "."}
+	for _, dir := range searchDirs {
+		targetDir := absWd
+		if dir != "." {
+			targetDir = filepath.Join(absWd, dir)
+		}
+		entries, err := os.ReadDir(targetDir)
+		if err != nil {
+			continue
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+
+			name := entry.Name()
+			if strings.HasPrefix(name, ".") || name == "go.mod" || name == "go.sum" ||
+				name == "agents.json" || name == "models.json" || name == "mock_models.json" ||
+				name == "schedules.json" || name == "critical_actions.json" || name == "open_weight_rates.json" ||
+				name == "pricing_providers.json" || name == "Makefile" || name == "AGENTS.md" {
+				continue
+			}
+
+			relPath := name
+			if dir != "." {
+				relPath = filepath.Join(dir, name)
+			}
+
+			if seen[relPath] {
+				continue
+			}
+
+			extLower := strings.ToLower(filepath.Ext(name))
+			artifactType := ""
+			switch extLower {
+			case ".pdf":
+				artifactType = "pdf"
+			case ".xlsx", ".xls", ".csv":
+				artifactType = "excel"
+			case ".py", ".sh", ".js", ".go", ".css", ".html":
+				artifactType = "code"
+			case ".json":
+				if strings.Contains(name, "report") || strings.Contains(name, "job") || strings.Contains(name, "matching") || strings.Contains(name, "rank") {
+					artifactType = "json"
+				}
+			case ".txt":
+				if dir == "emails" || strings.Contains(name, "email") {
+					artifactType = "email"
+				} else {
+					artifactType = "text"
+				}
+			case ".md":
+				if name != "README.md" {
+					artifactType = "doc"
+				}
+			case ".png", ".jpg", ".jpeg", ".webp", ".svg":
+				artifactType = "image"
+			}
+
+			if artifactType == "" {
+				continue
+			}
+
+			agentName := "agent"
+			if dir == "emails" || strings.Contains(name, "email") {
+				agentName = "email-agent"
+			} else if dir == "reports" || strings.Contains(name, "report") || extLower == ".pdf" {
+				agentName = "researcher-agent"
+			} else if extLower == ".xlsx" || extLower == ".xls" {
+				agentName = "excel-agent"
+			} else if extLower == ".py" || extLower == ".sh" || dir == "scripts" {
+				agentName = "developer-agent"
+			} else if strings.Contains(name, "job") || strings.Contains(name, "match") {
+				agentName = "browser-agent"
+			}
+
+			info, err := entry.Info()
+			modTime := time.Now().Format("15:04:05")
+			if err == nil {
+				modTime = info.ModTime().Format("15:04:05")
+			}
+
+			art := ArtifactItem{
+				Path:         relPath,
+				Filename:     name,
+				ArtifactType: artifactType,
+				Agent:        agentName,
+				Time:         modTime,
+			}
+			seen[relPath] = true
+			discovered = append(discovered, art)
+		}
+	}
+
+	s.artifacts = discovered
+	return discovered
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -439,6 +569,21 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Scan and render accumulated artifacts
+	artifactsList := s.scanArtifactsFromDisk()
+	var artifactsBuf bytes.Buffer
+	for _, art := range artifactsList {
+		var cardBuf bytes.Buffer
+		_ = ArtifactCardTemplate.Execute(&cardBuf, map[string]string{
+			"ArtifactType": art.ArtifactType,
+			"Filename":     art.Filename,
+			"Agent":        art.Agent,
+			"Time":         art.Time,
+			"Path":         art.Path,
+		})
+		artifactsBuf.WriteString(cardBuf.String())
+	}
+
 	data := DashboardData{
 		Warnings:                warnings,
 		AgentsConfig:            agents,
@@ -448,6 +593,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		RiskyPythonKeywordsStr:  strings.Join(agent.CriticalActions.RiskyPythonKeywords, ", "),
 		RequireApprovalToolsStr: strings.Join(agent.CriticalActions.RequireApprovalTools, ", "),
 		Schedules:               schedulesWithNext,
+		ArtifactsHTML:           template.HTML(artifactsBuf.String()),
 	}
 
 	DashboardPage.Execute(w, data)
