@@ -7,46 +7,56 @@
 A high-speed, secure multi-agent orchestrator framework built strictly in Go. This framework implements a three-tier sandbox execution strategy (Native Go, WebAssembly, and Docker), centralized orchestrator event-loop routing, real-time HTMX-powered mobile steering dashboard, and robust semantic prompt-injection firewalls.
 
 ---
-
 ## Architecture Overview
 
 ```
-                      +---------------------------------------+
-                      |          HTTP Dashboard (HTMX)        |
-                      |   (Real-Time Mobile & Web HITL Panel) |
-                      +-------------------+-------------------+
-                                          | Real-Time Event Logs & HITL Approvals
-                                          v
-                      +---------------------------------------+
-                      |     SynapseGo Orchestrator Router      | <--- Middleware Pipeline
-                      |         (Central Event Loop)          |      (Logging, Tracing, Guardrails,
-                      +-------------------+-------------------+       InjectionFilter, CostLimits)
-                                          |
-         +--------------------------------+--------------------------------+
-         |                                |                                |
-         v                                v                                v
-+------------------+             +------------------+             +------------------+
-|   triage-agent   |             |    etl-agent     |             |   quant-agent    |
-|   (Gatekeeper)   |             | (Data Harvester) |             |  (Math Engine)   |
-+--------+---------+             +--------+---------+             +--------+---------+
-         |                                |                                |
-         | (Tier 1 Native Go)             | (Tier 2 WASM Sandbox)          | (Tier 3 Docker SDK)
-         | - [query_pricing_oracle]       | - [wazero Engine]              | - [execute_python_docker]
-         | - [sqlite_checkpoints]         | - [wasm_json_mapper]           | - [execute_bash_docker]
-         |                                                                 |
-         +--------------------------------+--------------------------------+
-                                          |
-                                          v
-                      +---------------------------------------+
-                      |     excel-agent & researcher-agent    |
-                      |     (Spreadsheet Hero & Deep Research)|
-                      +-------------------+-------------------+
-                                          |
-                                          | (Tier 1 Native Tool Extensions)
-                                          | - [modify_excel_workbook]
-                                          | - [web_search_and_extract]
-                                          | - [generate_pdf_report]
-```
+                          +-------------------------------------------------------+
+                          |        HTTP Control Dashboard (HTMX + SSE)            |
+                          |  - Real-Time Live Logs & Interactive Steering Panel   |
+                          |  - 🕸️ Live Force-Directed Agent Topology Canvas       |
+                          +--------------------------+----------------------------+
+                                                     | Real-Time SSE Telemetry & Steering
+                                                     v
+                          +-------------------------------------------------------+
+                          |            SynapseGo Orchestrator Engine              |
+                          |        (Central MessageBus Event-Loop Dispatcher)     |
+                          +--------------------------+----------------------------+
+                                                     | Middleware Pipeline
+                                                     | (Tracing, Guardrails, InjectionFilter, CostLimits)
+                                                     v
+                          +-------------------------------------------------------+
+                          |               triage-agent (Gatekeeper)               |
+                          |      (Dynamic Capability Matching & Intent Router)    |
+                          +----+---------------------+----------------------+-----+
+                               |                     |                      |
+            +------------------+                     |                      +------------------+
+            |                                        v                                         |
+            v                               +------------------+                               v
+ +--------------------+                     |  planner-agent   |                     +--------------------+
+ |  supervisor-agent  |                     | (DAG Task Dissect|                     | Dynamic Specialist |
+ | (Goal QA & Verifier|                     +--------+---------+                     |   Agents Pool      |
+ +--------------------+                              |                               +---------+----------+
+                                                     v                                         |
+                                            +------------------+                               |
+                                            | developer-agent  |                               |
+                                            | researcher-agent |<------------------------------+
+                                            |   quant-agent    |  Dynamic Agent Blueprints
+                                            |   writer-agent   |  (Loaded via GetLoadedAgentConfigs)
+                                            |   browser-agent  |
+                                            |   excel-agent    |
+                                            |   email-agent    |
+                                            +--------+---------+
+                                                     |
+             +---------------------------------------+---------------------------------------+
+             |                                       |                                       |
+             v                                       v                                       v
++------------------------+              +------------------------+              +------------------------+
+| Tier 1: Native Go      |              | Tier 2: WASM Sandbox   |              | Tier 3: Docker SDK     |
+| - Excelize (XML)       |              | - Wazero Engine        |              | - Ephemeral Python     |
+| - Chromedp (DOM)       |              | - Isolated Code Exec   |              | - Ephemeral Bash Exec  |
+| - SQLite Ledger        |              | - Zero Network Access  |              | - Resource Capped      |
++------------------------+              +------------------------+              +------------------------+
+`````
 
 ### 1. Central Event Loop & Orchestrator
 All communication—User-to-Agent (U2A) and Agent-to-Agent (A2A)—flows through the Go Orchestrator's central `MessageBus`. A unified dispatcher compiles and executes a chain of composeable middlewares before delivering payloads to the target agent mailboxes.
@@ -454,7 +464,7 @@ Open **`http://localhost:8080`** in your browser.
 ### Step 3: Monitor Execution & Visual Insights
 
 - **📜 Live Log Console**: Watch real-time Server-Sent Events (SSE) stream detailed progress logs from `triage-agent`, `planner-agent`, specialist agents, and supervisor checks.
-- **🕸️ Agent Network Topology Graph**: Click the **🕸️ Network Graph** tab to see an interactive, real-time force-directed canvas. Glowing signal pulses travel along edges as agents delegate tasks and execute tools.
+- **🕸️ Agent Network Topology Graph**: Click the **🕸️ Network Graph** tab to view an interactive, real-time force-directed canvas. Built dynamically from registered agent configurations (`GetLoadedAgentConfigs()`), active firing agent nodes expand, glow, and emit animated ripple rings in real time as SSE log stream events fire.
 - **📊 Cost & Telemetry Ledger**: Click the **📊 Cost & Audit** tab to inspect token consumption per model, USD cost breakdowns, and export downloadable CSV execution reports.
 
 ---
