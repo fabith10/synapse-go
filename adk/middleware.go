@@ -178,13 +178,14 @@ func GetClassifierModel() string {
 	return classifierModel
 }
 
-// isMalicious queries a local or commercial LLM provider to semantically classify the prompt.
+// IsMalicious queries a local or commercial LLM provider to semantically classify the prompt.
 // Supports both unified LLMClient (OpenAI, Anthropic, Gemini, DeepSeek, Ollama) and direct Ollama fallback.
-func isMalicious(ctx context.Context, scanTarget string) bool {
-	return isMaliciousWithClient(ctx, nil, scanTarget)
+func IsMalicious(ctx context.Context, scanTarget string) bool {
+	return IsMaliciousWithClient(ctx, nil, scanTarget)
 }
 
-func isMaliciousWithClient(ctx context.Context, client LLMClient, userInput string) bool {
+// IsMaliciousWithClient classifies user prompts using a specific LLMClient or default fallback client.
+func IsMaliciousWithClient(ctx context.Context, client LLMClient, userInput string) bool {
 	if os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" {
 		return false
 	}
@@ -337,7 +338,7 @@ func (MiddlewareNamespace) InjectionGuardrail(optionalClient ...LLMClient) Middl
 		}
 
 		// 3. Semantic LLM Check (Supports commercial APIs or local models via LLMClient)
-		if isMaliciousWithClient(ctx, client, scanTarget) {
+		if IsMaliciousWithClient(ctx, client, scanTarget) {
 			reason := "Semantic prompt injection or system override detected by security firewall"
 			fmt.Printf("security violation: %s in message to %q; dropped\n", reason, msg.Recipient)
 			next(Message{

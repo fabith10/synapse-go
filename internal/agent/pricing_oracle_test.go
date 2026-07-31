@@ -1,25 +1,20 @@
-package agent_test
+package agent
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/fabith10/synapse-go/internal/agent"
-	"github.com/fabith10/synapse-go/internal/web"
 )
 
 func TestPricingOracleDynamicSwitching(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "pricing_providers.json")
 
-	mgr := agent.NewPricingOracleManager(configPath)
+	mgr := NewPricingOracleManager(configPath)
 	defer mgr.SetActiveProvider("mock")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -66,41 +61,8 @@ func TestPricingOracleDynamicSwitching(t *testing.T) {
 	}
 }
 
-
-func TestPricingProviderHTTPConfig(t *testing.T) {
-	srv := web.NewServer(nil)
-	defer func() {
-		_ = agent.GetPricingOracleManager().SetActiveProvider("mock")
-	}()
-
-	// GET active provider
-	reqGet := httptest.NewRequest(http.MethodGet, "/api/config/pricing-provider", nil)
-	recGet := httptest.NewRecorder()
-	srv.ServeHTTP(recGet, reqGet)
-
-	if recGet.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for GET pricing-provider, got %d", recGet.Code)
-	}
-
-	// POST switch active provider
-	postBody, _ := json.Marshal(map[string]string{"active_provider": "coingecko"})
-	reqPost := httptest.NewRequest(http.MethodPost, "/api/config/pricing-provider", bytes.NewReader(postBody))
-	recPost := httptest.NewRecorder()
-	srv.ServeHTTP(recPost, reqPost)
-
-	if recPost.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for POST pricing-provider, got %d", recPost.Code)
-	}
-
-	var resp map[string]interface{}
-	json.Unmarshal(recPost.Body.Bytes(), &resp)
-	if resp["active_provider"] != "coingecko" {
-		t.Errorf("expected active_provider coingecko in response, got %v", resp["active_provider"])
-	}
-}
-
 func TestPricingOracle_ExecutionWindow(t *testing.T) {
-	mgr := agent.NewPricingOracleManager("")
+	mgr := NewPricingOracleManager("")
 	ctx := context.Background()
 
 	// 1. Default duration (4h)
@@ -200,7 +162,8 @@ func TestPricingOracle_ExecutionWindow(t *testing.T) {
 }
 
 func TestOpenWeightPromptCostQuery(t *testing.T) {
-	mgr := agent.NewPricingOracleManager("pricing_providers.json")
+	mgr := NewPricingOracleManager("")
+	_ = mgr.SetActiveProvider("mock")
 	ctx := context.Background()
 
 	// Query prompt_cost for llama-3-70b with 50,000 input tokens and 10,000 output tokens

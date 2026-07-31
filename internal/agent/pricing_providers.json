@@ -61,10 +61,6 @@
     ]
   },
   "providers": {
-    "coingecko": {
-      "type": "coingecko",
-      "description": "Dynamic provider coingecko"
-    },
     "mock": {
       "type": "mock",
       "description": "Internal mock compute pricing and task execution endpoints",

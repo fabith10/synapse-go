@@ -341,6 +341,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux.HandleFunc("/api/config/save", s.handleConfigSave)
 	mux.HandleFunc("/api/config/pricing-provider", s.handlePricingProviderConfig)
 	mux.HandleFunc("/api/artifact", s.handleArtifact)
+	mux.HandleFunc("/api/artifact/delete", s.handleArtifactDelete)
+	mux.HandleFunc("/api/artifact/delete-all", s.handleArtifactDeleteAll)
 	mux.HandleFunc("/api/schedules", s.handleSchedules)
 	mux.HandleFunc("/api/schedules/", s.handleSchedules)
 
@@ -439,10 +441,10 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 			}
 
 			name := entry.Name()
-			if strings.HasPrefix(name, ".") || name == "go.mod" || name == "go.sum" ||
+			if strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".go") || name == "go.mod" || name == "go.sum" ||
 				name == "agents.json" || name == "models.json" || name == "mock_models.json" ||
 				name == "schedules.json" || name == "critical_actions.json" || name == "open_weight_rates.json" ||
-				name == "pricing_providers.json" || name == "Makefile" || name == "AGENTS.md" {
+				name == "pricing_providers.json" || name == "Makefile" || name == "AGENTS.md" || name == "README.md" {
 				continue
 			}
 
@@ -1020,6 +1022,134 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", filepath.Base(absPath)))
 	http.ServeFile(w, r, absPath)
+}
+
+func (s *Server) handleArtifactDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rawPath := r.FormValue("path")
+	if rawPath == "" {
+		rawPath = r.URL.Query().Get("path")
+	}
+	if rawPath == "" {
+		http.Error(w, "Missing path parameter", http.StatusBadRequest)
+		return
+	}
+
+	rawPath = strings.TrimPrefix(rawPath, "file://")
+	rawPath = strings.TrimPrefix(rawPath, "file:")
+	rawPath = strings.Trim(rawPath, " \t\n\r`\"'()[]{}.,;:")
+
+	wd, _ := os.Getwd()
+	absWd, _ := filepath.Abs(wd)
+
+	targetPath := rawPath
+	if !filepath.IsAbs(targetPath) {
+		targetPath = filepath.Join(absWd, targetPath)
+	}
+
+	absPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+
+	// Fallback resolution if not found directly
+	if _, statErr := os.Stat(absPath); os.IsNotExist(statErr) {
+		baseName := strings.Trim(filepath.Base(rawPath), " \t\n\r`\"'()[]{}.,;:")
+		candidates := []string{
+			filepath.Join(absWd, rawPath),
+			filepath.Join(absWd, baseName),
+			filepath.Join(absWd, "reports", baseName),
+			filepath.Join(absWd, "emails", baseName),
+			filepath.Join(absWd, "workbooks", baseName),
+			filepath.Join(absWd, "scripts", baseName),
+			filepath.Join(absWd, "scratch", baseName),
+			filepath.Join(absWd, "artifacts", baseName),
+			filepath.Join(absWd, "output", baseName),
+			filepath.Join(absWd, "uploads", baseName),
+		}
+		for _, cand := range candidates {
+			if _, statC := os.Stat(cand); statC == nil {
+				absPath = cand
+				break
+			}
+		}
+	}
+
+	baseName := filepath.Base(absPath)
+	if strings.HasSuffix(baseName, ".go") || baseName == "go.mod" || baseName == "go.sum" ||
+		baseName == "agents.json" || baseName == "models.json" || baseName == "Makefile" {
+		http.Error(w, "Forbidden: system file", http.StatusForbidden)
+		return
+	}
+
+	// Boundary check: must be inside workspace directory
+	if !strings.HasPrefix(absPath, absWd) {
+		http.Error(w, "Forbidden: outside workspace", http.StatusForbidden)
+		return
+	}
+
+	// Delete file from disk
+	if err := os.Remove(absPath); err != nil && !os.IsNotExist(err) {
+		logger.WithComponent("web").Warn("Failed to delete artifact file", "path", absPath, "error", err)
+	} else {
+		logger.WithComponent("web").Info("Successfully deleted artifact file from disk", "path", absPath)
+	}
+
+	// Update in-memory artifacts slice thread-safely
+	s.artifactsMu.Lock()
+	newArtifacts := make([]ArtifactItem, 0, len(s.artifacts))
+	for _, a := range s.artifacts {
+		if a.Path != rawPath && a.Path != absPath && filepath.Base(a.Path) != filepath.Base(rawPath) {
+			newArtifacts = append(newArtifacts, a)
+		}
+	}
+	s.artifacts = newArtifacts
+	s.artifactsMu.Unlock()
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleArtifactDeleteAll(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	wd, _ := os.Getwd()
+	absWd, _ := filepath.Abs(wd)
+
+	discovered := s.scanArtifactsFromDisk()
+
+	s.artifactsMu.Lock()
+	for _, item := range discovered {
+		absP := item.Path
+		if !filepath.IsAbs(absP) {
+			absP = filepath.Join(absWd, item.Path)
+		}
+		absP, _ = filepath.Abs(absP)
+		baseName := filepath.Base(absP)
+		if strings.HasSuffix(baseName, ".go") || baseName == "go.mod" || baseName == "go.sum" ||
+			baseName == "agents.json" || baseName == "models.json" || baseName == "Makefile" || baseName == "README.md" || baseName == "AGENTS.md" {
+			continue
+		}
+		if strings.HasPrefix(absP, absWd) {
+			_ = os.Remove(absP)
+		}
+	}
+	s.artifacts = nil
+	s.artifactsMu.Unlock()
+
+	logger.WithComponent("web").Info("Successfully cleared all artifacts from disk and memory")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`<div id="artifacts-empty" class="text-[11px] text-zinc-400 italic p-6 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
+        NO ARTIFACTS PRODUCED YET. GENERATED DELIVERABLES WILL BE CAPTURED HERE.
+    </div>`))
 }
 
 // handleSchedules handles creation, listing and deletion of active cron schedules.
