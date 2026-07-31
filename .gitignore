@@ -34,4 +34,5 @@ __pycache__/
 # Operating system & IDE artifacts
 .DS_Store
 .vscode/
+.agents/
 .idea/

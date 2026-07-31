@@ -159,7 +159,7 @@ func main() {
 ## Secure Prompt Injection Firewalls
 
 1. **Input Firewall (`InjectionGuardrail`):** Outermost middleware that scans all bus messages. Immediate drops occur for known heuristics (`"ignore previous"`, `"system override"`, etc.).
-2. **Local Semantic Classifier (`isMalicious`):** Communicates with a local Llama instance via the official Ollama client SDK to analyze Role Hijacking. Fails-open if the daemon is offline; fails-closed if parser format errors occur.
+2. **Provider-Agnostic Semantic Classifier (`isMalicious`):** Operates through the unified `adk.LLMClient` broker pipeline, allowing **any** commercial API (OpenAI `gpt-4o-mini`, Anthropic `claude-3-haiku`, Google `gemini-1.5-flash`, Groq, DeepSeek) or local open-weight model (`llama3`, `qwen2.5`, `mistral`) to analyze Role Hijacking and prompt injection. Configurable via environment variables (`OLLAMA_CLASSIFIER_MODEL`, `CLASSIFIER_MODEL`), `adk.Config.ClassifierModel`, or `adk.SetClassifierModel("gpt-4o-mini")` with automatic failover to local Ollama.
 3. **XML Delimiter Boundary Hardening:** Wraps raw prompts in structural `<user_data>` tags to clearly demarcate untrusted content for LLMs.
 4. **Scraper HTML Sanitizer:** Raw crawls are processed by a strict `microcosm-cc/bluemonday` policy to strip hidden scripts and injection blocks.
 
@@ -290,7 +290,7 @@ To execute the full multi-sandbox execution suite, ensure your machine satisfies
 ### 1. System Requirements
 - **Go Version:** `1.26+` (required for modern compiler features and standard library structures).
 - **Docker Daemon:** Active local daemon (e.g. Docker Desktop) to execute Tier 3 container math scripts.
-- **Ollama Client Daemon:** Local Ollama runner (listening on default `http://127.0.0.1:11434`) with the `llama3` model pulled (`ollama pull llama3`) to support semantic prompt injection classifications.
+- **Ollama Client Daemon:** Local Ollama runner (listening on default `http://127.0.0.1:11434`) with your configured classifier model pulled (`ollama pull llama3`, `ollama pull qwen2.5`, or `ollama pull mistral`) to support semantic prompt injection classifications.
 
 ### 2. Core Go Dependencies
 
@@ -304,7 +304,7 @@ SynapseGo relies on key open-source Go libraries for sandboxing, database persis
 | **`github.com/xuri/excelize/v2`** | `v2.11.0` | Native XML spreadsheet parser and calculation engine (`excel-agent`). |
 | **`github.com/chromedp/chromedp`** | `v0.16.0` | Headless & headed Chrome browser automation driver (`browser-agent`). |
 | **`github.com/microcosm-cc/bluemonday`** | `v1.0.27` | Strict HTML sanitizer for prompt injection defense on scraped web pages (`etl-agent`). |
-| **`github.com/ollama/ollama`** | `v0.32.1` | Official Ollama SDK for local Llama-based semantic injection classification. |
+| **`github.com/ollama/ollama`** | `v0.32.1` | Official Ollama SDK for configurable local LLM semantic injection classification. |
 | **`github.com/ledongthuc/pdf`** | `v0.0.0` | Native Go PDF text extraction engine (`extract_pdf_text` tool). |
 | **`go.opentelemetry.io/otel`** | `v1.44.0` | OpenTelemetry distributed tracing and observability. |
 | **`github.com/joho/godotenv`** | `v1.5.1` | Automated environment variable loading from local `.env` files. |
@@ -325,11 +325,15 @@ go mod tidy
 ```
 
 #### Step 2: Set Up Local Firewalls (Ollama)
-Ensure the local Ollama daemon is running, then pull the required classifier model:
+Ensure the local Ollama daemon is running, then pull your configured classifier model (defaults to `llama3`):
 ```bash
 ollama pull llama3
+
+# Or set a custom model (e.g. Qwen 2.5 or Mistral):
+# export OLLAMA_CLASSIFIER_MODEL="qwen2.5"
+# ollama pull qwen2.5
 ```
-*Note: If the Ollama service is unavailable, the InjectionGuardrail middleware logs a warning and automatically falls back to fail-open mode.*
+*Note: If the Ollama service is unavailable, the `InjectionGuardrail` middleware logs a warning and automatically falls back to fail-open mode.*
 
 #### Step 3: Run the Local Test Suite
 Ensure your local Docker daemon (e.g. Docker Desktop) is online:
