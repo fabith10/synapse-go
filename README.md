@@ -4,7 +4,16 @@
 [![Sandboxing](https://img.shields.io/badge/Sandboxing-WASM%20%7C%20Docker-blueviolet?style=flat-square)]()
 [![Build Status](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)]()
 
-A high-speed, secure multi-agent orchestrator framework built strictly in Go. This framework implements a three-tier sandbox execution strategy (Native Go, WebAssembly, and Docker), centralized orchestrator event-loop routing, real-time HTMX-powered mobile steering dashboard, and robust semantic prompt-injection firewalls.
+A high-speed, secure multi-agent orchestrator framework built strictly in Go. This framework implements a three-tier sandbox execution strategy (Native Go, WebAssembly, and Docker), prudent triage routing with real-time pricing oracle queries, automated optimal execution window finding, an HTMX-powered mobile steering dashboard, and robust semantic prompt-injection firewalls.
+
+---
+
+### 🌟 Key Distinctive Features
+
+- 💰 **Prudent Triage Agent & Continuous Pricing Oracle Queries**: The `triage-agent` acts as a cost-conscious gatekeeper that can query the `PricingOracle` (`query_pricing_oracle`) **at any time** during execution. It inspects live LLM model token rates (Tiers 0 & 1) and spot GPU compute lease rates (Tier 2/3 spot hardware) before routing tasks, guaranteeing that compute selection fits within strict budget boundaries.
+- ⏰ **Optimal Execution Window Finding & Cross-Data-Center Off-Peak Unloading**: Automatically calculates cost-vs-latency trade-offs across global data center regions (e.g., US-East, EU-Central, Asia-Pacific). For heavy open-weight model tasks (such as Llama 3, DeepSeek, or Qwen inference), the orchestrator calculates regional timezone rate curves and can defer or unload execution to data centers currently operating in their lowest off-peak spot pricing windows.
+- 🔒 **Three-Tier Execution Containment**: Isolates workloads across Native Go (Tier 1), WebAssembly/Wazero zero-trust memory sandboxes (Tier 2), and resource-capped Docker SDK containers (Tier 3).
+- 🕸️ **Real-Time Live Topology & SSE Firing Pulses**: Displays dynamic agent topology on a force-directed canvas with real-time Server-Sent Events (SSE) illuminating firing agent nodes with expanding ripple rings.
 
 ---
 ## Architecture Overview
@@ -69,7 +78,7 @@ SynapseGo ships out-of-the-box with **Core Orchestrator Agents** and **Specialis
 #### A. Core Orchestrator Agents
 | Agent ID | Role | Description & Primary Responsibilities |
 | :--- | :--- | :--- |
-| **`triage-agent`** | **System Gatekeeper** | Outermost entry point. Classifies incoming prompts, enriches underspecified user requests, queries `query_pricing_oracle` to select cost-effective compute nodes, and routes tasks. |
+| **`triage-agent`** | **Prudent Gatekeeper & Intent Router** | Outermost entry point. Classifies incoming prompts, enriches underspecified user requests, continuously queries `query_pricing_oracle` at any time to select cost-effective model/compute nodes, evaluates cost-vs-latency curves to find optimal execution windows, and routes tasks. |
 | **`planner-agent`** | **Task Dissector & Planner** | Dissects complex multi-step goals into directed task graphs with explicit dependencies and targeted agent assignments. |
 | **`supervisor-agent`** | **Goal Supervisor & QA** | Evaluates specialist output against the original user goal (`DONE`, `RETRY`, `ESCALATE`), enforcing strict validation rules (e.g. script execution for math vs LLM mental math). |
 
