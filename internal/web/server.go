@@ -3,7 +3,9 @@ package web
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -26,6 +28,87 @@ import (
 
 //go:embed static/*
 var staticFS embed.FS
+
+// ---------------------------------------------------------------------------
+// CSRF Protection (C-3)
+// ---------------------------------------------------------------------------
+
+const (
+	csrfCookieName = "_csrf_token"
+	csrfHeaderName = "X-CSRF-Token"
+	csrfTokenLen   = 32 // bytes → 64 hex chars
+)
+
+// generateCSRFToken returns a cryptographically random hex token.
+func generateCSRFToken() (string, error) {
+	b := make([]byte, csrfTokenLen)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// csrfMiddleware implements the double-submit cookie pattern:
+//   - On GET/HEAD/OPTIONS/SSE: generate a CSRF token cookie if absent.
+//   - On mutating methods (POST, PUT, PATCH, DELETE): verify that the
+//     X-CSRF-Token header matches the _csrf_token cookie value.
+//
+// The SSE endpoint is excluded because it is a streaming GET.
+func csrfMiddleware(next http.Handler) http.Handler {
+	// These paths use GET semantics or are safe to exclude.
+	exempt := map[string]bool{
+		"/stream/logs": true, // SSE — GET-based streaming
+	}
+
+	safeMethods := map[string]bool{
+		http.MethodGet:     true,
+		http.MethodHead:    true,
+		http.MethodOptions: true,
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Always set or refresh the CSRF cookie on safe requests.
+		if safeMethods[r.Method] {
+			if _, err := r.Cookie(csrfCookieName); err != nil {
+				if tok, err := generateCSRFToken(); err == nil {
+					http.SetCookie(w, &http.Cookie{
+						Name:     csrfCookieName,
+						Value:    tok,
+						Path:     "/",
+						HttpOnly: false, // JS must read this to set the header
+						SameSite: http.SameSiteStrictMode,
+					})
+				}
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Exempt specific paths.
+		if exempt[r.URL.Path] {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// For mutating requests: validate CSRF token.
+		cookie, err := r.Cookie(csrfCookieName)
+		if err != nil || cookie.Value == "" {
+			http.Error(w, "CSRF token missing", http.StatusForbidden)
+			return
+		}
+		headerTok := r.Header.Get(csrfHeaderName)
+		if headerTok == "" {
+			// Also accept the token from a form field for HTMX compatibility.
+			headerTok = r.FormValue("_csrf_token")
+		}
+		if headerTok != cookie.Value {
+			http.Error(w, "CSRF token invalid", http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
 
 // LogBroker manages subscribers for the Server-Sent Events (SSE) logs.
 type LogBroker struct {
@@ -376,7 +459,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(subFS))))
 	}
 
-	mux.ServeHTTP(w, r)
+	// Security (C-3): wrap the entire mux with CSRF protection.
+	csrfMiddleware(mux).ServeHTTP(w, r)
 }
 
 func (s *Server) checkWarnings() []string {
@@ -638,12 +722,12 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	origin := r.Header.Get("Origin")
-	if origin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
+	// Security (H-4): Restrict CORS to same-origin only. The dashboard is
+	// served from the same host/port, so no cross-origin header is needed.
+	// Set CORS_ALLOW_ORIGIN env var for intentional cross-origin setups.
+	if allowedOrigin := os.Getenv("CORS_ALLOW_ORIGIN"); allowedOrigin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	} else {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 	}
 
 	rc := http.NewResponseController(w)
@@ -829,7 +913,8 @@ func (s *Server) handleConfigSave(w http.ResponseWriter, r *http.Request) {
 
 	agentsBytes, err := json.MarshalIndent(agentsConfig, "", "  ")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal agents config: %v", err), http.StatusInternalServerError)
+		logger.WithComponent("web").Error("Failed to marshal agents config", "error", err)
+		http.Error(w, "Failed to encode configuration", http.StatusInternalServerError)
 		return
 	}
 
@@ -874,11 +959,13 @@ func (s *Server) handleConfigSave(w http.ResponseWriter, r *http.Request) {
 
 	// 4. Write configs to disk
 	if err := os.WriteFile("agents.json", agentsBytes, 0644); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to write agents.json: %v", err), http.StatusInternalServerError)
+		logger.WithComponent("web").Error("Failed to write agents.json", "error", err)
+		http.Error(w, "Failed to save agent configuration", http.StatusInternalServerError)
 		return
 	}
 	if err := os.WriteFile("models.json", []byte(modelsJSON), 0644); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to write models.json: %v", err), http.StatusInternalServerError)
+		logger.WithComponent("web").Error("Failed to write models.json", "error", err)
+		http.Error(w, "Failed to save models configuration", http.StatusInternalServerError)
 		return
 	}
 
@@ -986,16 +1073,17 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Security bounds: workspace root, allowed directories, or .gemini brain dir
+	// 3. Security bounds (M-1): restrict to artifact-producing directories only.
+	// Source code directories (internal, adk, cmd) are explicitly excluded.
 	allowed := false
-	if strings.HasPrefix(absPath, absWd+string(filepath.Separator)) || absPath == absWd {
-		allowed = true
-	} else if strings.HasPrefix(absPath, geminiBrainDir+string(filepath.Separator)) || absPath == geminiBrainDir || strings.HasPrefix(absPath, filepath.Dir(geminiBrainDir)) {
+	if strings.HasPrefix(absPath, geminiBrainDir+string(filepath.Separator)) || absPath == geminiBrainDir {
+		// Allow reads within the brain dir itself (not its parent).
 		allowed = true
 	} else {
-		allowedDirs := []string{"reports", "emails", "workbooks", "scripts", "models", "scratch", "agents", "internal", "adk", "cmd", "output", "artifacts", "testdata"}
+		// Only artifact-producing directories are served — no source code.
+		allowedDirs := []string{"reports", "emails", "uploads", "workbooks", "scratch", "output", "artifacts"}
 		for _, dir := range allowedDirs {
-			absDir, _ := filepath.Abs(dir)
+			absDir := filepath.Join(absWd, dir)
 			if strings.HasPrefix(absPath, absDir+string(filepath.Separator)) || absPath == absDir {
 				allowed = true
 				break
@@ -1103,8 +1191,9 @@ func (s *Server) handleArtifactDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Boundary check: must be inside workspace directory
-	if !strings.HasPrefix(absPath, absWd) {
+	// Boundary check (M-2): must be strictly inside workspace directory.
+	// Append separator to prevent matching sibling dirs (e.g. /project-backup).
+	if !strings.HasPrefix(absPath, absWd+string(filepath.Separator)) {
 		http.Error(w, "Forbidden: outside workspace", http.StatusForbidden)
 		return
 	}
@@ -1324,6 +1413,8 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 			Tools        []string              `json:"tools"`
 		}
 
+		// Security (L-1): cap request body to 1 MB to prevent memory exhaustion.
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1421,10 +1512,12 @@ func (s *Server) handleImportAgentBlueprint(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	// Security (L-1): cap import payload to 512 KB.
+	r.Body = http.MaxBytesReader(w, r.Body, 512<<10)
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": err.Error()})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Request body too large or unreadable"})
 		return
 	}
 
@@ -1469,10 +1562,12 @@ func (s *Server) handleModelsConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPost {
+		// Security (L-1): cap models.json payload to 256 KB.
+		r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": err.Error()})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Request body too large or unreadable"})
 			return
 		}
 

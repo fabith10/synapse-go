@@ -243,15 +243,55 @@ To dynamically update or override agent system prompts without recompiling Go co
 The bootstrap routine loads these variables and applies them directly to the mutable system prompts of the corresponding registered agents (`triage-agent`, `etl-agent`, `quant-agent`, `excel-agent`, `researcher-agent`). If missing, the framework defaults to the built-in blueprint prompts.
 
 ### 5. Secrets & Environment Configuration (`.env`)
-To prevent checking sensitive API keys into public repositories, the framework uses environment-specific parameters.
 
-1. **Local Development (.env):** Rename `.env.example` to `.env` in the root folder and add your credentials:
-   ```env
-   GEMINI_API_KEY=your_key_here
-   OPENAI_API_KEY=your_key_here
-   ```
-   At boot time, `godotenv` automatically loads `.env` variables into system environment memory.
-2. **Cloud/Staging Environments:** Since `.env` is listed in `.gitignore`, you should inject environment variables natively via your hosting provider (e.g. Kubernetes, AWS ECS, GCP Cloud Run). The framework fails-open/gracefully handles the absence of a local `.env` file and reads environment properties directly.
+The framework reads all configuration from environment variables. For local development, copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+# then edit .env with your API keys
+```
+
+> **See [`.env.example`](.env.example) for the full annotated reference with every available variable, its accepted values, and its default.**
+
+At boot time, `godotenv` automatically loads `.env` into the process environment. For production, inject variables via your platform (Kubernetes Secrets, AWS ECS task definition, GCP Secret Manager, etc.).
+
+#### Quick-Reference Table
+
+| Variable | Section | Default | Description |
+|---|---|---|---|
+| `GEMINI_API_KEY` | LLM Keys | — | Google Gemini API key |
+| `OPENAI_API_KEY` | LLM Keys | — | OpenAI GPT API key |
+| `ANTHROPIC_API_KEY` | LLM Keys | — | Anthropic Claude API key |
+| `TAVILY_API_KEY` | Tool Keys | — | Tavily web-search API key (researcher-agent) |
+| `PRICING_API_KEY` | Tool Keys | — | Auth key for custom HTTP pricing provider |
+| `PORT` | Web Server | `8080` | Dashboard HTTP port |
+| `BIND_ADDR` | Web Server | `127.0.0.1` | Network interface to bind (`0.0.0.0` for containers) |
+| `CORS_ALLOW_ORIGIN` | Web Server | _(same-origin)_ | Allowed CORS origin for SSE endpoint |
+| `SQLITE_DSN` | Database | `agent_framework.db` | SQLite connection string |
+| `PRICING_PROVIDER` | Pricing | `mock` | Active adapter: `mock` \| `coingecko` \| `custom_http` \| `static_json` |
+| `PRICING_ORACLE_URL` | Pricing | — | Base URL override for custom HTTP pricing API |
+| `FORCE_URGENT` | Pricing | — | `true` = skip off-peak deferral, run all tasks immediately |
+| `DEFERRAL_BYPASS` | Pricing | — | `true` = disable deferral scheduler entirely |
+| `OLLAMA_HOST` | Ollama | `http://127.0.0.1:11434` | Ollama daemon URL |
+| `OLLAMA_CLASSIFIER_MODEL` | Ollama | `llama3` | Model for semantic injection guardrail |
+| `CLASSIFIER_MODEL` | Ollama | `llama3` | Fallback classifier model name |
+| `GUARDRAIL_MODEL` | Ollama | `llama3` | Second fallback classifier model name |
+| `EMBEDDING_MODEL` | Ollama | `nomic-embed-text` | Ollama model for RAG embeddings |
+| `HEADED` / `BROWSER_HEADED` | Browser | _(headless)_ | `true` = launch Chrome with visible window |
+| `HEADLESS` | Browser | `true` | `false` = force headed Chrome |
+| `BROWSER_PROXY` / `HTTP_PROXY` | Browser | — | HTTP proxy for headless Chrome |
+| `BROWSER_USER_DATA_DIR` | Browser | — | Chrome profile dir for persistent sessions |
+| `DOCKER_ALLOW_NETWORK` | Docker | _(disabled)_ | `true` = enable network in sandbox containers |
+| `LOG_LEVEL` | Logging | `info` | `debug` \| `info` \| `warn` \| `error` |
+| `LOG_FORMAT` | Logging | `text` | `text` \| `json` |
+| `LOG_FILE` | Logging | _(stdout only)_ | File path to append logs to |
+| `AGENT_FRAMEWORK_TESTING` | Dev/Test | — | `true` = enable test mode (disables routing, guardrails, browser open) |
+| `AGENT_FRAMEWORK_BYPASS_HITL` | Dev/Test | — | `true` = skip HITL reviews **only when combined with `AGENT_FRAMEWORK_TESTING=true`** |
+| `SUPPRESS_WARNINGS` | Dev/Test | — | Any non-empty value suppresses dashboard startup warnings |
+| `OFF_PEAK_TEST_DELAY_SECS` | Dev/Test | — | Override off-peak delay in seconds for scheduler tests |
+| `OTEL_TRACER_DEBUG` | Dev/Test | — | `true` = verbose OpenTelemetry trace output |
+
+> ⚠️ **Security note:** `AGENT_FRAMEWORK_BYPASS_HITL` is a no-op unless `AGENT_FRAMEWORK_TESTING=true` is also set. Never set either flag in production.
 
 ---
 
