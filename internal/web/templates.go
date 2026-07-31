@@ -71,13 +71,20 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             border: 1px solid rgba(63, 63, 70, 0.6);
             border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #a5f3fc;
         }
-        .md-content pre {
-            background: #09090b; border: 1px solid rgba(63, 63, 70, 0.7);
-            border-radius: 8px; padding: 10px 14px; overflow-x: auto;
-            margin: 0.5em 0; font-size: 0.86em; line-height: 1.55;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-        }
         .md-content pre code { background: none; border: none; padding: 0; color: #e4e4e7; }
+        .approval-content code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(24, 24, 27, 0.95); 
+            border: 1px solid rgba(63, 63, 70, 0.7);
+            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #a5f3fc;
+        }
+        .approval-content pre {
+            background: #05070a; border: 1px solid rgba(63, 63, 70, 0.8);
+            border-radius: 8px; padding: 12px 16px; overflow-x: auto;
+            margin: 0.5em 0; font-size: 0.86em; line-height: 1.55;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+        }
+        .approval-content pre code { background: none; border: none; padding: 0; color: #34d399; }
         .md-content ul { list-style: disc; padding-left: 1.3em; margin: 0.3em 0; }
         .md-content ol { list-style: decimal; padding-left: 1.3em; margin: 0.3em 0; }
         .md-content li { margin: 0.15em 0; }
@@ -1007,28 +1014,31 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-indigo-500">
                 <div>
                     <h2 class="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                        <span>🕸️ Agent Interaction Network Topology</span>
-                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Live Canvas</span>
+                        <span>📡 Mission Control Radar &amp; Network Topology</span>
+                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> RADAR SWEEP ACTIVE
+                        </span>
                     </h2>
-                    <p class="text-xs text-zinc-400 mt-1">Real-time force-directed topology showing agents, tool assignments, and glowing message signal pulses.</p>
+                    <p class="text-xs text-zinc-400 mt-1 font-mono">Tactical agent radar telemetry, real-time azimuth bearings, and active signal firing pulses.</p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="resetNetworkLayout()" class="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-semibold transition-all cursor-pointer">🔄 Reset Layout</button>
-                    <button onclick="triggerSamplePulse()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer">✨ Test Pulse</button>
+                <div class="flex items-center gap-3 font-mono">
+                    <button onclick="resetNetworkLayout()" class="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-bold transition-all cursor-pointer border border-zinc-700">🔄 Reset Radar Grid</button>
+                    <button onclick="triggerSamplePulse()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-600/20 cursor-pointer">📡 Fire Pulse</button>
                 </div>
             </div>
 
-            <!-- Legend & Controls Bar -->
-            <div class="flex flex-wrap items-center justify-between gap-4 bg-zinc-950/60 p-4 rounded-xl border border-zinc-800/80">
-                <div class="flex items-center gap-4 flex-wrap text-xs font-mono">
-                    <span class="text-zinc-400 font-bold uppercase text-[10px]">Legend:</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500"></span> <span class="text-zinc-300">User / Client</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-500"></span> <span class="text-zinc-300">Orchestrator Agent</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> <span class="text-zinc-300">Specialist Agent</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-ping"></span> <span class="text-indigo-300 font-bold">SSE Firing Pulse</span></span>
+            <!-- Tactical Mission Control Legend & Status Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-4 bg-zinc-950/80 p-3.5 rounded-xl border border-emerald-500/20 font-mono shadow-inner">
+                <div class="flex items-center gap-4 flex-wrap text-xs">
+                    <span class="text-emerald-400 font-bold uppercase text-[10px] tracking-wider">HUD RETICLE:</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> <span class="text-zinc-300">User Client</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span> <span class="text-zinc-300">Orchestrator</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> <span class="text-zinc-300">Specialist Node</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span> <span class="text-cyan-300 font-bold">SSE Signal Pulse</span></span>
                 </div>
-                <div class="text-[10px] font-mono text-zinc-400">
-                    💡 <span class="italic">Drag agent nodes to reposition. Real-time SSE pulses highlight active firing agents automatically.</span>
+                <div class="text-[10px] text-emerald-400/90 font-bold tracking-widest flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>FREQUENCY: 2.4GHZ // ALL SYSTEMS NOMINAL</span>
                 </div>
             </div>
 
@@ -1749,6 +1759,10 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             });
         }
 
+        if (typeof window.radarSweepAngle === 'undefined') {
+            window.radarSweepAngle = 0;
+        }
+
         function renderNetworkLoop() {
             const canvas = document.getElementById('network-canvas');
             if (!canvas) {
@@ -1776,20 +1790,128 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 }
 
                 const isLight = document.body.classList.contains('light-theme');
-                ctx.fillStyle = isLight ? '#f8fafc' : '#09090b';
+                ctx.fillStyle = isLight ? '#f8fafc' : '#05070a';
                 ctx.fillRect(0, 0, width, height);
 
+                const cx = width / 2;
+                const cy = height / 2;
+                const maxRadius = Math.min(width, height) * 0.42;
+
+                // --- MISSION CONTROL RADAR HUD: Concentric Sonar Rings ---
+                [0.25, 0.5, 0.75, 1.0].forEach((ratio, idx) => {
+                    const r = maxRadius * ratio;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                    ctx.strokeStyle = isLight ? 'rgba(79, 70, 229, 0.15)' : 'rgba(16, 185, 129, 0.18)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    ctx.font = '9px "JetBrains Mono", monospace';
+                    ctx.fillStyle = isLight ? 'rgba(79, 70, 229, 0.45)' : 'rgba(16, 185, 129, 0.45)';
+                    ctx.textAlign = 'center';
+                    ctx.fillText((ratio * 200).toFixed(0) + 'KM', cx + r - 14, cy - 3);
+                });
+
+                // --- MISSION CONTROL RADAR HUD: Azimuth Axes & Crosshairs ---
+                ctx.beginPath();
+                ctx.moveTo(cx - maxRadius - 12, cy); ctx.lineTo(cx + maxRadius + 12, cy);
+                ctx.moveTo(cx, cy - maxRadius - 12); ctx.lineTo(cx, cy + maxRadius + 12);
+                ctx.strokeStyle = isLight ? 'rgba(79, 70, 229, 0.25)' : 'rgba(16, 185, 129, 0.28)';
+                ctx.setLineDash([2, 3]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Diagonal 45° Radial Guides
+                [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4].forEach(ang => {
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.lineTo(cx + Math.cos(ang) * maxRadius, cy + Math.sin(ang) * maxRadius);
+                    ctx.strokeStyle = isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(16, 185, 129, 0.12)';
+                    ctx.setLineDash([1, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                });
+
+                // Compass Azimuth Labels
+                ctx.font = '10px "JetBrains Mono", monospace';
+                ctx.fillStyle = isLight ? '#4f46e5' : '#10b981';
+                ctx.textAlign = 'center';
+                ctx.fillText('N 000°', cx, cy - maxRadius - 14);
+                ctx.fillText('S 180°', cx, cy + maxRadius + 18);
+                ctx.textAlign = 'left';
+                ctx.fillText('E 090°', cx + maxRadius + 16, cy + 3);
+                ctx.textAlign = 'right';
+                ctx.fillText('W 270°', cx - maxRadius - 16, cy + 3);
+
+                // --- MISSION CONTROL RADAR HUD: Rotating Radar Sweep Scanner Beam ---
+                window.radarSweepAngle = (window.radarSweepAngle + 0.012) % (Math.PI * 2);
+                const currentAngle = window.radarSweepAngle;
+
+                // Sweep Trail (Conical Sector)
+                ctx.save();
+                const sweepSteps = 30;
+                for (let i = 0; i < sweepSteps; i++) {
+                    const alpha = (1 - i / sweepSteps) * 0.15;
+                    const a1 = currentAngle - (i * 0.015);
+                    const a2 = currentAngle - ((i + 1) * 0.015);
+
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.arc(cx, cy, maxRadius, a2, a1);
+                    ctx.fillStyle = isLight ? 'rgba(99, 102, 241, ' + alpha + ')' : 'rgba(16, 185, 129, ' + alpha + ')';
+                    ctx.fill();
+                }
+
+                // Leading Edge Line of Radar Sweep
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(currentAngle) * maxRadius, cy + Math.sin(currentAngle) * maxRadius);
+                ctx.strokeStyle = isLight ? '#4f46e5' : '#10b981';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = isLight ? '#6366f1' : '#34d399';
+                ctx.shadowBlur = 10;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                ctx.restore();
+
+                // --- MISSION CONTROL RADAR HUD: Corner Tactical Reticles ---
+                const hudM = 14;
+                const hudL = 18;
+                ctx.strokeStyle = isLight ? 'rgba(79, 70, 229, 0.45)' : 'rgba(16, 185, 129, 0.5)';
+                ctx.lineWidth = 2;
+
+                ctx.beginPath(); ctx.moveTo(hudM, hudM + hudL); ctx.lineTo(hudM, hudM); ctx.lineTo(hudM + hudL, hudM); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(width - hudM - hudL, hudM); ctx.lineTo(width - hudM, hudM); ctx.lineTo(width - hudM, hudM + hudL); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(hudM, height - hudM - hudL); ctx.lineTo(hudM, height - hudM); ctx.lineTo(hudM + hudL, height - hudM); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(width - hudM - hudL, height - hudM); ctx.lineTo(width - hudM, height - hudM); ctx.lineTo(width - hudM, height - hudM - hudL); ctx.stroke();
+
+                // Telemetry Header Info Overlay
+                const degVal = Math.floor((currentAngle * 180 / Math.PI) % 360);
+                const degStr = (degVal < 100 ? (degVal < 10 ? '00' : '0') : '') + degVal;
+                ctx.font = '10px "JetBrains Mono", monospace';
+                ctx.fillStyle = isLight ? '#4f46e5' : '#10b981';
+                ctx.textAlign = 'left';
+                ctx.fillText('📡 RADAR TELEMETRY // SWEEP: ' + degStr + '°', hudM + 10, hudM + 18);
+                ctx.fillStyle = isLight ? '#64748b' : '#71717a';
+                ctx.fillText('TARGETS: ' + networkNodes.length + ' ACTIVE AGENTS | ORBIT RAD: ' + Math.floor(maxRadius) + 'PX', hudM + 10, hudM + 32);
+
+                // --- RENDER INTERACTION EDGES ---
                 networkEdges.forEach(e => {
                     if (!e.source || !e.target) return;
                     if (isNaN(e.source.x) || isNaN(e.source.y) || isNaN(e.target.x) || isNaN(e.target.y)) return;
                     ctx.beginPath();
                     ctx.moveTo(e.source.x, e.source.y);
                     ctx.lineTo(e.target.x, e.target.y);
-                    ctx.strokeStyle = isLight ? 'rgba(203, 213, 225, 0.7)' : 'rgba(63, 63, 70, 0.6)';
+                    ctx.strokeStyle = isLight ? 'rgba(199, 210, 254, 0.8)' : 'rgba(52, 211, 153, 0.25)';
                     ctx.lineWidth = Math.min(3, 1 + e.weight * 0.2);
+                    ctx.setLineDash([4, 2]);
                     ctx.stroke();
+                    ctx.setLineDash([]);
                 });
 
+                // --- RENDER SIGNAL PULSES ---
                 for (let i = networkPulses.length - 1; i >= 0; i--) {
                     const p = networkPulses[i];
                     p.progress += p.speed;
@@ -1802,50 +1924,68 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     const py = p.source.y + (p.target.y - p.source.y) * p.progress;
 
                     ctx.beginPath();
-                    ctx.arc(px, py, 5, 0, Math.PI * 2);
+                    ctx.arc(px, py, 6, 0, Math.PI * 2);
                     ctx.fillStyle = p.color || '#38bdf8';
                     ctx.shadowColor = p.color || '#38bdf8';
-                    ctx.shadowBlur = 12;
+                    ctx.shadowBlur = 14;
                     ctx.fill();
                     ctx.shadowBlur = 0;
                 }
 
+                // --- RENDER RADAR NODES & TARGET LOCKS ---
                 networkNodes.forEach(n => {
                     if (!n || isNaN(n.x) || isNaN(n.y)) return;
                     const isSelected = selectedNode && selectedNode.id === n.id;
                     const isGlowing = n.glowUntil && n.glowUntil > Date.now();
 
-                    if (isGlowing) {
-                        const elapsed = (3500 - (n.glowUntil - Date.now())) / 1000;
-                        const rippleRadius = n.radius + 4 + (elapsed % 1.2) * 18;
-                        const alpha = Math.max(0, 1 - (elapsed % 1.2));
+                    // Tactical Target Lock Reticle around Selected / Firing Node
+                    if (isSelected || isGlowing) {
+                        const boxSize = (n.radius + 12);
+                        ctx.strokeStyle = isGlowing ? '#34d399' : '#818cf8';
+                        ctx.lineWidth = 1.5;
+
+                        // Target Bracket Corners
                         ctx.beginPath();
-                        ctx.arc(n.x, n.y, rippleRadius, 0, Math.PI * 2);
-                        ctx.strokeStyle = n.color || '#38bdf8';
-                        ctx.lineWidth = 2;
-                        ctx.globalAlpha = alpha;
+                        ctx.moveTo(n.x - boxSize, n.y - boxSize + 6); ctx.lineTo(n.x - boxSize, n.y - boxSize); ctx.lineTo(n.x - boxSize + 6, n.y - boxSize);
+                        ctx.moveTo(n.x + boxSize - 6, n.y - boxSize); ctx.lineTo(n.x + boxSize, n.y - boxSize); ctx.lineTo(n.x + boxSize, n.y - boxSize + 6);
+                        ctx.moveTo(n.x - boxSize, n.y + boxSize - 6); ctx.lineTo(n.x - boxSize, n.y + boxSize); ctx.lineTo(n.x - boxSize + 6, n.y + boxSize);
+                        ctx.moveTo(n.x + boxSize - 6, n.y + boxSize); ctx.lineTo(n.x + boxSize, n.y + boxSize); ctx.lineTo(n.x + boxSize, n.y + boxSize - 6);
                         ctx.stroke();
-                        ctx.globalAlpha = 1.0;
+
+                        if (isGlowing) {
+                            const elapsed = (3500 - (n.glowUntil - Date.now())) / 1000;
+                            const rippleRadius = n.radius + 6 + (elapsed % 1.2) * 22;
+                            const alpha = Math.max(0, 1 - (elapsed % 1.2));
+                            ctx.beginPath();
+                            ctx.arc(n.x, n.y, rippleRadius, 0, Math.PI * 2);
+                            ctx.strokeStyle = n.color || '#34d399';
+                            ctx.lineWidth = 2;
+                            ctx.globalAlpha = alpha;
+                            ctx.stroke();
+                            ctx.globalAlpha = 1.0;
+                        }
                     }
 
+                    // Node Radar Blip Core
                     ctx.beginPath();
-                    ctx.arc(n.x, n.y, n.radius + (isSelected ? 4 : (isGlowing ? 3 : 0)), 0, Math.PI * 2);
+                    ctx.arc(n.x, n.y, n.radius + (isSelected ? 3 : (isGlowing ? 3 : 0)), 0, Math.PI * 2);
                     ctx.fillStyle = n.color || '#818cf8';
                     if (isSelected || isGlowing) {
                         ctx.shadowColor = n.color || '#818cf8';
-                        ctx.shadowBlur = isGlowing ? 24 : 14;
+                        ctx.shadowBlur = isGlowing ? 26 : 16;
                     }
                     ctx.fill();
                     ctx.shadowBlur = 0;
 
-                    ctx.strokeStyle = isGlowing ? '#ffffff' : (isLight ? '#ffffff' : '#18181b');
-                    ctx.lineWidth = isGlowing ? 3 : 2;
+                    ctx.strokeStyle = isGlowing ? '#ffffff' : (isLight ? '#ffffff' : '#05070a');
+                    ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    ctx.font = '11px "JetBrains Mono", monospace, sans-serif';
+                    // Node Label with Radar Tag
+                    ctx.font = '10px "JetBrains Mono", monospace, sans-serif';
                     ctx.fillStyle = isLight ? '#0f172a' : '#f4f4f5';
                     ctx.textAlign = 'center';
-                    ctx.fillText(n.label || n.id, n.x, n.y + n.radius + 14);
+                    ctx.fillText(n.label || n.id, n.x, n.y + n.radius + 15);
                 });
             } catch(renderErr) {
                 console.warn('Canvas render frame error:', renderErr);
@@ -2206,7 +2346,9 @@ var PendingApprovalTemplate = template.Must(template.New("approval").Parse(`
 <div id="approval-{{.CorrelationID}}" class="p-5 bg-zinc-900/90 border border-zinc-800 border-l-4 border-l-amber-500 rounded-xl flex flex-col gap-4 shadow-xl backdrop-blur-md">
     <div class="flex justify-between items-start">
         <div class="flex flex-col">
-            <span class="text-[9px] text-amber-400 font-bold font-mono uppercase tracking-widest">Approval Requested (HITL)</span>
+            <span class="text-[9px] text-amber-400 font-bold font-mono uppercase tracking-widest flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Approval Requested (HITL)
+            </span>
             <span class="font-bold text-zinc-100 text-xs mt-0.5 font-mono">{{.Sender}} ──▶ {{.Metadata.action}}</span>
         </div>
         <span class="text-[9px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded-full uppercase font-bold">
@@ -2214,9 +2356,9 @@ var PendingApprovalTemplate = template.Must(template.New("approval").Parse(`
         </span>
     </div>
     
-    <p class="text-xs text-zinc-300 font-mono bg-zinc-950 p-3.5 rounded-lg border border-zinc-800/90 leading-relaxed shadow-inner">
+    <div id="approval-content-{{.CorrelationID}}" class="approval-content text-xs text-zinc-300 font-mono bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 leading-relaxed shadow-inner overflow-x-auto max-h-[360px]">
         {{.Content}}
-    </p>
+    </div>
 
     <!-- Approval form using htmx POST, replacing the parent card with response HTML -->
     <form hx-post="/api/hitl/respond" hx-target="#approval-{{.CorrelationID}}" hx-swap="outerHTML" class="flex gap-3 justify-end">
@@ -2229,6 +2371,42 @@ var PendingApprovalTemplate = template.Must(template.New("approval").Parse(`
         </button>
     </form>
 </div>
+<script>(function(){
+  var el = document.getElementById("approval-content-{{.CorrelationID}}");
+  if (!el) return;
+  var raw = {{.RawJSONContent}};
+  var action = {{.RawJSONAction}};
+  var lowerAction = (action || "").toLowerCase();
+  var lowerRaw = (raw || "").toLowerCase();
+
+  var isPython = lowerAction.includes("python") || lowerAction.includes("docker") || lowerAction.includes("code") ||
+                 lowerAction.includes("script") || lowerRaw.includes("import ") || lowerRaw.includes("def ") ||
+                 lowerRaw.includes("print(") || lowerRaw.includes("return ");
+
+  var fence = "\x60\x60\x60";
+  var formattedMd = raw;
+  if (isPython && !raw.trim().startsWith(fence)) {
+      formattedMd = fence + "python\n" + raw.trim() + "\n" + fence;
+  }
+
+  if (typeof marked !== "undefined") {
+      el.innerHTML = marked.parse(formattedMd, { breaks: true, gfm: true });
+  } else {
+      el.textContent = raw;
+  }
+
+  if (isPython) {
+      el.querySelectorAll("pre code").forEach(function(block) {
+          var codeText = block.innerHTML;
+          codeText = codeText
+              .replace(/(#(.*)$)/gm, '<span class="text-zinc-500 italic">$1</span>')
+              .replace(/(".*?"|'.*?')/g, '<span class="text-amber-300">$1</span>')
+              .replace(/\b(def|class|import|from|return|if|elif|else|while|for|in|try|except|finally|with|as|pass|break|continue|lambda|yield|raise|async|await|and|or|not|is|True|False|None)\b/g, '<span class="text-purple-400 font-bold">$1</span>')
+              .replace(/\b(print|len|range|enumerate|zip|dict|list|set|tuple|int|str|float|bool|open|map|filter)\b(?=\()/g, '<span class="text-cyan-400 font-bold">$1</span>');
+          block.innerHTML = codeText;
+      });
+  }
+})();</script>
 `))
 
 // LogSnippetTemplate renders a log entry with marked.js markdown rendering and role-colored badges.

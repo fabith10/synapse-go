@@ -213,17 +213,28 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 					s.approvalsMu.Unlock()
 
 					// Broadcast approval alert to front-end SSE channel
+					jsonContent, _ := json.Marshal(msg.Content)
+					actionName := ""
+					if msg.Metadata != nil {
+						actionName = msg.Metadata["action"]
+					}
+					jsonAction, _ := json.Marshal(actionName)
+
 					var buf bytes.Buffer
 					PendingApprovalTemplate.Execute(&buf, struct {
-						Sender        string
-						Content       string
-						CorrelationID string
-						Metadata      map[string]string
+						Sender         string
+						Content        string
+						RawJSONContent template.JS
+						RawJSONAction  template.JS
+						CorrelationID  string
+						Metadata       map[string]string
 					}{
-						Sender:        msg.Sender,
-						Content:       msg.Content,
-						CorrelationID: corrID,
-						Metadata:      msg.Metadata,
+						Sender:         msg.Sender,
+						Content:        msg.Content,
+						RawJSONContent: template.JS(jsonContent),
+						RawJSONAction:  template.JS(jsonAction),
+						CorrelationID:  corrID,
+						Metadata:       msg.Metadata,
 					})
 					cleanHTML := strings.ReplaceAll(buf.String(), "\n", " ")
 					cleanHTML = strings.ReplaceAll(cleanHTML, "\r", " ")

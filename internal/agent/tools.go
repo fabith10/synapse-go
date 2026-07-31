@@ -18,6 +18,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/fabith10/synapse-go/adk"
@@ -27,6 +28,10 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/ollama/ollama/api"
 	"github.com/xuri/excelize/v2"
+)
+
+var (
+	hitlCorrCounter uint64
 )
 
 // MinimalWasmBinary represents a minimal valid WebAssembly module
@@ -314,7 +319,7 @@ func GetExecutePythonDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID 
 			code = strings.TrimSpace(strings.Join(cleaned, "\n"))
 
 			if RequiresHumanReview(code) {
-				uniqueCorrID := fmt.Sprintf("%s-python-%d", agentID, time.Now().UnixNano())
+				uniqueCorrID := fmt.Sprintf("%s-python-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",
@@ -461,7 +466,7 @@ func GetModifyExcelWorkbookTool(orch *adk.Orchestrator, agentID string, mailbox 
 
 			// Automated Checkpoint for Production files
 			if IsProductionFile(filePath) {
-				uniqueCorrID := fmt.Sprintf("%s-excel-%d", agentID, time.Now().UnixNano())
+				uniqueCorrID := fmt.Sprintf("%s-excel-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",
@@ -1069,7 +1074,7 @@ func GetWriteEmailTool(orch *adk.Orchestrator, agentID string, mailbox chan adk.
 				}
 			}
 			if isExternal && orch != nil && mailbox != nil {
-				uniqueCorrID := fmt.Sprintf("%s-email-%d", agentID, time.Now().UnixNano())
+				uniqueCorrID := fmt.Sprintf("%s-email-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",
@@ -1693,7 +1698,7 @@ func GetExecuteBashDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID st
 			}
 
 			if RequiresHumanReviewBash(script) {
-				uniqueCorrID := fmt.Sprintf("%s-bash-%d", agentID, time.Now().UnixNano())
+				uniqueCorrID := fmt.Sprintf("%s-bash-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",
