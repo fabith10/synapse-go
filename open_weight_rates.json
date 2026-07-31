@@ -1,0 +1,33 @@
+{
+  "status": "success",
+  "provider": "open_weight_cluster",
+  "currency": "USD",
+  "models": {
+    "llama-3-70b": {
+      "input_cost_per_1m": 0.55,
+      "output_cost_per_1m": 0.75,
+      "gpu_type": "H100_SXM",
+      "base_spot_per_hour": 1.85
+    },
+    "deepseek-r1": {
+      "input_cost_per_1m": 0.55,
+      "output_cost_per_1m": 2.19,
+      "gpu_type": "A100_80GB",
+      "base_spot_per_hour": 1.25
+    },
+    "qwen-2.5-72b": {
+      "input_cost_per_1m": 0.40,
+      "output_cost_per_1m": 0.60,
+      "gpu_type": "RTX_4090",
+      "base_spot_per_hour": 0.45
+    }
+  },
+  "matrix": {
+    "llama-3-70b": 1.85,
+    "deepseek-r1": 1.25,
+    "qwen-2.5-72b": 0.45,
+    "H100_SXM": 1.85,
+    "A100_80GB": 1.25,
+    "RTX_4090": 0.45
+  }
+}

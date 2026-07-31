@@ -1956,6 +1956,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 }
 
                 // --- RENDER RADAR NODES & TARGET LOCKS ---
+                const glowDuration = 3500;
                 networkNodes.forEach(n => {
                     if (!n || isNaN(n.x) || isNaN(n.y)) return;
                     const isSelected = selectedNode && selectedNode.id === n.id;
@@ -1963,9 +1964,9 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
 
                     // Tactical Target Lock Reticle around Selected / Firing Node
                     if (isSelected || isGlowing) {
-                        const boxSize = (n.radius + 12);
+                        const boxSize = (n.radius + 14);
                         ctx.strokeStyle = isGlowing ? '#34d399' : '#818cf8';
-                        ctx.lineWidth = 1.5;
+                        ctx.lineWidth = isGlowing ? 2 : 1.5;
 
                         // Target Bracket Corners
                         ctx.beginPath();
@@ -1976,39 +1977,45 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                         ctx.stroke();
 
                         if (isGlowing) {
-                            const elapsed = (3500 - (n.glowUntil - Date.now())) / 1000;
-                            const rippleRadius = n.radius + 6 + (elapsed % 1.2) * 22;
-                            const alpha = Math.max(0, 1 - (elapsed % 1.2));
+                            const remaining = Math.max(0, n.glowUntil - Date.now());
+                            const elapsed = (glowDuration - remaining) / 1000;
+                            const pulseCycle = (elapsed % 0.8) / 0.8;
+                            const rippleRadius = n.radius + 6 + pulseCycle * 28;
+                            const alpha = Math.max(0, 1 - pulseCycle);
+
                             ctx.beginPath();
                             ctx.arc(n.x, n.y, rippleRadius, 0, Math.PI * 2);
                             ctx.strokeStyle = n.color || '#34d399';
-                            ctx.lineWidth = 2;
+                            ctx.lineWidth = 2.5;
                             ctx.globalAlpha = alpha;
                             ctx.stroke();
                             ctx.globalAlpha = 1.0;
                         }
                     }
 
-                    // Node Radar Blip Core
+                    // Node Radar Blip Core (Pulsing beat when glowing)
+                    const pulseFactor = isGlowing ? Math.sin(Date.now() / 90) * 4 : 0;
+                    const activeRadius = Math.max(2, n.radius + (isSelected ? 3 : 0) + pulseFactor);
+
                     ctx.beginPath();
-                    ctx.arc(n.x, n.y, n.radius + (isSelected ? 3 : (isGlowing ? 3 : 0)), 0, Math.PI * 2);
-                    ctx.fillStyle = n.color || '#818cf8';
+                    ctx.arc(n.x, n.y, activeRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = isGlowing ? '#34d399' : (n.color || '#818cf8');
                     if (isSelected || isGlowing) {
-                        ctx.shadowColor = n.color || '#818cf8';
-                        ctx.shadowBlur = isGlowing ? 26 : 16;
+                        ctx.shadowColor = isGlowing ? '#34d399' : (n.color || '#818cf8');
+                        ctx.shadowBlur = isGlowing ? 32 : 16;
                     }
                     ctx.fill();
                     ctx.shadowBlur = 0;
 
                     ctx.strokeStyle = isGlowing ? '#ffffff' : (isLight ? '#ffffff' : '#05070a');
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = isGlowing ? 2.5 : 2;
                     ctx.stroke();
 
                     // Node Label with Radar Tag
-                    ctx.font = '10px "JetBrains Mono", monospace, sans-serif';
-                    ctx.fillStyle = isLight ? '#0f172a' : '#f4f4f5';
+                    ctx.font = isGlowing ? '700 11px "JetBrains Mono", monospace' : '10px "JetBrains Mono", monospace, sans-serif';
+                    ctx.fillStyle = isGlowing ? '#34d399' : (isLight ? '#0f172a' : '#f4f4f5');
                     ctx.textAlign = 'center';
-                    ctx.fillText(n.label || n.id, n.x, n.y + n.radius + 15);
+                    ctx.fillText(n.label || n.id, n.x, n.y + n.radius + 16);
                 });
             } catch(renderErr) {
                 console.warn('Canvas render frame error:', renderErr);
@@ -2177,7 +2184,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             initNetworkVisualizer();
         }
 
-        function emitLiveNetworkPulse(sender, recipient) {
+        window.emitLiveNetworkPulse = function(sender, recipient) {
             if (!networkNodes || networkNodes.length === 0) return;
 
             let srcId = sender || 'USER';
@@ -2194,18 +2201,29 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             }
 
             if (srcNode && tgtNode) {
-                srcNode.glowUntil = Date.now() + 2500;
-                tgtNode.glowUntil = Date.now() + 2500;
+                srcNode.glowUntil = Date.now() + 3500;
+                tgtNode.glowUntil = Date.now() + 3500;
 
+                // Spawn 2 traveling energy pulses along the edge
                 networkPulses.push({
                     source: srcNode,
                     target: tgtNode,
                     progress: 0,
-                    speed: 0.02 + Math.random() * 0.01,
-                    color: srcNode.color || '#f59e0b'
+                    speed: 0.022 + Math.random() * 0.008,
+                    color: '#34d399'
                 });
+                setTimeout(() => {
+                    networkPulses.push({
+                        source: srcNode,
+                        target: tgtNode,
+                        progress: 0,
+                        speed: 0.025 + Math.random() * 0.008,
+                        color: '#6366f1'
+                    });
+                }, 150);
             }
-        }
+        };
+        const emitLiveNetworkPulse = window.emitLiveNetworkPulse;
 
         let currentArtifactRawText = "";
 
@@ -2455,6 +2473,10 @@ var LogSnippetTemplate = template.Must(template.New("log").Parse(`
     window.applyFilterToElement(entry);
   }
   
+  if (typeof window.emitLiveNetworkPulse === "function") {
+    window.emitLiveNetworkPulse("{{.Sender}}", "{{.Recipient}}");
+  }
+
   var log=document.getElementById("console-logs");
   if(log)log.scrollTop=log.scrollHeight;
 })();</script>

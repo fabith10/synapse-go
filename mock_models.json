@@ -1,0 +1,20 @@
+{
+    "llm_providers": [
+        {
+            "name": "demo-mock-llm",
+            "provider": "mock",
+            "tier": "local",
+            "input_rate_usd": 0.0,
+            "output_rate_usd": 0.0
+        },
+        {
+            "name": "gpt-4o",
+            "provider": "openai",
+            "tier": "commercial",
+            "input_rate_usd": 0.000005,
+            "output_rate_usd": 0.000015,
+            "api_url": "https://api.openai.com/v1/chat/completions",
+            "api_key_env": "OPENAI_API_KEY"
+        }
+    ]
+}
