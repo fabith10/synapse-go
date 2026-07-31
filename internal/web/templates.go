@@ -888,6 +888,9 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     </section>
                 </div>
             </div>
+        </main>
+    </div>
+
     <!-- Audit Explorer Tab Content -->
     <div id="tab-content-audit" class="tab-pane hidden flex-1 flex flex-col">
         <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -990,6 +993,9 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     </table>
                 </div>
             </div>
+        </main>
+    </div>
+
     <!-- Agent Network Topology Graph Tab Content -->
     <div id="tab-content-network" class="tab-pane hidden flex-1 flex flex-col">
         <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex flex-col">
@@ -1013,20 +1019,20 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 <div class="flex items-center gap-4 flex-wrap text-xs font-mono">
                     <span class="text-zinc-400 font-bold uppercase text-[10px]">Legend:</span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500"></span> <span class="text-zinc-300">User / Client</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-500"></span> <span class="text-zinc-300">Orchestrator</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-500"></span> <span class="text-zinc-300">Orchestrator Agent</span></span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> <span class="text-zinc-300">Specialist Agent</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-sky-500"></span> <span class="text-zinc-300">Tool Node</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-ping"></span> <span class="text-indigo-300 font-bold">SSE Firing Pulse</span></span>
                 </div>
                 <div class="text-[10px] font-mono text-zinc-400">
-                    💡 <span class="italic">Drag nodes to reposition. Click a node to view properties.</span>
+                    💡 <span class="italic">Drag agent nodes to reposition. Real-time SSE pulses highlight active firing agents automatically.</span>
                 </div>
             </div>
 
             <!-- Canvas Container & Side Inspector Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-[550px]">
                 <!-- Interactive Canvas (3 Cols) -->
-                <div class="lg:col-span-3 glass-card rounded-2xl p-2 relative overflow-hidden border border-zinc-800 flex flex-col min-h-[520px]">
-                    <canvas id="network-canvas" class="w-full h-full min-h-[520px] rounded-xl bg-zinc-950/80 cursor-grab active:cursor-grabbing block" style="min-height: 520px; width: 100%; height: 520px;"></canvas>
+                <div class="lg:col-span-3 glass-card rounded-2xl p-2 relative overflow-hidden border border-zinc-800 flex flex-col h-[540px]">
+                    <canvas id="network-canvas" class="w-full h-[520px] rounded-xl bg-zinc-950/80 cursor-grab active:cursor-grabbing block" style="width: 100%; height: 520px;"></canvas>
                 </div>
 
                 <!-- Node Inspector Drawer (1 Col) -->
@@ -1574,8 +1580,8 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             if (!canvas) return;
 
             const container = canvas.parentElement;
-            const w = Math.max(300, (container && container.clientWidth > 0 ? container.clientWidth - 16 : 800));
-            const h = Math.max(300, (container && container.clientHeight > 0 ? container.clientHeight - 16 : 520));
+            const w = Math.max(300, canvas.clientWidth || (container && container.clientWidth > 0 ? container.clientWidth : 800));
+            const h = Math.max(300, canvas.clientHeight || (container && container.clientHeight > 0 ? container.clientHeight : 520));
 
             const hasNaN = networkNodes.some(n => isNaN(n.x) || isNaN(n.y));
 
@@ -1594,8 +1600,8 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     if (data && data.nodes && data.nodes.length > 0) {
                         const curCanvas = document.getElementById('network-canvas');
                         const curContainer = curCanvas ? curCanvas.parentElement : null;
-                        const curW = Math.max(300, (curContainer && curContainer.clientWidth > 0 ? curContainer.clientWidth - 16 : w));
-                        const curH = Math.max(300, (curContainer && curContainer.clientHeight > 0 ? curContainer.clientHeight - 16 : h));
+                        const curW = Math.max(300, curCanvas && curCanvas.clientWidth > 0 ? curCanvas.clientWidth : (curContainer ? curContainer.clientWidth : w));
+                        const curH = Math.max(300, curCanvas && curCanvas.clientHeight > 0 ? curCanvas.clientHeight : (curContainer ? curContainer.clientHeight : h));
                         setupGraphTopology(data.nodes, data.edges || [], curW, curH);
                     }
                 })
@@ -1667,10 +1673,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     { id: "developer-agent", label: "Developer Agent", category: "specialist", role: "Code Generation & Execution", tools: ["read_file", "write_file", "execute_python_docker"] },
                     { id: "researcher-agent", label: "Researcher Agent", category: "specialist", role: "Deep Web Search & PDF Synthesis", tools: ["web_search_and_extract", "generate_pdf_report"] },
                     { id: "quant-agent", label: "Quant Agent", category: "specialist", role: "Options Pricing & Forward Curves", tools: ["query_compute_prices", "query_options_chain"] },
-                    { id: "writer-agent", label: "Writer Agent", category: "specialist", role: "Document Synthesis", tools: ["write_file"] },
-                    { id: "tool:web_search_and_extract", label: "web_search", category: "tool", role: "Live Web Search" },
-                    { id: "tool:execute_python_docker", label: "python_docker", category: "tool", role: "Docker Python Sandbox" },
-                    { id: "tool:generate_pdf_report", label: "pdf_report", category: "tool", role: "PDF Generator" }
+                    { id: "writer-agent", label: "Writer Agent", category: "specialist", role: "Document Synthesis", tools: ["write_file"] }
                 ];
                 rawEdges = [
                     { source: "USER", target: "triage-agent", weight: 10 },
@@ -1679,18 +1682,17 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     { source: "triage-agent", target: "researcher-agent", weight: 8 },
                     { source: "triage-agent", target: "quant-agent", weight: 6 },
                     { source: "triage-agent", target: "writer-agent", weight: 6 },
-                    { source: "supervisor-agent", target: "triage-agent", weight: 3 },
-                    { source: "developer-agent", target: "tool:execute_python_docker", weight: 2 },
-                    { source: "researcher-agent", target: "tool:web_search_and_extract", weight: 2 },
-                    { source: "researcher-agent", target: "tool:generate_pdf_report", weight: 2 }
+                    { source: "supervisor-agent", target: "triage-agent", weight: 3 }
                 ];
             }
 
-            const userNodes = rawNodes.filter(n => n.category === 'user');
-            const orchNodes = rawNodes.filter(n => n.category === 'orchestrator');
-            const specNodes = rawNodes.filter(n => n.category === 'specialist');
-            const toolNodes = rawNodes.filter(n => n.category === 'tool');
-            const otherNodes = rawNodes.filter(n => !['user', 'orchestrator', 'specialist', 'tool'].includes(n.category));
+            // Exclude tool nodes - network topology focuses on agent & user interactions
+            const agentNodesOnly = rawNodes.filter(n => n.category !== 'tool');
+
+            const userNodes = agentNodesOnly.filter(n => n.category === 'user');
+            const orchNodes = agentNodesOnly.filter(n => n.category === 'orchestrator');
+            const specNodes = agentNodesOnly.filter(n => n.category === 'specialist');
+            const otherNodes = agentNodesOnly.filter(n => !['user', 'orchestrator', 'specialist'].includes(n.category));
 
             const placeRing = (nodes, radius, baseAngleOffset = 0) => {
                 const count = nodes.length;
@@ -1701,16 +1703,15 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     if (rn.category === 'user') { nodeRadius = 22; color = '#f59e0b'; }
                     else if (rn.category === 'orchestrator') { nodeRadius = 20; color = '#6366f1'; }
                     else if (rn.category === 'specialist') { nodeRadius = 18; color = '#10b981'; }
-                    else if (rn.category === 'tool') { nodeRadius = 12; color = '#0284c7'; }
 
                     const initX = cx + (radius === 0 ? 0 : Math.cos(angle) * radius) + (Math.random() - 0.5) * 10;
                     const initY = cy + (radius === 0 ? 0 : Math.sin(angle) * radius) + (Math.random() - 0.5) * 10;
 
                     return {
                         id: rn.id,
-                        label: rn.label,
-                        category: rn.category,
-                        role: rn.role,
+                        label: rn.label || rn.id,
+                        category: rn.category || 'specialist',
+                        role: rn.role || '',
                         tools: rn.tools || [],
                         radius: nodeRadius,
                         color: color,
@@ -1725,12 +1726,11 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             };
 
             const placedUser = placeRing(userNodes, 0);
-            const placedOrch = placeRing(orchNodes, Math.min(cx, cy) * 0.35);
-            const placedSpec = placeRing(specNodes, Math.min(cx, cy) * 0.65, Math.PI / 8);
-            const placedTool = placeRing(toolNodes, Math.min(cx, cy) * 0.88, Math.PI / 4);
-            const placedOther = placeRing(otherNodes, Math.min(cx, cy) * 0.95);
+            const placedOrch = placeRing(orchNodes, Math.min(cx, cy) * 0.40);
+            const placedSpec = placeRing(specNodes, Math.min(cx, cy) * 0.75, Math.PI / 8);
+            const placedOther = placeRing(otherNodes, Math.min(cx, cy) * 0.88);
 
-            networkNodes = [...placedUser, ...placedOrch, ...placedSpec, ...placedTool, ...placedOther];
+            networkNodes = [...placedUser, ...placedOrch, ...placedSpec, ...placedOther];
 
             const nodeMap = {};
             networkNodes.forEach(n => { nodeMap[n.id] = n; });
@@ -1739,7 +1739,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             rawEdges.forEach(re => {
                 const src = nodeMap[re.source];
                 const tgt = nodeMap[re.target];
-                if (src && tgt) {
+                if (src && tgt && src.category !== 'tool' && tgt.category !== 'tool') {
                     networkEdges.push({ source: src, target: tgt, weight: re.weight || 1 });
                 }
             });
@@ -1751,83 +1751,101 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 isSimulating = false;
                 return;
             }
-            const ctx = canvas.getContext('2d');
-            const dpr = window.devicePixelRatio || 1;
-            const container = canvas.parentElement;
-            const width = Math.max(300, (container && container.clientWidth > 0 ? container.clientWidth - 16 : 800));
-            const height = Math.max(300, (container && container.clientHeight > 0 ? container.clientHeight - 16 : 520));
+            try {
+                const ctx = canvas.getContext('2d');
+                const dpr = window.devicePixelRatio || 1;
+                const container = canvas.parentElement;
+                const width = Math.max(300, canvas.clientWidth || (container && container.clientWidth > 0 ? container.clientWidth : 800));
+                const height = Math.max(300, canvas.clientHeight || (container && container.clientHeight > 0 ? container.clientHeight : 520));
 
-            if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
-                canvas.width = Math.floor(width * dpr);
-                canvas.height = Math.floor(height * dpr);
-                canvas.style.width = width + 'px';
-                canvas.style.height = height + 'px';
-            }
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                const targetW = Math.floor(width * dpr);
+                const targetH = Math.floor(height * dpr);
 
-            if (container && container.clientWidth > 0) {
-                updatePhysics(width, height);
-            }
-
-            const isLight = document.body.classList.contains('light-theme');
-            ctx.fillStyle = isLight ? '#f8fafc' : '#09090b';
-            ctx.fillRect(0, 0, width, height);
-
-            networkEdges.forEach(e => {
-                if (!e.source || !e.target) return;
-                if (isNaN(e.source.x) || isNaN(e.source.y) || isNaN(e.target.x) || isNaN(e.target.y)) return;
-                ctx.beginPath();
-                ctx.moveTo(e.source.x, e.source.y);
-                ctx.lineTo(e.target.x, e.target.y);
-                ctx.strokeStyle = isLight ? 'rgba(203, 213, 225, 0.7)' : 'rgba(63, 63, 70, 0.6)';
-                ctx.lineWidth = Math.min(3, 1 + e.weight * 0.2);
-                ctx.stroke();
-            });
-
-            for (let i = networkPulses.length - 1; i >= 0; i--) {
-                const p = networkPulses[i];
-                p.progress += p.speed;
-                if (p.progress >= 1) {
-                    networkPulses.splice(i, 1);
-                    continue;
+                if (canvas.width !== targetW || canvas.height !== targetH) {
+                    canvas.width = targetW;
+                    canvas.height = targetH;
                 }
-                if (isNaN(p.source.x) || isNaN(p.source.y) || isNaN(p.target.x) || isNaN(p.target.y)) continue;
-                const px = p.source.x + (p.target.x - p.source.x) * p.progress;
-                const py = p.source.y + (p.target.y - p.source.y) * p.progress;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-                ctx.beginPath();
-                ctx.arc(px, py, 5, 0, Math.PI * 2);
-                ctx.fillStyle = p.color || '#38bdf8';
-                ctx.shadowColor = p.color || '#38bdf8';
-                ctx.shadowBlur = 12;
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            }
-
-            networkNodes.forEach(n => {
-                if (!n || isNaN(n.x) || isNaN(n.y)) return;
-                const isSelected = selectedNode && selectedNode.id === n.id;
-                const isGlowing = n.glowUntil && n.glowUntil > Date.now();
-
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, n.radius + (isSelected ? 4 : (isGlowing ? 3 : 0)), 0, Math.PI * 2);
-                ctx.fillStyle = n.color;
-                if (isSelected || isGlowing) {
-                    ctx.shadowColor = n.color;
-                    ctx.shadowBlur = isGlowing ? 20 : 14;
+                if (container && container.clientWidth > 0) {
+                    updatePhysics(width, height);
                 }
-                ctx.fill();
-                ctx.shadowBlur = 0;
 
-                ctx.strokeStyle = isGlowing ? '#ffffff' : (isLight ? '#ffffff' : '#18181b');
-                ctx.lineWidth = isGlowing ? 3 : 2;
-                ctx.stroke();
+                const isLight = document.body.classList.contains('light-theme');
+                ctx.fillStyle = isLight ? '#f8fafc' : '#09090b';
+                ctx.fillRect(0, 0, width, height);
 
-                ctx.font = (n.category === 'tool' ? '9px' : '11px') + ' JetBrains Mono, monospace';
-                ctx.fillStyle = isLight ? '#0f172a' : '#f4f4f5';
-                ctx.textAlign = 'center';
-                ctx.fillText(n.label, n.x, n.y + n.radius + 14);
-            });
+                networkEdges.forEach(e => {
+                    if (!e.source || !e.target) return;
+                    if (isNaN(e.source.x) || isNaN(e.source.y) || isNaN(e.target.x) || isNaN(e.target.y)) return;
+                    ctx.beginPath();
+                    ctx.moveTo(e.source.x, e.source.y);
+                    ctx.lineTo(e.target.x, e.target.y);
+                    ctx.strokeStyle = isLight ? 'rgba(203, 213, 225, 0.7)' : 'rgba(63, 63, 70, 0.6)';
+                    ctx.lineWidth = Math.min(3, 1 + e.weight * 0.2);
+                    ctx.stroke();
+                });
+
+                for (let i = networkPulses.length - 1; i >= 0; i--) {
+                    const p = networkPulses[i];
+                    p.progress += p.speed;
+                    if (p.progress >= 1) {
+                        networkPulses.splice(i, 1);
+                        continue;
+                    }
+                    if (isNaN(p.source.x) || isNaN(p.source.y) || isNaN(p.target.x) || isNaN(p.target.y)) continue;
+                    const px = p.source.x + (p.target.x - p.source.x) * p.progress;
+                    const py = p.source.y + (p.target.y - p.source.y) * p.progress;
+
+                    ctx.beginPath();
+                    ctx.arc(px, py, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color || '#38bdf8';
+                    ctx.shadowColor = p.color || '#38bdf8';
+                    ctx.shadowBlur = 12;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+
+                networkNodes.forEach(n => {
+                    if (!n || isNaN(n.x) || isNaN(n.y)) return;
+                    const isSelected = selectedNode && selectedNode.id === n.id;
+                    const isGlowing = n.glowUntil && n.glowUntil > Date.now();
+
+                    if (isGlowing) {
+                        const elapsed = (3500 - (n.glowUntil - Date.now())) / 1000;
+                        const rippleRadius = n.radius + 4 + (elapsed % 1.2) * 18;
+                        const alpha = Math.max(0, 1 - (elapsed % 1.2));
+                        ctx.beginPath();
+                        ctx.arc(n.x, n.y, rippleRadius, 0, Math.PI * 2);
+                        ctx.strokeStyle = n.color || '#38bdf8';
+                        ctx.lineWidth = 2;
+                        ctx.globalAlpha = alpha;
+                        ctx.stroke();
+                        ctx.globalAlpha = 1.0;
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, n.radius + (isSelected ? 4 : (isGlowing ? 3 : 0)), 0, Math.PI * 2);
+                    ctx.fillStyle = n.color || '#818cf8';
+                    if (isSelected || isGlowing) {
+                        ctx.shadowColor = n.color || '#818cf8';
+                        ctx.shadowBlur = isGlowing ? 24 : 14;
+                    }
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.strokeStyle = isGlowing ? '#ffffff' : (isLight ? '#ffffff' : '#18181b');
+                    ctx.lineWidth = isGlowing ? 3 : 2;
+                    ctx.stroke();
+
+                    ctx.font = '11px "JetBrains Mono", monospace, sans-serif';
+                    ctx.fillStyle = isLight ? '#0f172a' : '#f4f4f5';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(n.label || n.id, n.x, n.y + n.radius + 14);
+                });
+            } catch(renderErr) {
+                console.warn('Canvas render frame error:', renderErr);
+            }
 
             requestAnimationFrame(renderNetworkLoop);
         }
@@ -1891,7 +1909,6 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             });
 
             networkNodes.forEach(n => {
-                if (!n || isNaN(n.x) || isNaN(n.y)) return;
                 if (n.fx !== null) {
                     n.x = n.fx;
                     n.y = n.fy;
@@ -2026,7 +2043,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
         let currentArtifactRawText = "";
 
         function openArtifactViewer(path, filename, artifactType, agentName) {
-            path = (path || '').replace(/^file:\/\//, '').replace(/^file:/, '').replace(/[.,;:\s]+$/, '');
+            path = (path || '').replace(/^file:\/\//, '').replace(/^file:/, '').replace(/[\x60"'\s.,;:]+$/g, '').replace(/^[\x60"'\s]+/g, '');
             const modal = document.getElementById('artifact-viewer-modal');
             const titleEl = document.getElementById('artifact-modal-title');
             const badgeEl = document.getElementById('artifact-modal-badge');

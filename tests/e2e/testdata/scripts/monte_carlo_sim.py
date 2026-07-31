@@ -1,23 +1,30 @@
 import numpy as np
 
-# Configuration for GPU Spot Rate Simulation
-iterations = 10000
-initial_price = 0.50  # Base hourly price for A100
-mu = 0.01             # Daily drift
-volatility = 0.05     # Daily volatility
-days = 30
+def run_monte_carlo():
+    # Parameters for GPU spot rate volatility simulation
+    # S0: current price, mu: drift, sigma: volatility, T: time horizon
+    S0 = 0.50  # Base rate per hour
+    mu = 0.02
+    sigma = 0.15
+    T = 1.0
+    dt = 1/24  # Daily steps
+    iterations = 10000
 
-# Generate random paths
-np.random.seed(42)
-returns = np.random.normal(mu/252, volatility/np.sqrt(252), (days, iterations))
-price_paths = initial_price * np.exp(np.cumsum(returns, axis=0))
+    # Simulate price paths using Geometric Brownian Motion
+    # S_t = S_0 * exp((mu - 0.5 * sigma^2) * T + sigma * sqrt(T) * Z)
+    Z = np.random.normal(0, 1, iterations)
+    S_T = S0 * np.exp((mu - 0.5 * sigma**2) * T + sigma * np.sqrt(T) * Z)
+    
+    # Calculate returns
+    returns = S_T - S0
+    
+    # Calculate 95% Value-at-Risk (VaR)
+    var_95 = np.percentile(returns, 5)
+    
+    print(f"Simulation Results (10,000 iterations):")
+    print(f"Initial Rate: ${S0:.4f}/hr")
+    print("Expected Final Mean Rate: ${:.4f}/hr".format(np.mean(S_T)))
+    print("95% Value-at-Risk (VaR): ${:.4f}/hr".format(abs(var_95)))
 
-# Final prices at the end of 30 days
-final_prices = price_paths[-1, :]
-
-# Calculate Value at Risk (VaR) at 95% confidence level
-var_95 = np.percentile(final_prices, 5)
-print(f'Monte Carlo Simulation Results (10,000 trials):')
-print(f'Initial Price: ${initial_price:.4f}')
-print(f'Expected Price after 30 days: ${np.mean(final_prices):.4f}')
-print(f'95% Value-at-Risk (Lower bound): ${var_95:.4f}')
+if __name__ == '__main__':
+    run_monte_carlo()

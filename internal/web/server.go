@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -732,10 +733,10 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Clean path prefixes and trailing punctuation
+	// 1. Clean path prefixes and trailing/leading backticks, quotes, spaces, and punctuation
 	rawPath = strings.TrimPrefix(rawPath, "file://")
 	rawPath = strings.TrimPrefix(rawPath, "file:")
-	rawPath = strings.TrimRight(rawPath, ".,;:\t\n\r\"')}]")
+	rawPath = strings.Trim(rawPath, " \t\n\r`\"'()[]{}.,;:")
 
 	wd, _ := os.Getwd()
 	absWd, _ := filepath.Abs(wd)
@@ -755,7 +756,7 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Fallback resolution if file does not exist directly at absPath
 	if _, statErr := os.Stat(absPath); os.IsNotExist(statErr) {
-		baseName := filepath.Base(rawPath)
+		baseName := strings.Trim(filepath.Base(rawPath), " \t\n\r`\"'()[]{}.,;:")
 		candidates := []string{
 			filepath.Join(absWd, rawPath),
 			filepath.Join(absWd, baseName),
@@ -785,6 +786,20 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 				absPath = cand
 				break
 			}
+		}
+
+		// Recursive workspace walk search fallback if candidates fail
+		if _, err := os.Stat(absPath); os.IsNotExist(err) && baseName != "" {
+			_ = filepath.Walk(absWd, func(path string, info os.FileInfo, walkErr error) error {
+				if walkErr != nil || info.IsDir() {
+					return nil
+				}
+				if strings.EqualFold(info.Name(), baseName) {
+					absPath = path
+					return filepath.SkipAll
+				}
+				return nil
+			})
 		}
 	}
 
@@ -1290,7 +1305,7 @@ func (s *Server) handleNetworkTopology(w http.ResponseWriter, r *http.Request) {
 	type Node struct {
 		ID       string   `json:"id"`
 		Label    string   `json:"label"`
-		Category string   `json:"category"` // user, orchestrator, specialist, tool
+		Category string   `json:"category"` // user, orchestrator, specialist
 		Role     string   `json:"role"`
 		Tools    []string `json:"tools,omitempty"`
 	}
@@ -1303,89 +1318,79 @@ func (s *Server) handleNetworkTopology(w http.ResponseWriter, r *http.Request) {
 
 	nodes := []Node{
 		{ID: "USER", Label: "User / Client", Category: "user", Role: "Task Dispatcher"},
-		{ID: "triage-agent", Label: "Triage Agent", Category: "orchestrator", Role: "Intent Router & Gatekeeper", Tools: []string{"route_task"}},
-		{ID: "planner-agent", Label: "Planner Agent", Category: "orchestrator", Role: "Task Decomposer & DAG Planner", Tools: []string{"create_plan"}},
-		{ID: "supervisor-agent", Label: "Supervisor Agent", Category: "orchestrator", Role: "Quality Assurance & Verifier", Tools: []string{"verify_output"}},
 	}
+
+	edges := []Edge{}
 
 	loaded := agent.GetLoadedAgentConfigs()
-	knownAgents := map[string]bool{
-		"USER": true, "triage-agent": true, "planner-agent": true, "supervisor-agent": true,
+	if len(loaded) == 0 {
+		_ = agent.LoadAgentsConfig("agents.json")
+		loaded = agent.GetLoadedAgentConfigs()
+	}
+	if len(loaded) == 0 {
+		loaded = map[string]agent.AgentJSONConfig{
+			"triage-agent":     {Description: "Intent Router & Gatekeeper"},
+			"planner-agent":    {Description: "Task Decomposer & DAG Planner"},
+			"supervisor-agent": {Description: "Quality Assurance & Verifier"},
+			"developer-agent":  {Description: "Code generation & execution"},
+			"researcher-agent": {Description: "Deep web search & PDF synthesis"},
+			"quant-agent":      {Description: "Options pricing & financial modeling"},
+			"writer-agent":     {Description: "Document synthesis & technical documentation"},
+		}
 	}
 
-	for id, cfg := range loaded {
-		if !knownAgents[id] {
-			knownAgents[id] = true
-			label := id
-			if parts := strings.Split(id, "-"); len(parts) > 0 {
-				label = strings.Title(parts[0]) + " Agent"
+	var keys []string
+	for k := range loaded {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	hasTriage := false
+	for _, id := range keys {
+		cfg := loaded[id]
+		category := "specialist"
+		if id == "triage-agent" || id == "planner-agent" || id == "supervisor-agent" {
+			category = "orchestrator"
+		}
+		if id == "triage-agent" {
+			hasTriage = true
+		}
+
+		parts := strings.Split(id, "-")
+		var titleParts []string
+		for _, p := range parts {
+			if p != "" {
+				titleParts = append(titleParts, strings.Title(p))
 			}
-			nodes = append(nodes, Node{
-				ID:       id,
-				Label:    label,
-				Category: "specialist",
-				Role:     cfg.Description,
-				Tools:    cfg.Tools,
-			})
 		}
-	}
+		label := strings.Join(titleParts, " ")
 
-	defaultSpecialists := []struct {
-		ID, Label, Role string
-		Tools           []string
-	}{
-		{"developer-agent", "Developer Agent", "Code generation, debugging, & bash execution", []string{"read_file", "write_file", "execute_python_docker", "execute_bash_docker"}},
-		{"researcher-agent", "Researcher Agent", "Deep web search, HTML fetch & PDF synthesis", []string{"web_search_and_extract", "fetch_html", "generate_pdf_report"}},
-		{"quant-agent", "Quant Agent", "Options pricing, forward curves & Monte Carlo simulation", []string{"query_compute_prices", "query_forward_curves", "query_options_chain"}},
-		{"writer-agent", "Writer Agent", "Document synthesis & technical documentation", []string{"write_file", "read_file"}},
-		{"email-agent", "Email Assistant", "Email drafting & formatting", []string{"write_email"}},
-		{"excel-agent", "Excel Analyst", "Workbook generation & financial model audit", []string{"read_file", "write_file"}},
-	}
-
-	for _, spec := range defaultSpecialists {
-		if !knownAgents[spec.ID] {
-			knownAgents[spec.ID] = true
-			nodes = append(nodes, Node{
-				ID:       spec.ID,
-				Label:    spec.Label,
-				Category: "specialist",
-				Role:     spec.Role,
-				Tools:    spec.Tools,
-			})
-		}
-	}
-
-	toolsList := agent.GetAvailableToolsList()
-	for _, t := range toolsList {
 		nodes = append(nodes, Node{
-			ID:       "tool:" + t.Name,
-			Label:    t.Name,
-			Category: "tool",
-			Role:     t.Description,
+			ID:       id,
+			Label:    label,
+			Category: category,
+			Role:     cfg.Description,
+			Tools:    cfg.Tools,
 		})
-	}
 
-	edges := []Edge{
-		{Source: "USER", Target: "triage-agent", Weight: 10},
-		{Source: "triage-agent", Target: "planner-agent", Weight: 5},
-		{Source: "triage-agent", Target: "developer-agent", Weight: 8},
-		{Source: "triage-agent", Target: "researcher-agent", Weight: 8},
-		{Source: "triage-agent", Target: "quant-agent", Weight: 6},
-		{Source: "triage-agent", Target: "writer-agent", Weight: 6},
-		{Source: "triage-agent", Target: "email-agent", Weight: 4},
-		{Source: "triage-agent", Target: "excel-agent", Weight: 4},
-		{Source: "supervisor-agent", Target: "triage-agent", Weight: 3},
-	}
-
-	for _, n := range nodes {
-		if n.Category == "specialist" {
-			for _, toolName := range n.Tools {
-				edges = append(edges, Edge{
-					Source: n.ID,
-					Target: "tool:" + toolName,
-					Weight: 2,
-				})
+		if id != "USER" && id != "triage-agent" {
+			weight := 6
+			if id == "planner-agent" || id == "supervisor-agent" {
+				weight = 8
 			}
+			edges = append(edges, Edge{
+				Source: "triage-agent",
+				Target: id,
+				Weight: weight,
+			})
+		}
+	}
+
+	if hasTriage {
+		edges = append([]Edge{{Source: "USER", Target: "triage-agent", Weight: 10}}, edges...)
+	} else {
+		for _, id := range keys {
+			edges = append(edges, Edge{Source: "USER", Target: id, Weight: 5})
 		}
 	}
 
