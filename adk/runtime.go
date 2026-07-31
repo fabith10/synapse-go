@@ -55,6 +55,9 @@ func NewRuntime(cfg Config) (*Runtime, error) {
 	}
 
 	// --- Step 2: Pricing Oracle + Broker -------------------------------------
+	if cfg.ClassifierModel != "" {
+		SetClassifierModel(cfg.ClassifierModel)
+	}
 	oracle := broker.NewPricingOracle()
 	for _, node := range cfg.LLMProviders {
 		oracle.RegisterLLM(node)
@@ -84,7 +87,7 @@ func NewRuntime(cfg Config) (*Runtime, error) {
 			acl = AllowAll{}
 		}
 		orch.Use(Middleware.Logging(logger))
-		orch.Use(Middleware.InjectionGuardrail())
+		orch.Use(Middleware.InjectionGuardrail(llm))
 		orch.Use(Middleware.Auth(acl))
 		orch.Use(Middleware.Tracing())
 		if cfg.GlobalMaxCostUSD > 0 {

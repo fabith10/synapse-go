@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
 
@@ -26,7 +28,7 @@ type BrowserElement struct {
 type BrowserSession struct {
 	mu            sync.Mutex
 	Ctx           context.Context
-	Cancel        context.CancelFunc
+	Cancel        cancelFuncWrapper
 	CurrentURL    string
 	PageText      string
 	Elements      []BrowserElement
@@ -35,12 +37,14 @@ type BrowserSession struct {
 	CaptchaNotice string
 }
 
+type cancelFuncWrapper context.CancelFunc
+
 // Close releases the chromedp allocator and browser resources.
 func (b *BrowserSession) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.Cancel != nil {
-		b.Cancel()
+		context.CancelFunc(b.Cancel)()
 		b.Ctx = nil
 		b.Cancel = nil
 	}
@@ -90,7 +94,7 @@ func (b *BrowserSession) Navigate(urlStr string) (string, error) {
 		parsed.Scheme = "http"
 	}
 
-	// Initialize chromedp if not exists
+	// Initialize stealth chromedp session if not exists
 	if b.Ctx == nil {
 		isHeadless := true
 		if os.Getenv("HEADED") == "true" || os.Getenv("HEADLESS") == "false" || os.Getenv("BROWSER_HEADED") == "true" {
@@ -100,14 +104,59 @@ func (b *BrowserSession) Navigate(urlStr string) (string, error) {
 			chromedp.NoSandbox,
 			chromedp.Flag("disable-gpu", true),
 			chromedp.Flag("headless", isHeadless),
+			// Stealth flags: mask automation flags & set realistic viewport/User-Agent
+			chromedp.Flag("disable-blink-features", "AutomationControlled"),
+			chromedp.UserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+			chromedp.WindowSize(1440, 900),
+			chromedp.Flag("accept-lang", "en-US,en;q=0.9"),
 		)
+
+		if proxy := os.Getenv("BROWSER_PROXY"); proxy != "" {
+			opts = append(opts, chromedp.Flag("proxy-server", proxy))
+		} else if proxy := os.Getenv("HTTP_PROXY"); proxy != "" {
+			opts = append(opts, chromedp.Flag("proxy-server", proxy))
+		}
+
+		if userDataDir := os.Getenv("BROWSER_USER_DATA_DIR"); userDataDir != "" {
+			opts = append(opts, chromedp.UserDataDir(userDataDir))
+		}
+
 		allocCtx, _ := chromedp.NewExecAllocator(context.Background(), opts...)
-		b.Ctx, b.Cancel = chromedp.NewContext(allocCtx)
+		ctx, cancel := chromedp.NewContext(allocCtx)
+		b.Ctx = ctx
+		b.Cancel = cancelFuncWrapper(cancel)
+
+		// Inject CDP stealth overrides before page load to hide automated browser signatures
+		const stealthScript = `(function() {
+			Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+			window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
+			Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+			Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+			const getParameter = WebGLRenderingContext.prototype.getParameter;
+			WebGLRenderingContext.prototype.getParameter = function(parameter) {
+				if (parameter === 37445) return 'Intel Inc.';
+				if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+				return getParameter.apply(this, arguments);
+			};
+			if (window.navigator.permissions) {
+				const origQuery = window.navigator.permissions.query;
+				window.navigator.permissions.query = (params) => (
+					params && params.name === 'notifications' ?
+						Promise.resolve({ state: Notification.permission }) :
+						origQuery(params)
+				);
+			}
+		})();`
+
+		_ = chromedp.Run(b.Ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+			_, err := page.AddScriptToEvaluateOnNewDocument(stealthScript).Do(ctx)
+			return err
+		}))
 	}
 
 	err = chromedp.Run(b.Ctx,
 		chromedp.Navigate(parsed.String()),
-		chromedp.Sleep(200*time.Millisecond),
+		chromedp.Sleep(time.Duration(300+rand.Intn(200))*time.Millisecond),
 	)
 	if err != nil {
 		return "", fmt.Errorf("chromedp navigate: %w", err)
@@ -141,12 +190,23 @@ func (b *BrowserSession) Input(index int, val string) (string, error) {
 	sel := fmt.Sprintf("[data-agent-index='%d']", index)
 	err := chromedp.Run(b.Ctx,
 		chromedp.Focus(sel, chromedp.ByQuery),
-		chromedp.Evaluate(fmt.Sprintf(`document.querySelector("%s").value = ""` + ` ; document.querySelector("%s").dispatchEvent(new Event('input', { bubbles: true }));`, sel, sel), nil),
-		chromedp.SendKeys(sel, val, chromedp.ByQuery),
+		chromedp.Evaluate(fmt.Sprintf(`document.querySelector("%s").value = ""; document.querySelector("%s").dispatchEvent(new Event('input', { bubbles: true }));`, sel, sel), nil),
 	)
 	if err != nil {
-		return "", fmt.Errorf("chromedp input: %w", err)
+		return "", fmt.Errorf("chromedp input focus: %w", err)
 	}
+
+	// Humanized typing per character with randomized inter-key delay (30ms - 75ms)
+	for _, ch := range val {
+		_ = chromedp.Run(b.Ctx, chromedp.SendKeys(sel, string(ch), chromedp.ByQuery))
+		time.Sleep(time.Duration(30+rand.Intn(45)) * time.Millisecond)
+	}
+
+	// Trigger input & change events for frameworks (React, Vue, Angular)
+	_ = chromedp.Run(b.Ctx,
+		chromedp.Evaluate(fmt.Sprintf(`document.querySelector("%s").dispatchEvent(new Event('change', { bubbles: true }));`, sel), nil),
+		chromedp.Sleep(time.Duration(150+rand.Intn(150))*time.Millisecond),
+	)
 
 	b.Inputs[index] = val
 	b.updateStateLocked()
@@ -176,9 +236,22 @@ func (b *BrowserSession) Click(index int) (string, error) {
 	}
 
 	sel := fmt.Sprintf("[data-agent-index='%d']", index)
+
+	// Smoothly scroll target element into view & dispatch hover events prior to click
+	scrollHoverScript := fmt.Sprintf(`(function() {
+		let el = document.querySelector("%s");
+		if (el) {
+			el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+			el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+		}
+	})()`, sel)
+
 	err := chromedp.Run(b.Ctx,
+		chromedp.Evaluate(scrollHoverScript, nil),
+		chromedp.Sleep(time.Duration(150+rand.Intn(150))*time.Millisecond),
 		chromedp.Click(sel, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond), // increased for SPA transitions
+		chromedp.Sleep(time.Duration(450+rand.Intn(300))*time.Millisecond), // SPA transition delay
 	)
 	if err != nil {
 		return "", fmt.Errorf("chromedp click: %w", err)

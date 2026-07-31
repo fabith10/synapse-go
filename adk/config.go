@@ -48,6 +48,11 @@ type Config struct {
 	// every message crossing the bus. If nil, AllowAll is used (no restrictions).
 	ACL ACLProvider
 
+	// ClassifierModel specifies the Ollama model name used for semantic prompt-injection
+	// classification in the InjectionGuardrail middleware (e.g. "llama3", "mistral", "qwen2.5").
+	// Defaults to "llama3" (or OLLAMA_CLASSIFIER_MODEL / CLASSIFIER_MODEL env var if set).
+	ClassifierModel string
+
 	// DisableDefaultMiddleware skips the automatic Tracing → Auth → Logging
 	// middleware chain. Set to true only when wiring custom middleware manually.
 	DisableDefaultMiddleware bool
