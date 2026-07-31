@@ -496,8 +496,21 @@ func main() {
 		if port == "" {
 			port = "8080"
 		}
+
+		// Security (C-2): Bind to localhost only by default to prevent
+		// unauthenticated access from the local network. Set BIND_ADDR=0.0.0.0
+		// explicitly only when intentional remote/container access is required.
+		bindAddr := os.Getenv("BIND_ADDR")
+		if bindAddr == "" {
+			bindAddr = "127.0.0.1"
+		}
+		listenAddr := bindAddr + ":" + port
+
 		fmt.Println("====================================================")
 		fmt.Printf("  Control Panel running at http://localhost:%s\n", port)
+		if bindAddr != "127.0.0.1" {
+			fmt.Printf("  WARNING: Server bound to %s (all interfaces)\n", bindAddr)
+		}
 		fmt.Println("====================================================")
 
 		// Auto-open frontend browser link locally (disabled in headless or test modes)
@@ -508,7 +521,7 @@ func main() {
 			}(port)
 		}
 
-		if err := http.ListenAndServe(":"+port, webServer); err != nil {
+		if err := http.ListenAndServe(listenAddr, webServer); err != nil {
 			fmt.Printf("Web server error: %v\n", err)
 		}
 	}()

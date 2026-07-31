@@ -95,7 +95,18 @@ func (s *DockerSandbox) Execute(ctx context.Context, req ExecutionRequest) Execu
 
 	cwd, _ := os.Getwd()
 	if cwd != "" {
-		hostCfg.Binds = append(hostCfg.Binds, fmt.Sprintf("%s:/workspace", cwd))
+		// Security (H-2): Mount workspace read-only to prevent sandboxed code
+		// from modifying host files (.env, agents.json, DB, source code, etc.).
+		// Containers that need write access should use their own ephemeral /tmp.
+		hostCfg.Binds = append(hostCfg.Binds, fmt.Sprintf("%s:/workspace:ro", cwd))
+	}
+
+	// Security (H-3): Disable container networking by default to prevent
+	// data exfiltration, SSRF, and downloading of malicious payloads.
+	// Set DOCKER_ALLOW_NETWORK=true only when the workload explicitly requires
+	// internet access (e.g., pip install in a trusted, gated pipeline).
+	if os.Getenv("DOCKER_ALLOW_NETWORK") != "true" {
+		hostCfg.NetworkMode = "none"
 	}
 
 	// Step 1: Create the container with workspace mounted at /workspace

@@ -29,6 +29,9 @@ type BrowserSession struct {
 	mu            sync.Mutex
 	Ctx           context.Context
 	Cancel        cancelFuncWrapper
+	// Security (L-4): track the allocator cancel separately so both
+	// the chromedp context and its exec allocator are cleaned up on Close.
+	allocCancel   context.CancelFunc
 	CurrentURL    string
 	PageText      string
 	Elements      []BrowserElement
@@ -39,7 +42,8 @@ type BrowserSession struct {
 
 type cancelFuncWrapper context.CancelFunc
 
-// Close releases the chromedp allocator and browser resources.
+// Close releases the chromedp context and exec allocator, cleaning up the
+// Chrome process. Both cancels must be called to avoid orphaned processes (L-4).
 func (b *BrowserSession) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -47,6 +51,10 @@ func (b *BrowserSession) Close() {
 		context.CancelFunc(b.Cancel)()
 		b.Ctx = nil
 		b.Cancel = nil
+	}
+	if b.allocCancel != nil {
+		b.allocCancel()
+		b.allocCancel = nil
 	}
 }
 
@@ -121,10 +129,11 @@ func (b *BrowserSession) Navigate(urlStr string) (string, error) {
 			opts = append(opts, chromedp.UserDataDir(userDataDir))
 		}
 
-		allocCtx, _ := chromedp.NewExecAllocator(context.Background(), opts...)
+		allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 		ctx, cancel := chromedp.NewContext(allocCtx)
 		b.Ctx = ctx
 		b.Cancel = cancelFuncWrapper(cancel)
+		b.allocCancel = allocCancel // Security (L-4): stored so Close() can release allocator
 
 		// Inject CDP stealth overrides before page load to hide automated browser signatures
 		const stealthScript = `(function() {

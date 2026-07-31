@@ -183,7 +183,9 @@ func LoadCriticalActionsConfig(path string) error {
 
 // RequiresHumanReview evaluates Python code blocks for dangerous syscalls.
 func RequiresHumanReview(code string) bool {
-	if os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL") == "true" {
+	// Security (H-1): HITL bypass requires BOTH flags to prevent accidental
+	// production use. AGENT_FRAMEWORK_BYPASS_HITL alone is not sufficient.
+	if os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL") == "true" && os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" {
 		return false
 	}
 	if CriticalActions.AutoApproveAll {
@@ -199,7 +201,8 @@ func RequiresHumanReview(code string) bool {
 
 // RequiresHumanReviewBash evaluates Bash script blocks for dangerous commands.
 func RequiresHumanReviewBash(script string) bool {
-	if os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL") == "true" {
+	// Security (H-1): Require both bypass flags — see RequiresHumanReview.
+	if os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL") == "true" && os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" {
 		return false
 	}
 	if CriticalActions.AutoApproveAll {

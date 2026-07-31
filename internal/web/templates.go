@@ -1122,6 +1122,23 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
     <!-- HTMX SSE Extension Local -->
     <script src="/static/sse.js"></script>
 
+    <!-- Security (C-3): CSRF Token injection for all HTMX mutating requests.
+         Reads the _csrf_token cookie (set by the server on page load) and
+         attaches it as an X-CSRF-Token header on every state-mutating request. -->
+    <script>
+        function getCsrfToken() {
+            const match = document.cookie.match(/(?:^|;\s*)_csrf_token=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : '';
+        }
+
+        document.addEventListener('htmx:configRequest', function(evt) {
+            const method = (evt.detail.verb || '').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                evt.detail.headers['X-CSRF-Token'] = getCsrfToken();
+            }
+        });
+    </script>
+
     <!-- Auto-scroll, form reset, and tab navigation helpers -->
     <script>
         function toggleTheme() {
