@@ -405,6 +405,36 @@ type DashboardData struct {
 	ArtifactsHTML           template.HTML
 }
 
+func isProtectedSystemFile(filePath string) bool {
+	baseName := strings.ToLower(filepath.Base(filePath))
+	ext := strings.ToLower(filepath.Ext(baseName))
+
+	// Strictly protect shell scripts, Go source/modules, and repository files
+	if ext == ".go" || ext == ".sh" || ext == ".mod" || ext == ".sum" {
+		return true
+	}
+
+	protectedFiles := map[string]bool{
+		"start.sh":               true,
+		"makefile":               true,
+		"readme.md":              true,
+		"agents.md":              true,
+		"antigravity.md":         true,
+		"dockerfile":             true,
+		".gitignore":             true,
+		".dockerignore":          true,
+		"agents.json":            true,
+		"models.json":            true,
+		"mock_models.json":       true,
+		"schedules.json":         true,
+		"critical_actions.json":  true,
+		"open_weight_rates.json": true,
+		"pricing_providers.json": true,
+	}
+
+	return protectedFiles[baseName]
+}
+
 func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 	s.artifactsMu.Lock()
 	defer s.artifactsMu.Unlock()
@@ -413,7 +443,7 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 	seen := make(map[string]bool)
 
 	for _, art := range s.artifacts {
-		if !seen[art.Path] {
+		if !isProtectedSystemFile(art.Path) && !seen[art.Path] {
 			seen[art.Path] = true
 			discovered = append(discovered, art)
 		}
@@ -424,12 +454,9 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 		return discovered
 	}
 
-	searchDirs := []string{"reports", "uploads", "emails", "workbooks", "scripts", "scratch", "output", "."}
+	searchDirs := []string{"reports", "uploads", "emails", "workbooks", "scratch", "output"}
 	for _, dir := range searchDirs {
-		targetDir := absWd
-		if dir != "." {
-			targetDir = filepath.Join(absWd, dir)
-		}
+		targetDir := filepath.Join(absWd, dir)
 		entries, err := os.ReadDir(targetDir)
 		if err != nil {
 			continue
@@ -441,18 +468,11 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 			}
 
 			name := entry.Name()
-			if strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".go") || name == "go.mod" || name == "go.sum" ||
-				name == "agents.json" || name == "models.json" || name == "mock_models.json" ||
-				name == "schedules.json" || name == "critical_actions.json" || name == "open_weight_rates.json" ||
-				name == "pricing_providers.json" || name == "Makefile" || name == "AGENTS.md" || name == "README.md" {
+			if strings.HasPrefix(name, ".") || isProtectedSystemFile(name) {
 				continue
 			}
 
-			relPath := name
-			if dir != "." {
-				relPath = filepath.Join(dir, name)
-			}
-
+			relPath := filepath.Join(dir, name)
 			if seen[relPath] {
 				continue
 			}
@@ -464,12 +484,10 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 				artifactType = "pdf"
 			case ".xlsx", ".xls", ".csv":
 				artifactType = "excel"
-			case ".py", ".sh", ".js", ".go", ".css", ".html":
+			case ".py", ".js", ".css", ".html":
 				artifactType = "code"
 			case ".json":
-				if strings.Contains(name, "report") || strings.Contains(name, "job") || strings.Contains(name, "matching") || strings.Contains(name, "rank") {
-					artifactType = "json"
-				}
+				artifactType = "json"
 			case ".txt":
 				if dir == "emails" || strings.Contains(name, "email") {
 					artifactType = "email"
@@ -477,7 +495,7 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 					artifactType = "text"
 				}
 			case ".md":
-				if name != "README.md" {
+				if name != "README.md" && name != "AGENTS.md" {
 					artifactType = "doc"
 				}
 			case ".png", ".jpg", ".jpeg", ".webp", ".svg":
@@ -495,7 +513,7 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 				agentName = "researcher-agent"
 			} else if extLower == ".xlsx" || extLower == ".xls" {
 				agentName = "excel-agent"
-			} else if extLower == ".py" || extLower == ".sh" || dir == "scripts" {
+			} else if extLower == ".py" || dir == "scripts" {
 				agentName = "developer-agent"
 			} else if strings.Contains(name, "job") || strings.Contains(name, "match") {
 				agentName = "browser-agent"
@@ -508,11 +526,11 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 			}
 
 			art := ArtifactItem{
-				Path:         relPath,
 				Filename:     name,
-				ArtifactType: artifactType,
+				Path:         relPath,
 				Agent:        agentName,
 				Time:         modTime,
+				ArtifactType: artifactType,
 			}
 			seen[relPath] = true
 			discovered = append(discovered, art)
@@ -1080,10 +1098,8 @@ func (s *Server) handleArtifactDelete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	baseName := filepath.Base(absPath)
-	if strings.HasSuffix(baseName, ".go") || baseName == "go.mod" || baseName == "go.sum" ||
-		baseName == "agents.json" || baseName == "models.json" || baseName == "Makefile" {
-		http.Error(w, "Forbidden: system file", http.StatusForbidden)
+	if isProtectedSystemFile(absPath) {
+		http.Error(w, "Forbidden: protected system file", http.StatusForbidden)
 		return
 	}
 
@@ -1132,13 +1148,13 @@ func (s *Server) handleArtifactDeleteAll(w http.ResponseWriter, r *http.Request)
 			absP = filepath.Join(absWd, item.Path)
 		}
 		absP, _ = filepath.Abs(absP)
-		baseName := filepath.Base(absP)
-		if strings.HasSuffix(baseName, ".go") || baseName == "go.mod" || baseName == "go.sum" ||
-			baseName == "agents.json" || baseName == "models.json" || baseName == "Makefile" || baseName == "README.md" || baseName == "AGENTS.md" {
+		if isProtectedSystemFile(absP) {
+			logger.WithComponent("web").Warn("Skipping deletion of protected system file", "path", absP)
 			continue
 		}
 		if strings.HasPrefix(absP, absWd) {
 			_ = os.Remove(absP)
+			logger.WithComponent("web").Info("Deleted UI artifact file from disk", "path", absP)
 		}
 	}
 	s.artifacts = nil

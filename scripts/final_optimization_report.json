@@ -1,7 +1,0 @@
-{
-    "optimal_start_hour": "04:00",
-    "min_cost_4hr": 3.9,
-    "savings_percent": 51.25,
-    "market_reference": "Together RTX4090 @ $0.45/hr",
-    "calculation_methodology": "Sliding 4-hour window across 24-hour cycle with diurnal tariff variance."
-}

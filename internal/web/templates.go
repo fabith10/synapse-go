@@ -580,7 +580,13 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                             <span>📎</span>
                             Agent Artifacts &amp; Generated Deliverables
                         </h2>
-                        <span class="text-[9px] font-mono text-zinc-400">Reports, Code, PDF &amp; Workbooks</span>
+                        <div class="flex items-center gap-3 font-mono">
+                            <span class="text-[9px] text-zinc-400">Reports, Code, PDF &amp; Workbooks</span>
+                            <button hx-post="/api/artifact/delete-all" hx-target="#artifacts-list" hx-swap="innerHTML" hx-confirm="Are you sure you want to delete ALL generated artifacts from disk?"
+                                    class="px-2.5 py-1 bg-zinc-900 hover:bg-rose-950/80 text-zinc-400 hover:text-rose-300 border border-zinc-800 hover:border-rose-800 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer flex items-center gap-1">
+                                <span>🗑️</span> <span>Clear All</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="artifacts-list" sse-swap="artifact-ready" hx-swap="afterbegin" class="space-y-3">
                         {{if .ArtifactsHTML}}
