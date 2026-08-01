@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fabith10/synapse-go/adk"
+	agenttools "github.com/fabith10/synapse-go/internal/agent/tools"
 	"github.com/fabith10/synapse-go/internal/broker"
 	"github.com/fabith10/synapse-go/internal/memory"
 	"github.com/fabith10/synapse-go/internal/orchestrator"
@@ -387,7 +388,7 @@ func TestChromedpBrowserSession(t *testing.T) {
 	}))
 	defer server.Close()
 
-	session := &BrowserSession{
+	session := &agenttools.BrowserSession{
 		Inputs: make(map[int]string),
 	}
 	defer session.Close()
@@ -437,7 +438,7 @@ func TestChromedpBrowserSession(t *testing.T) {
 }
 
 func TestExtractPDFText_InvalidFile(t *testing.T) {
-	tool := GetExtractPDFTextTool()
+	tool := agenttools.GetExtractPDFTextTool()
 	ctx := context.Background()
 
 	// Call with non-existent file
@@ -464,8 +465,8 @@ func TestLongTermMemoryTools(t *testing.T) {
 	}
 	defer store.Close()
 
-	saveTool := GetSaveLongTermMemoryTool(store)
-	searchTool := GetSearchLongTermMemoriesTool(store)
+	saveTool := agenttools.GetSaveLongTermMemoryTool(store)
+	searchTool := agenttools.GetSearchLongTermMemoriesTool(store)
 
 	ctx := context.WithValue(context.Background(), "executing_agent_id", "developer-agent")
 
@@ -624,7 +625,7 @@ func TestDelegateSubtaskTool(t *testing.T) {
 	orch := orchestrator.NewOrchestrator()
 	mb := make(chan adk.Message, 10)
 
-	tool := GetDelegateSubtaskTool(orch, "researcher-agent", mb)
+	tool := agenttools.GetDelegateSubtaskTool(orch, "researcher-agent", mb)
 	if tool.Name != "delegate_subtask" {
 		t.Fatalf("expected tool name 'delegate_subtask', got %q", tool.Name)
 	}

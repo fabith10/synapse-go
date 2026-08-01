@@ -19,6 +19,7 @@ import (
 
 	"github.com/fabith10/synapse-go/adk"
 	"github.com/fabith10/synapse-go/internal/agent"
+	agenttools "github.com/fabith10/synapse-go/internal/agent/tools"
 	"github.com/fabith10/synapse-go/internal/broker"
 	"github.com/fabith10/synapse-go/internal/orchestrator"
 	"github.com/fabith10/synapse-go/internal/web"
@@ -330,7 +331,7 @@ func main() {
 	}
 
 	// Load critical actions configuration if present
-	if err := agent.LoadCriticalActionsConfig(findConfigFile("critical_actions.json")); err != nil {
+	if err := agenttools.LoadCriticalActionsConfig(findConfigFile("critical_actions.json")); err != nil {
 		fmt.Printf("Warning: could not load critical_actions.json: %v (using defaults)\n", err)
 	}
 

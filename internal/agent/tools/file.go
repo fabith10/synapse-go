@@ -1,4 +1,4 @@
-package agent
+package agenttools
 
 import (
 	"bufio"
@@ -48,19 +48,10 @@ func GetGrepDocumentsTool() adk.Tool {
 				return "", fmt.Errorf("grep_documents: invalid JSON args: %w", err)
 			}
 
-			cwd, _ := os.Getwd()
-			var resolved string
-			if filepath.IsAbs(params.Path) {
-				resolved = filepath.Clean(params.Path)
-			} else {
-				resolved = filepath.Clean(filepath.Join(cwd, params.Path))
+			cleanPath, err := resolveSafeWorkspacePathWithCtx(ctx, params.Path)
+			if err != nil {
+				return "", fmt.Errorf("grep_documents: %w", err)
 			}
-			isTest := os.Getenv("AGENT_FRAMEWORK_TESTING") == "true"
-			isSafe := strings.HasPrefix(resolved, cwd) || (isTest && strings.HasPrefix(resolved, os.TempDir()))
-			if !isSafe {
-				return "", fmt.Errorf("grep_documents: permission denied: path must remain inside workspace")
-			}
-			cleanPath := resolved
 
 			var matches []string
 			var matchFn func(line string) bool

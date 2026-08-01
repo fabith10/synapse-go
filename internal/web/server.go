@@ -22,6 +22,7 @@ import (
 	dockerclient "github.com/docker/docker/client"
 	"github.com/fabith10/synapse-go/adk"
 	"github.com/fabith10/synapse-go/internal/agent"
+	agenttools "github.com/fabith10/synapse-go/internal/agent/tools"
 	"github.com/fabith10/synapse-go/internal/memory"
 	"github.com/fabith10/synapse-go/pkg/logger"
 )
@@ -200,8 +201,8 @@ func NewServer(rt *adk.Runtime) *Server {
 		approvals:     make(map[string]adk.Message),
 		mockTaskStore: NewMockTaskStore(),
 	}
-	if agent.GlobalScheduler != nil {
-		agent.GlobalScheduler.SetLogger(func(sender, recipient, content string) {
+	if agenttools.GlobalScheduler != nil {
+		agenttools.GlobalScheduler.SetLogger(func(sender, recipient, content string) {
 			s.LogEvent(sender, recipient, content)
 		})
 	}
@@ -484,7 +485,7 @@ type DashboardData struct {
 	Warnings                []string
 	AgentsConfig            map[string]string
 	ModelsConfig            string
-	CriticalActions         agent.CriticalActionsConfig
+	CriticalActions         agenttools.CriticalActionsConfig
 	RiskyBashKeywordsStr    string
 	RiskyPythonKeywordsStr  string
 	RequireApprovalToolsStr string
@@ -667,13 +668,13 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var schedulesWithNext []*ScheduleWithNext
-	if agent.GlobalScheduler != nil {
-		scheds, nextTimes := agent.GlobalScheduler.ListSchedules()
+	if agenttools.GlobalScheduler != nil {
+		scheds, nextTimes := agenttools.GlobalScheduler.ListSchedules()
 		for _, s := range scheds {
 			nfStr := "disabled"
 			if t, ok := nextTimes[s.ID]; ok {
 				duration := time.Until(t)
-				nfStr = fmt.Sprintf("in %s (%s)", agent.HumanDuration(duration), t.Format("15:04:05"))
+				nfStr = fmt.Sprintf("in %s (%s)", agenttools.HumanDuration(duration), t.Format("15:04:05"))
 			}
 			schedulesWithNext = append(schedulesWithNext, &ScheduleWithNext{
 				ID:       s.ID,
@@ -706,10 +707,10 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		Warnings:                warnings,
 		AgentsConfig:            agents,
 		ModelsConfig:            modelsConfig,
-		CriticalActions:         agent.CriticalActions,
-		RiskyBashKeywordsStr:    strings.Join(agent.CriticalActions.RiskyBashKeywords, ", "),
-		RiskyPythonKeywordsStr:  strings.Join(agent.CriticalActions.RiskyPythonKeywords, ", "),
-		RequireApprovalToolsStr: strings.Join(agent.CriticalActions.RequireApprovalTools, ", "),
+		CriticalActions:         agenttools.CriticalActions,
+		RiskyBashKeywordsStr:    strings.Join(agenttools.CriticalActions.RiskyBashKeywords, ", "),
+		RiskyPythonKeywordsStr:  strings.Join(agenttools.CriticalActions.RiskyPythonKeywords, ", "),
+		RequireApprovalToolsStr: strings.Join(agenttools.CriticalActions.RequireApprovalTools, ", "),
 		Schedules:               schedulesWithNext,
 		ArtifactsHTML:           template.HTML(artifactsBuf.String()),
 	}
@@ -946,19 +947,19 @@ func (s *Server) handleConfigSave(w http.ResponseWriter, r *http.Request) {
 		return res
 	}
 
-	critConfig := agent.CriticalActionsConfig{
+	critConfig := agenttools.CriticalActionsConfig{
 		RiskyBashKeywords:       splitList(r.FormValue("risky_bash_keywords")),
 		RiskyPythonKeywords:     splitList(r.FormValue("risky_python_keywords")),
 		RequireApprovalTools:    splitList(r.FormValue("require_approval_tools")),
 		AutoApproveAll:          r.FormValue("auto_approve_all") == "on" || r.FormValue("auto_approve_all") == "true",
-		ProductionExcelPatterns: agent.CriticalActions.ProductionExcelPatterns,
-		InternalEmailDomains:    agent.CriticalActions.InternalEmailDomains,
+		ProductionExcelPatterns: agenttools.CriticalActions.ProductionExcelPatterns,
+		InternalEmailDomains:    agenttools.CriticalActions.InternalEmailDomains,
 	}
 
 	_ = os.MkdirAll(".agents", 0755)
 	critBytes, _ := json.MarshalIndent(critConfig, "", "  ")
 	_ = os.WriteFile(".agents/critical_actions.json", critBytes, 0644)
-	agent.CriticalActions = critConfig
+	agenttools.CriticalActions = critConfig
 
 	// 4. Write configs to disk
 	if err := os.WriteFile("agents.json", agentsBytes, 0644); err != nil {
@@ -1273,13 +1274,13 @@ func (s *Server) handleSchedules(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sched := &agent.Schedule{
+		sched := &agenttools.Schedule{
 			Name:    name,
 			Cron:    cron,
 			Task:    task,
 			Enabled: true,
 		}
-		if err := agent.GlobalScheduler.AddSchedule(sched); err != nil {
+		if err := agenttools.GlobalScheduler.AddSchedule(sched); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -1290,20 +1291,20 @@ func (s *Server) handleSchedules(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Missing schedule ID", http.StatusBadRequest)
 			return
 		}
-		if err := agent.GlobalScheduler.RemoveSchedule(id); err != nil {
+		if err := agenttools.GlobalScheduler.RemoveSchedule(id); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
 
 	var list []*ScheduleWithNext
-	if agent.GlobalScheduler != nil {
-		scheds, nextTimes := agent.GlobalScheduler.ListSchedules()
+	if agenttools.GlobalScheduler != nil {
+		scheds, nextTimes := agenttools.GlobalScheduler.ListSchedules()
 		for _, s := range scheds {
 			nfStr := "disabled"
 			if t, ok := nextTimes[s.ID]; ok {
 				duration := time.Until(t)
-				nfStr = fmt.Sprintf("in %s (%s)", agent.HumanDuration(duration), t.Format("15:04:05"))
+				nfStr = fmt.Sprintf("in %s (%s)", agenttools.HumanDuration(duration), t.Format("15:04:05"))
 			}
 			list = append(list, &ScheduleWithNext{
 				ID:       s.ID,

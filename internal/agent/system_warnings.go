@@ -1,6 +1,9 @@
 package agent
 
-import "github.com/fabith10/synapse-go/internal/agent/utils"
+import (
+	"github.com/fabith10/synapse-go/internal/agent/tools"
+	"github.com/fabith10/synapse-go/internal/agent/utils"
+)
 
 type CustomWarningCheck = utils.CustomWarningCheck
 type SystemWarningsConfig = utils.SystemWarningsConfig
@@ -23,9 +26,9 @@ func CheckSystemWarnings() []string {
 		configs := GetLoadedAgentConfigs()
 		for _, agentCfg := range configs {
 			for _, t := range agentCfg.Tools {
-				activeTools[ResolveToolAlias(t)] = true
+				activeTools[agenttools.ResolveToolAlias(t)] = true
 			}
 		}
-		return activeTools, ResolveToolAlias
+		return activeTools, agenttools.ResolveToolAlias
 	})
 }

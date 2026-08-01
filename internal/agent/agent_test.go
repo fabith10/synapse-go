@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fabith10/synapse-go/adk"
+	agenttools "github.com/fabith10/synapse-go/internal/agent/tools"
 	"github.com/fabith10/synapse-go/internal/agent"
 	"github.com/fabith10/synapse-go/internal/broker"
 	"github.com/xuri/excelize/v2"
@@ -525,7 +526,7 @@ func TestMiddleware_InjectionGuardrail(t *testing.T) {
 }
 
 func TestTools_ScraperSanitization(t *testing.T) {
-	readTool := agent.GetFetchHTMLTool()
+	readTool := agenttools.GetFetchHTMLTool()
 
 	res, err := readTool.Execute(context.Background(), []byte(`{"url":"https://example.com"}`))
 	if err != nil {
@@ -643,6 +644,18 @@ func TestEmailAgent(t *testing.T) {
 }
 
 func TestEmailAgent_HITL(t *testing.T) {
+	oldBypass := os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL")
+	oldTesting := os.Getenv("AGENT_FRAMEWORK_TESTING")
+	os.Unsetenv("AGENT_FRAMEWORK_BYPASS_HITL")
+	os.Unsetenv("AGENT_FRAMEWORK_TESTING")
+	defer func() {
+		if oldBypass != "" {
+			os.Setenv("AGENT_FRAMEWORK_BYPASS_HITL", oldBypass)
+		}
+		if oldTesting != "" {
+			os.Setenv("AGENT_FRAMEWORK_TESTING", oldTesting)
+		}
+	}()
 	cfg := adk.Config{
 		SQLiteDSN: "file:test_email_hitl.db?mode=memory&cache=shared",
 		LLMProviders: []adk.LLMNode{
@@ -722,30 +735,30 @@ func TestEmailAgent_HITL(t *testing.T) {
 
 func TestCriticalActionsConfig(t *testing.T) {
 	// Temporarily override the configuration
-	origKeywords := agent.CriticalActions.RiskyPythonKeywords
-	origExcel := agent.CriticalActions.ProductionExcelPatterns
-	origEmail := agent.CriticalActions.InternalEmailDomains
+	origKeywords := agenttools.CriticalActions.RiskyPythonKeywords
+	origExcel := agenttools.CriticalActions.ProductionExcelPatterns
+	origEmail := agenttools.CriticalActions.InternalEmailDomains
 	defer func() {
-		agent.CriticalActions.RiskyPythonKeywords = origKeywords
-		agent.CriticalActions.ProductionExcelPatterns = origExcel
-		agent.CriticalActions.InternalEmailDomains = origEmail
+		agenttools.CriticalActions.RiskyPythonKeywords = origKeywords
+		agenttools.CriticalActions.ProductionExcelPatterns = origExcel
+		agenttools.CriticalActions.InternalEmailDomains = origEmail
 	}()
 
-	agent.CriticalActions.RiskyPythonKeywords = []string{"custom-risky"}
-	agent.CriticalActions.ProductionExcelPatterns = []string{"custom-prod"}
-	agent.CriticalActions.InternalEmailDomains = []string{"custom.com"}
+	agenttools.CriticalActions.RiskyPythonKeywords = []string{"custom-risky"}
+	agenttools.CriticalActions.ProductionExcelPatterns = []string{"custom-prod"}
+	agenttools.CriticalActions.InternalEmailDomains = []string{"custom.com"}
 
-	if !agent.RequiresHumanReview("some custom-risky code") {
+	if !agenttools.RequiresHumanReview("some custom-risky code") {
 		t.Error("expected RequiresHumanReview to be true for 'custom-risky'")
 	}
-	if agent.RequiresHumanReview("os.system('test')") {
+	if agenttools.RequiresHumanReview("os.system('test')") {
 		t.Error("expected RequiresHumanReview to be false for 'os.system' since overridden")
 	}
 
-	if !agent.IsProductionFile("/path/to/custom-prod/file.xlsx") {
+	if !agenttools.IsProductionFile("/path/to/custom-prod/file.xlsx") {
 		t.Error("expected IsProductionFile to be true for 'custom-prod'")
 	}
-	if agent.IsProductionFile("/path/to/production/file.xlsx") {
+	if agenttools.IsProductionFile("/path/to/production/file.xlsx") {
 		t.Error("expected IsProductionFile to be false for 'production' since overridden")
 	}
 }
@@ -771,11 +784,11 @@ func TestBrowserSessionIsolation(t *testing.T) {
 			defer wg.Done()
 			sessionID := fmt.Sprintf("session-%d", sessionIdx)
 			ctx := context.WithValue(context.Background(), "session_id", sessionID)
-			defer agent.GlobalSessionManager.GetSession(sessionID).Close()
+			defer agenttools.GlobalSessionManager.GetSession(sessionID).Close()
 
-			navTool := agent.GetBrowserNavigateTool()
-			inputTool := agent.GetBrowserInputTool()
-			clickTool := agent.GetBrowserClickTool()
+			navTool := agenttools.GetBrowserNavigateTool()
+			inputTool := agenttools.GetBrowserInputTool()
+			clickTool := agenttools.GetBrowserClickTool()
 
 			// 1. Navigate
 			argsBytes, _ := json.Marshal(map[string]string{"url": ts.URL})
@@ -803,7 +816,7 @@ func TestBrowserSessionIsolation(t *testing.T) {
 			}
 
 			// 3. Verify inputs in session are isolated and contain our expected unique value
-			sess := agent.GlobalSessionManager.GetSession(sessionID)
+			sess := agenttools.GlobalSessionManager.GetSession(sessionID)
 			val := sess.Inputs[2]
 			if val != expectedVal {
 				errorsChan <- fmt.Errorf("session %s inputs contaminated: got %q, expected %q", sessionID, val, expectedVal)
@@ -844,13 +857,13 @@ func TestNewBrowserTools(t *testing.T) {
 
 	sessionID := "test-new-tools-session"
 	ctx := context.WithValue(context.Background(), "session_id", sessionID)
-	defer agent.GlobalSessionManager.GetSession(sessionID).Close()
+	defer agenttools.GlobalSessionManager.GetSession(sessionID).Close()
 
-	navTool := agent.GetBrowserNavigateTool()
-	scrollTool := agent.GetBrowserScrollTool()
-	waitTool := agent.GetBrowserWaitForTool()
-	extractJSTool := agent.GetBrowserExtractJSTool()
-	screenshotTool := agent.GetBrowserScreenshotTool()
+	navTool := agenttools.GetBrowserNavigateTool()
+	scrollTool := agenttools.GetBrowserScrollTool()
+	waitTool := agenttools.GetBrowserWaitForTool()
+	extractJSTool := agenttools.GetBrowserExtractJSTool()
+	screenshotTool := agenttools.GetBrowserScreenshotTool()
 
 	// 1. Navigate
 	navArgs, _ := json.Marshal(map[string]string{"url": ts.URL})
@@ -914,11 +927,11 @@ func TestBrowserElementIDAlias(t *testing.T) {
 	sessionID := "test-alias-session"
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "session_id", sessionID)
-	defer agent.GlobalSessionManager.GetSession(sessionID).Close()
+	defer agenttools.GlobalSessionManager.GetSession(sessionID).Close()
 
-	navTool := agent.GetBrowserNavigateTool()
-	clickTool := agent.GetBrowserClickTool()
-	inputTool := agent.GetBrowserInputTool()
+	navTool := agenttools.GetBrowserNavigateTool()
+	clickTool := agenttools.GetBrowserClickTool()
+	inputTool := agenttools.GetBrowserInputTool()
 
 	// 1. Navigate
 	navArgs, _ := json.Marshal(map[string]string{"url": ts.URL})

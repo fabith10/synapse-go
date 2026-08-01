@@ -10,6 +10,7 @@ import (
 
 	dockerclient "github.com/docker/docker/client"
 	"github.com/fabith10/synapse-go/adk"
+	agenttools "github.com/fabith10/synapse-go/internal/agent/tools"
 	"github.com/fabith10/synapse-go/internal/tools"
 	"github.com/fabith10/synapse-go/pkg/logger"
 )
@@ -66,7 +67,7 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 	}
 
 	// Initialize CronScheduler
-	scheduler := NewCronScheduler(rt.Orchestrator(), "schedules.json")
+	scheduler := agenttools.NewCronScheduler(rt.Orchestrator(), "schedules.json")
 	scheduler.Start(context.Background())
 
 	// Load agents directory if present, otherwise fallback to agents.json to override system prompts dynamically
@@ -82,59 +83,59 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 
 	// Map of shared tools that don't need agent-specific state
 	sharedTools := map[string]adk.Tool{
-		"fetch_html":              GetFetchHTMLTool(),
-		"wasm_json_mapper":        GetWasmJsonMapperTool(sandbox),
-		"web_search_and_extract":  GetWebSearchAndExtractTool(),
-		"generate_pdf_report":     GetGeneratePDFReportTool(),
-		"check_lead_score":        GetCheckLeadScoreTool(),
-		"browser_navigate":        GetBrowserNavigateTool(),
-		"browser_input":           GetBrowserInputTool(),
-		"browser_click":           GetBrowserClickTool(),
-		"browser_scroll":          GetBrowserScrollTool(),
-		"browser_wait":            GetBrowserWaitForTool(),
-		"browser_extract_js":      GetBrowserExtractJSTool(),
-		"browser_screenshot":      GetBrowserScreenshotTool(),
-		"grep_documents":          GetGrepDocumentsTool(),
-		"read_file":               GetReadFileTool(),
-		"write_file":              GetWriteFileTool(),
-		"replace_file_content":    GetReplaceFileContentTool(),
-		"list_directory":          GetListDirectoryTool(),
-		"query_pricing_oracle":    GetQueryPricingOracleTool(),
-		"extract_pdf_text":        GetExtractPDFTextTool(),
-		"semantic_search_context": GetSemanticSearchContextTool(rt.Store()),
+		"fetch_html":              agenttools.GetFetchHTMLTool(),
+		"wasm_json_mapper":        agenttools.GetWasmJsonMapperTool(sandbox),
+		"web_search_and_extract":  agenttools.GetWebSearchAndExtractTool(),
+		"generate_pdf_report":     agenttools.GetGeneratePDFReportTool(),
+		"check_lead_score":        agenttools.GetCheckLeadScoreTool(),
+		"browser_navigate":        agenttools.GetBrowserNavigateTool(),
+		"browser_input":           agenttools.GetBrowserInputTool(),
+		"browser_click":           agenttools.GetBrowserClickTool(),
+		"browser_scroll":          agenttools.GetBrowserScrollTool(),
+		"browser_wait":            agenttools.GetBrowserWaitForTool(),
+		"browser_extract_js":      agenttools.GetBrowserExtractJSTool(),
+		"browser_screenshot":      agenttools.GetBrowserScreenshotTool(),
+		"grep_documents":          agenttools.GetGrepDocumentsTool(),
+		"read_file":               agenttools.GetReadFileTool(),
+		"write_file":              agenttools.GetWriteFileTool(),
+		"replace_file_content":    agenttools.GetReplaceFileContentTool(),
+		"list_directory":          agenttools.GetListDirectoryTool(),
+		"query_pricing_oracle":    agenttools.GetQueryPricingOracleTool(),
+		"extract_pdf_text":        agenttools.GetExtractPDFTextTool(),
+		"semantic_search_context": agenttools.GetSemanticSearchContextTool(rt.Store()),
 		"read_state_variable":     GetReadStateVariableTool(rt.Orchestrator()),
 		"write_state_variable":    GetWriteStateVariableTool(rt.Orchestrator()),
-		"schedule_task":           GetScheduleTaskTool(),
-		"list_schedules":          GetListSchedulesTool(),
-		"cancel_schedule":         GetCancelScheduleTool(),
-		"save_long_term_memory":    GetSaveLongTermMemoryTool(rt.Store()),
-		"search_long_term_memories": GetSearchLongTermMemoriesTool(rt.Store()),
-		"inspect_host_hardware":   GetInspectHostHardwareTool(),
-		"query_compute_prices":    GetQueryComputePricesTool(),
-		"query_forward_curves":    GetQueryForwardCurvesTool(),
-		"query_options_chain":     GetQueryOptionsChainTool(),
-		"submit_mock_task":        GetSubmitMockTaskTool(),
-		"check_mock_task":         GetCheckMockTaskTool(),
-		"wait_seconds":            GetWaitSecondsTool(),
-		"wait":                    GetWaitSecondsTool(),
+		"schedule_task":           agenttools.GetScheduleTaskTool(),
+		"list_schedules":          agenttools.GetListSchedulesTool(),
+		"cancel_schedule":         agenttools.GetCancelScheduleTool(),
+		"save_long_term_memory":    agenttools.GetSaveLongTermMemoryTool(rt.Store()),
+		"search_long_term_memories": agenttools.GetSearchLongTermMemoriesTool(rt.Store()),
+		"inspect_host_hardware":   agenttools.GetInspectHostHardwareTool(),
+		"query_compute_prices":    agenttools.GetQueryComputePricesTool(),
+		"query_forward_curves":    agenttools.GetQueryForwardCurvesTool(),
+		"query_options_chain":     agenttools.GetQueryOptionsChainTool(),
+		"submit_mock_task":        agenttools.GetSubmitMockTaskTool(),
+		"check_mock_task":         agenttools.GetCheckMockTaskTool(),
+		"wait_seconds":            agenttools.GetWaitSecondsTool(),
+		"wait":                    agenttools.GetWaitSecondsTool(),
 	}
 
 	// Map of specific tool builders that take (agentID, mailbox)
 	agentSpecificBuilders := map[string]func(id string, mb chan adk.Message) adk.Tool{
 		"execute_python_docker": func(id string, mb chan adk.Message) adk.Tool {
-			return tools.SecureTool(GetExecutePythonDockerTool(sandbox, rt.Orchestrator(), id, mb), []string{id})
+			return tools.SecureTool(agenttools.GetExecutePythonDockerTool(sandbox, rt.Orchestrator(), id, mb), []string{id})
 		},
 		"execute_bash_docker": func(id string, mb chan adk.Message) adk.Tool {
-			return tools.SecureTool(GetExecuteBashDockerTool(sandbox, rt.Orchestrator(), id, mb), []string{id})
+			return tools.SecureTool(agenttools.GetExecuteBashDockerTool(sandbox, rt.Orchestrator(), id, mb), []string{id})
 		},
 		"modify_excel_workbook": func(id string, mb chan adk.Message) adk.Tool {
-			return tools.SecureTool(GetModifyExcelWorkbookTool(rt.Orchestrator(), id, mb), []string{id})
+			return tools.SecureTool(agenttools.GetModifyExcelWorkbookTool(rt.Orchestrator(), id, mb), []string{id})
 		},
 		"write_email": func(id string, mb chan adk.Message) adk.Tool {
-			return tools.SecureTool(GetWriteEmailTool(rt.Orchestrator(), id, mb), []string{id})
+			return tools.SecureTool(agenttools.GetWriteEmailTool(rt.Orchestrator(), id, mb), []string{id})
 		},
 		"delegate_subtask": func(id string, mb chan adk.Message) adk.Tool {
-			return GetDelegateSubtaskTool(rt.Orchestrator(), id, mb)
+			return agenttools.GetDelegateSubtaskTool(rt.Orchestrator(), id, mb)
 		},
 	}
 
@@ -164,7 +165,7 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 	// Auto-load critical actions configuration if present in workspace
 	for _, cfgPath := range []string{".agents/critical_actions.json", "critical_actions.json"} {
 		if _, err := os.Stat(cfgPath); err == nil {
-			_ = LoadCriticalActionsConfig(cfgPath)
+			_ = agenttools.LoadCriticalActionsConfig(cfgPath)
 			break
 		}
 	}
@@ -172,7 +173,7 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 	// Auto-load tool aliases configuration if present in workspace
 	for _, aliasPath := range []string{".agents/tool_aliases.json", "tool_aliases.json"} {
 		if _, err := os.Stat(aliasPath); err == nil {
-			_ = LoadToolAliasesConfig(aliasPath)
+			_ = agenttools.LoadToolAliasesConfig(aliasPath)
 			break
 		}
 	}
@@ -190,11 +191,11 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 
 	// A. Gatekeeper Agent (triage)
 	gatekeeperTools := []adk.Tool{
-		GetPricingOracleTool(),
-		GetScheduleTaskTool(),
-		GetListSchedulesTool(),
-		GetCancelScheduleTool(),
-		GetWaitSecondsTool(),
+		agenttools.GetPricingOracleTool(),
+		agenttools.GetScheduleTaskTool(),
+		agenttools.GetListSchedulesTool(),
+		agenttools.GetCancelScheduleTool(),
+		agenttools.GetWaitSecondsTool(),
 	}
 	gatekeeper := NewGatekeeperAgent("triage-agent", rt.LLMClient(), rt.Orchestrator(), gatekeeperTools)
 	gatekeeperBase, err := rt.RegisterAgent(gatekeeper.ID, gatekeeper)
@@ -336,33 +337,33 @@ func RegisterDynamicAgent(rt *adk.Runtime, id string, cfg AgentJSONConfig) error
 
 	// Build tools map
 	sharedTools := map[string]adk.Tool{
-		"fetch_html":              GetFetchHTMLTool(),
-		"wasm_json_mapper":        GetWasmJsonMapperTool(sandbox),
-		"web_search_and_extract":  GetWebSearchAndExtractTool(),
-		"generate_pdf_report":     GetGeneratePDFReportTool(),
-		"check_lead_score":        GetCheckLeadScoreTool(),
-		"grep_documents":          GetGrepDocumentsTool(),
-		"read_file":               GetReadFileTool(),
-		"write_file":              GetWriteFileTool(),
-		"replace_file_content":    GetReplaceFileContentTool(),
-		"list_directory":          GetListDirectoryTool(),
-		"query_pricing_oracle":    GetQueryPricingOracleTool(),
-		"extract_pdf_text":        GetExtractPDFTextTool(),
-		"semantic_search_context": GetSemanticSearchContextTool(rt.Store()),
-		"schedule_task":           GetScheduleTaskTool(),
-		"inspect_host_hardware":   GetInspectHostHardwareTool(),
+		"fetch_html":              agenttools.GetFetchHTMLTool(),
+		"wasm_json_mapper":        agenttools.GetWasmJsonMapperTool(sandbox),
+		"web_search_and_extract":  agenttools.GetWebSearchAndExtractTool(),
+		"generate_pdf_report":     agenttools.GetGeneratePDFReportTool(),
+		"check_lead_score":        agenttools.GetCheckLeadScoreTool(),
+		"grep_documents":          agenttools.GetGrepDocumentsTool(),
+		"read_file":               agenttools.GetReadFileTool(),
+		"write_file":              agenttools.GetWriteFileTool(),
+		"replace_file_content":    agenttools.GetReplaceFileContentTool(),
+		"list_directory":          agenttools.GetListDirectoryTool(),
+		"query_pricing_oracle":    agenttools.GetQueryPricingOracleTool(),
+		"extract_pdf_text":        agenttools.GetExtractPDFTextTool(),
+		"semantic_search_context": agenttools.GetSemanticSearchContextTool(rt.Store()),
+		"schedule_task":           agenttools.GetScheduleTaskTool(),
+		"inspect_host_hardware":   agenttools.GetInspectHostHardwareTool(),
 	}
 
 	var agentTools []adk.Tool
 	for _, name := range cfg.Tools {
 		if name == "execute_python_docker" {
-			agentTools = append(agentTools, tools.SecureTool(GetExecutePythonDockerTool(sandbox, rt.Orchestrator(), id, dynBase.Mailbox), []string{id}))
+			agentTools = append(agentTools, tools.SecureTool(agenttools.GetExecutePythonDockerTool(sandbox, rt.Orchestrator(), id, dynBase.Mailbox), []string{id}))
 		} else if name == "execute_bash_docker" {
-			agentTools = append(agentTools, tools.SecureTool(GetExecuteBashDockerTool(sandbox, rt.Orchestrator(), id, dynBase.Mailbox), []string{id}))
+			agentTools = append(agentTools, tools.SecureTool(agenttools.GetExecuteBashDockerTool(sandbox, rt.Orchestrator(), id, dynBase.Mailbox), []string{id}))
 		} else if name == "modify_excel_workbook" {
-			agentTools = append(agentTools, tools.SecureTool(GetModifyExcelWorkbookTool(rt.Orchestrator(), id, dynBase.Mailbox), []string{id}))
+			agentTools = append(agentTools, tools.SecureTool(agenttools.GetModifyExcelWorkbookTool(rt.Orchestrator(), id, dynBase.Mailbox), []string{id}))
 		} else if name == "write_email" {
-			agentTools = append(agentTools, tools.SecureTool(GetWriteEmailTool(rt.Orchestrator(), id, dynBase.Mailbox), []string{id}))
+			agentTools = append(agentTools, tools.SecureTool(agenttools.GetWriteEmailTool(rt.Orchestrator(), id, dynBase.Mailbox), []string{id}))
 		} else if t, ok := sharedTools[name]; ok {
 			agentTools = append(agentTools, t)
 		}

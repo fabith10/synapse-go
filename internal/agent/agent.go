@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fabith10/synapse-go/adk"
+	agenttools "github.com/fabith10/synapse-go/internal/agent/tools"
 	"github.com/fabith10/synapse-go/internal/memory"
 	"github.com/fabith10/synapse-go/internal/orchestrator"
 	toolpkg "github.com/fabith10/synapse-go/internal/tools"
@@ -167,7 +168,7 @@ func findTool(tools []adk.Tool, actionName string) (adk.Tool, bool) {
 		}
 	}
 	// 2. Configurable alias lookup
-	targetAlias := ResolveToolAlias(actionLower)
+	targetAlias := agenttools.ResolveToolAlias(actionLower)
 	if targetAlias != actionLower {
 		for _, t := range tools {
 			if strings.ToLower(t.Name) == targetAlias {
@@ -194,7 +195,7 @@ func findTool(tools []adk.Tool, actionName string) (adk.Tool, bool) {
 
 func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orchestrator, agentID string, systemPrompt string, tools []adk.Tool, msg adk.Message, estimatedTokens int, willingnessToPay float64) (ReActResult, error) {
 	if targetDir := ExtractTargetDir(msg); targetDir != "" {
-		ctx = context.WithValue(ctx, WorkspaceRootKey, targetDir)
+		ctx = context.WithValue(ctx, agenttools.WorkspaceRootKey, targetDir)
 	}
 
 	// Strip conversation_history from content for the task description,

@@ -1,8 +1,9 @@
-package agent
+package agenttools
 
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -87,7 +88,7 @@ func resolveSafeWorkspacePathWithCtx(ctx context.Context, targetPath string) (st
 		}
 	}
 
-	isTest := os.Getenv("AGENT_FRAMEWORK_TESTING") == "true"
+	isTest := os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" || strings.HasSuffix(os.Args[0], ".test") || flag.Lookup("test.v") != nil
 	cleaned := filepath.Clean(targetPath)
 
 	var resolved string
@@ -96,6 +97,13 @@ func resolveSafeWorkspacePathWithCtx(ctx context.Context, targetPath string) (st
 	} else {
 		rel := strings.TrimLeft(targetPath, "/\\")
 		resolved = filepath.Clean(filepath.Join(activeRoot, rel))
+	}
+
+	if realRoot, err := filepath.EvalSymlinks(activeRoot); err == nil {
+		activeRoot = realRoot
+	}
+	if realResolved, err := filepath.EvalSymlinks(resolved); err == nil {
+		resolved = realResolved
 	}
 
 	isInsideActiveRoot := strings.HasPrefix(resolved, activeRoot)
@@ -109,7 +117,13 @@ func resolveSafeWorkspacePathWithCtx(ctx context.Context, targetPath string) (st
 		}
 	}
 
-	isSafe := isInsideActiveRoot || isInsideCwd || isDevWorkspace || (isTest && strings.HasPrefix(resolved, os.TempDir()))
+	tempDir := os.TempDir()
+	if realTemp, err := filepath.EvalSymlinks(tempDir); err == nil {
+		tempDir = realTemp
+	}
+	isTemp := strings.HasPrefix(resolved, os.TempDir()) || strings.HasPrefix(resolved, tempDir)
+
+	isSafe := isInsideActiveRoot || isInsideCwd || isDevWorkspace || (isTest && isTemp)
 	if !isSafe {
 		return "", fmt.Errorf("permission denied: path %q must remain inside active workspace (%q)", targetPath, activeRoot)
 	}

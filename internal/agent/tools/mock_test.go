@@ -1,13 +1,13 @@
-package agent_test
+package agenttools_test
 
 import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	agenttools "github.com/fabith10/synapse-go/internal/agent/tools"
 	"time"
 
-	"github.com/fabith10/synapse-go/internal/agent"
 	"github.com/fabith10/synapse-go/internal/agent/pricing"
 	"github.com/fabith10/synapse-go/internal/web"
 )
@@ -19,15 +19,15 @@ func TestMockToolsWithServer(t *testing.T) {
 	defer ts.Close()
 
 	// Direct tools to point to test HTTP server
-	agent.SetMockServerBaseURL(ts.URL)
-	defer agent.SetMockServerBaseURL("http://localhost:8080")
+	agenttools.SetMockServerBaseURL(ts.URL)
+	defer agenttools.SetMockServerBaseURL("http://localhost:8080")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// 1. Query Compute Prices
 	t.Run("query_compute_prices", func(t *testing.T) {
-		tool := agent.GetQueryComputePricesTool()
+		tool := agenttools.GetQueryComputePricesTool()
 		args, _ := json.Marshal(map[string]interface{}{"provider": "runpod", "gpu_type": "H100"})
 		res, err := tool.Execute(ctx, args)
 		if err != nil {
@@ -44,7 +44,7 @@ func TestMockToolsWithServer(t *testing.T) {
 
 	// 2. Query Forward Curves
 	t.Run("query_forward_curves", func(t *testing.T) {
-		tool := agent.GetQueryForwardCurvesTool()
+		tool := agenttools.GetQueryForwardCurvesTool()
 		args, _ := json.Marshal(map[string]interface{}{"asset": "H100_SXM"})
 		res, err := tool.Execute(ctx, args)
 		if err != nil {
@@ -59,7 +59,7 @@ func TestMockToolsWithServer(t *testing.T) {
 
 	// 3. Query Options Chain
 	t.Run("query_options_chain", func(t *testing.T) {
-		tool := agent.GetQueryOptionsChainTool()
+		tool := agenttools.GetQueryOptionsChainTool()
 		args, _ := json.Marshal(map[string]interface{}{"asset": "H100_SXM", "expiration": "30d"})
 		res, err := tool.Execute(ctx, args)
 		if err != nil {
@@ -74,7 +74,7 @@ func TestMockToolsWithServer(t *testing.T) {
 
 	// 4. Submit Mock Task & Check Task Status
 	t.Run("submit_and_check_mock_task", func(t *testing.T) {
-		submitTool := agent.GetSubmitMockTaskTool()
+		submitTool := agenttools.GetSubmitMockTaskTool()
 		submitArgs, _ := json.Marshal(map[string]interface{}{
 			"task_type": "model_training",
 			"payload":   map[string]interface{}{"epochs": 10},
@@ -95,7 +95,7 @@ func TestMockToolsWithServer(t *testing.T) {
 		}
 		taskID := taskData["id"].(string)
 
-		checkTool := agent.GetCheckMockTaskTool()
+		checkTool := agenttools.GetCheckMockTaskTool()
 		checkArgs, _ := json.Marshal(map[string]interface{}{"task_id": taskID})
 		checkRes, err := checkTool.Execute(ctx, checkArgs)
 		if err != nil {
@@ -115,7 +115,7 @@ func TestMockToolsWithServer(t *testing.T) {
 		// pricing_providers.json on disk that may reference an unregistered provider.
 		_ = pricing.GetPricingOracleManager().SetActiveProvider("mock")
 
-		oracleTool := agent.GetQueryPricingOracleTool()
+		oracleTool := agenttools.GetQueryPricingOracleTool()
 
 		// Spot
 		spotArgs, _ := json.Marshal(map[string]interface{}{"asset_or_instance": "H100_SXM", "market_type": "spot"})
