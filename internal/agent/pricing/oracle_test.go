@@ -1,9 +1,10 @@
-package agent
+package pricing
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -198,3 +199,93 @@ func TestOpenWeightPromptCostQuery(t *testing.T) {
 	}
 }
 
+func TestExtractIVFromOptions(t *testing.T) {
+	spot := 2.50
+
+	t.Run("explicit_iv", func(t *testing.T) {
+		jsonRaw := `{
+			"status": "success",
+			"options": [
+				{"type": "call", "strike": 2.50, "implied_volatility": 0.42, "expiration": "30d"},
+				{"type": "put", "strike": 2.50, "implied_volatility": 0.44, "expiration": "30d"}
+			]
+		}`
+		iv := extractIVFromOptions(jsonRaw, spot)
+		if iv < 0.42 || iv > 0.44 {
+			t.Errorf("expected extracted IV around 0.43, got %.4f", iv)
+		}
+	})
+
+	t.Run("derived_iv_from_premium", func(t *testing.T) {
+		jsonRaw := `{
+			"status": "success",
+			"options": [
+				{"type": "call", "strike": 2.50, "bid": 0.19, "ask": 0.21, "expiration": "30d"}
+			]
+		}`
+		iv := extractIVFromOptions(jsonRaw, spot)
+		if iv <= 0 || iv > 2.0 {
+			t.Errorf("expected valid derived IV, got %.4f", iv)
+		}
+	})
+}
+
+func TestNewtonRaphsonBlackScholesIV(t *testing.T) {
+	S := 100.0
+	T := 30.0 / 365.0
+	r := 0.02
+	targetSigma := 0.35
+
+	// Test Call option IV recovery
+	callPrice, _ := BlackScholesPrice(true, S, 100.0, T, r, targetSigma)
+	solvedCallIV := ImpliedVolatilityBS(true, S, 100.0, T, r, callPrice)
+	if math.Abs(solvedCallIV-targetSigma) > 0.001 {
+		t.Errorf("expected Call IV %.4f, got %.4f", targetSigma, solvedCallIV)
+	}
+
+	// Test Put option IV recovery
+	putPrice, _ := BlackScholesPrice(false, S, 95.0, T, r, targetSigma)
+	solvedPutIV := ImpliedVolatilityBS(false, S, 95.0, T, r, putPrice)
+	if math.Abs(solvedPutIV-targetSigma) > 0.001 {
+		t.Errorf("expected Put IV %.4f, got %.4f", targetSigma, solvedPutIV)
+	}
+}
+
+func TestRiskAdjustedMode_OptionsFallback(t *testing.T) {
+	fakeAdapter := &mockFallbackAdapter{}
+	mgr := NewPricingOracleManager("")
+	mgr.RegisterAdapter("mock_fallback", fakeAdapter)
+	_ = mgr.SetActiveProvider("mock_fallback")
+	defer mgr.SetActiveProvider("mock")
+
+	ctx := context.Background()
+	res, err := mgr.ExecuteQuery(ctx, "H100_SXM", "execution_window", "", map[string]string{
+		"cost_mode": "risk_adjusted",
+	})
+	if err != nil {
+		t.Fatalf("execution_window query failed: %v", err)
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(res), &resp); err != nil {
+		t.Fatalf("invalid json response: %v", err)
+	}
+	if resp["status"] != "success" {
+		t.Errorf("expected status=success, got %v", resp["status"])
+	}
+}
+
+type mockFallbackAdapter struct{}
+
+func (a *mockFallbackAdapter) Name() string { return "mock_fallback" }
+func (a *mockFallbackAdapter) Query(ctx context.Context, q PricingQuery) (*PricingResult, error) {
+	if q.MarketType == "vol_surface" {
+		return nil, os.ErrNotExist
+	}
+	if q.MarketType == "options" {
+		raw := `{"status":"success","options":[{"type":"call","strike":2.49,"implied_volatility":0.45}]}`
+		return buildResult("mock_fallback", q.Asset, q.MarketType, raw), nil
+	}
+	raw := `{"status":"success","price":2.49}`
+	return buildResult("mock_fallback", q.Asset, q.MarketType, raw), nil
+}

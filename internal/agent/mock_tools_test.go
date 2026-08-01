@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fabith10/synapse-go/internal/agent"
+	"github.com/fabith10/synapse-go/internal/agent/pricing"
 	"github.com/fabith10/synapse-go/internal/web"
 )
 
@@ -112,7 +113,7 @@ func TestMockToolsWithServer(t *testing.T) {
 	t.Run("query_pricing_oracle_integration", func(t *testing.T) {
 		// Ensure the global oracle uses the mock adapter regardless of any
 		// pricing_providers.json on disk that may reference an unregistered provider.
-		_ = agent.GetPricingOracleManager().SetActiveProvider("mock")
+		_ = pricing.GetPricingOracleManager().SetActiveProvider("mock")
 
 		oracleTool := agent.GetQueryPricingOracleTool()
 

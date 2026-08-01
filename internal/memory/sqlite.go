@@ -3,7 +3,9 @@ package memory
 import (
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -187,12 +189,39 @@ VALUES (?, ?, ?, ?, ?, ?, ?)`
 // QueryRelevantLogs returns up to limit entries for agentID ordered by
 // created_at DESC. If agentID is empty, it returns entries across all agents.
 // Vector-similarity ranking is a planned enhancement (tracked as a TODO);
-// the fallback is recency-ordered retrieval which is correct for the MVP
-// and sufficient for the RAG pipeline's top-3 injection.
-//
-// TODO: when a vector extension (e.g., sqlite-vec) is available, replace the
-// ORDER BY clause with a cosine-similarity ranking over queryEmbedding.
-func (s *sqliteStore) QueryRelevantLogs(ctx context.Context, agentID string, _ []byte, limit int) ([]ContextLog, error) {
+// DeserializeEmbedding decodes a byte slice of LittleEndian float64s into []float64.
+func DeserializeEmbedding(b []byte) []float64 {
+	if len(b) == 0 || len(b)%8 != 0 {
+		return nil
+	}
+	v := make([]float64, len(b)/8)
+	for i := range v {
+		bits := binary.LittleEndian.Uint64(b[i*8 : i*8+8])
+		v[i] = math.Float64frombits(bits)
+	}
+	return v
+}
+
+// CosineSimilarity computes the dot product of two L2-normalised vectors.
+func CosineSimilarity(a, b []float64) float64 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	shorter, longer := a, b
+	if len(a) > len(b) {
+		shorter, longer = b, a
+	}
+	var dot float64
+	for i, v := range shorter {
+		dot += v * longer[i]
+	}
+	return dot
+}
+
+// QueryRelevantLogs returns up to limit entries for agentID ordered by
+// vector cosine similarity relevance to queryEmbedding when queryEmbedding is provided.
+// If queryEmbedding is empty or no embeddings exist, fallbacks to recency order (created_at DESC).
+func (s *sqliteStore) QueryRelevantLogs(ctx context.Context, agentID string, queryEmbedding []byte, limit int) ([]ContextLog, error) {
 	var sessionID string
 	if ctx != nil {
 		if val, ok := ctx.Value("session_id").(string); ok {
@@ -204,6 +233,12 @@ func (s *sqliteStore) QueryRelevantLogs(ctx context.Context, agentID string, _ [
 	var rows *sql.Rows
 	var err error
 
+	// If queryEmbedding is supplied, fetch candidate logs with non-null embeddings for vector ranking.
+	qLimit := limit
+	if len(queryEmbedding) > 0 {
+		qLimit = limit * 10 // Fetch candidate pool for similarity re-ranking
+	}
+
 	if agentID != "" && sessionID != "" {
 		q = `
 SELECT id, agent_id, session_id, role, content, embedding, created_at
@@ -211,7 +246,7 @@ FROM   context_logs
 WHERE  agent_id = ? AND session_id = ?
 ORDER  BY created_at DESC
 LIMIT  ?`
-		rows, err = s.db.QueryContext(ctx, q, agentID, sessionID, limit)
+		rows, err = s.db.QueryContext(ctx, q, agentID, sessionID, qLimit)
 	} else if agentID != "" {
 		q = `
 SELECT id, agent_id, session_id, role, content, embedding, created_at
@@ -219,7 +254,7 @@ FROM   context_logs
 WHERE  agent_id = ?
 ORDER  BY created_at DESC
 LIMIT  ?`
-		rows, err = s.db.QueryContext(ctx, q, agentID, limit)
+		rows, err = s.db.QueryContext(ctx, q, agentID, qLimit)
 	} else if sessionID != "" {
 		q = `
 SELECT id, agent_id, session_id, role, content, embedding, created_at
@@ -227,14 +262,14 @@ FROM   context_logs
 WHERE  session_id = ?
 ORDER  BY created_at DESC
 LIMIT  ?`
-		rows, err = s.db.QueryContext(ctx, q, sessionID, limit)
+		rows, err = s.db.QueryContext(ctx, q, sessionID, qLimit)
 	} else {
 		q = `
 SELECT id, agent_id, session_id, role, content, embedding, created_at
 FROM   context_logs
 ORDER  BY created_at DESC
 LIMIT  ?`
-		rows, err = s.db.QueryContext(ctx, q, limit)
+		rows, err = s.db.QueryContext(ctx, q, qLimit)
 	}
 
 	if err != nil {
@@ -255,7 +290,57 @@ LIMIT  ?`
 		e.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAtStr)
 		logs = append(logs, e)
 	}
-	return logs, rows.Err()
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Perform vector cosine-similarity ranking if queryEmbedding is present
+	qVec := DeserializeEmbedding(queryEmbedding)
+	if len(qVec) > 0 && len(logs) > 0 {
+		type scored struct {
+			log   ContextLog
+			score float64
+		}
+		scoredLogs := make([]scored, 0, len(logs))
+		hasValidEmbedding := false
+
+		for _, l := range logs {
+			score := 0.0
+			if len(l.Embedding) > 0 {
+				embVec := DeserializeEmbedding(l.Embedding)
+				if len(embVec) > 0 {
+					score = CosineSimilarity(qVec, embVec)
+					hasValidEmbedding = true
+				}
+			}
+			scoredLogs = append(scoredLogs, scored{log: l, score: score})
+		}
+
+		if hasValidEmbedding {
+			// Sort by similarity score DESC
+			for i := 1; i < len(scoredLogs); i++ {
+				for j := i; j > 0 && scoredLogs[j].score > scoredLogs[j-1].score; j-- {
+					scoredLogs[j], scoredLogs[j-1] = scoredLogs[j-1], scoredLogs[j]
+				}
+			}
+			outLimit := limit
+			if outLimit > len(scoredLogs) {
+				outLimit = len(scoredLogs)
+			}
+			out := make([]ContextLog, outLimit)
+			for i := 0; i < outLimit; i++ {
+				out[i] = scoredLogs[i].log
+			}
+			return out, nil
+		}
+	}
+
+	// Recency fallback if vector ranking not applicable
+	if len(logs) > limit {
+		logs = logs[:limit]
+	}
+	return logs, nil
 }
 
 // UpdateLogEmbedding updates the embedding BLOB of an existing context log.
@@ -461,11 +546,16 @@ WHERE  agent_id = ? AND key = ?`
 	return m, nil
 }
 
-// QueryLongTermMemories retrieves up to limit persistent memories for the agent.
+// QueryLongTermMemories retrieves up to limit persistent memories for the agent ordered by cosine similarity when queryEmbedding is provided.
 func (s *sqliteStore) QueryLongTermMemories(ctx context.Context, agentID string, queryEmbedding []byte, limit int) ([]LongTermMemory, error) {
 	var q string
 	var rows *sql.Rows
 	var err error
+
+	qLimit := limit
+	if len(queryEmbedding) > 0 {
+		qLimit = limit * 10
+	}
 
 	if agentID == "" || agentID == "global" {
 		q = `
@@ -473,7 +563,7 @@ SELECT id, agent_id, key, value, embedding, created_at
 FROM   long_term_memories
 ORDER  BY created_at DESC
 LIMIT  ?`
-		rows, err = s.db.QueryContext(ctx, q, limit)
+		rows, err = s.db.QueryContext(ctx, q, qLimit)
 	} else {
 		q = `
 SELECT id, agent_id, key, value, embedding, created_at
@@ -481,7 +571,7 @@ FROM   long_term_memories
 WHERE  agent_id = ? OR agent_id = 'global'
 ORDER  BY created_at DESC
 LIMIT  ?`
-		rows, err = s.db.QueryContext(ctx, q, agentID, limit)
+		rows, err = s.db.QueryContext(ctx, q, agentID, qLimit)
 	}
 
 	if err != nil {
@@ -501,7 +591,55 @@ LIMIT  ?`
 		m.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAtStr)
 		memories = append(memories, m)
 	}
-	return memories, rows.Err()
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Perform vector cosine-similarity ranking if queryEmbedding is present
+	qVec := DeserializeEmbedding(queryEmbedding)
+	if len(qVec) > 0 && len(memories) > 0 {
+		type scored struct {
+			memory LongTermMemory
+			score  float64
+		}
+		scoredMems := make([]scored, 0, len(memories))
+		hasValidEmbedding := false
+
+		for _, m := range memories {
+			score := 0.0
+			if len(m.Embedding) > 0 {
+				embVec := DeserializeEmbedding(m.Embedding)
+				if len(embVec) > 0 {
+					score = CosineSimilarity(qVec, embVec)
+					hasValidEmbedding = true
+				}
+			}
+			scoredMems = append(scoredMems, scored{memory: m, score: score})
+		}
+
+		if hasValidEmbedding {
+			for i := 1; i < len(scoredMems); i++ {
+				for j := i; j > 0 && scoredMems[j].score > scoredMems[j-1].score; j-- {
+					scoredMems[j], scoredMems[j-1] = scoredMems[j-1], scoredMems[j]
+				}
+			}
+			outLimit := limit
+			if outLimit > len(scoredMems) {
+				outLimit = len(scoredMems)
+			}
+			out := make([]LongTermMemory, outLimit)
+			for i := 0; i < outLimit; i++ {
+				out[i] = scoredMems[i].memory
+			}
+			return out, nil
+		}
+	}
+
+	if len(memories) > limit {
+		memories = memories[:limit]
+	}
+	return memories, nil
 }
 
 // SaveExemplar records a verified prompt -> tool action pair for dynamic few-shot learning.

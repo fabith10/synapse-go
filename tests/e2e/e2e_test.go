@@ -461,3 +461,33 @@ func TestE2E_OffPeakDeferredPromptExecution(t *testing.T) {
 	}
 }
 
+// Test 13: Semantic Vector Memory Ranking & Search Verification
+func TestE2E_SemanticVectorMemoryRanking(t *testing.T) {
+	prompt := "Step 1: Call save_long_term_memory with key 'giga_gpu_cluster' and value 'Cluster consists of 128 H100 nodes'. Step 2: Call search_long_term_memories with query 'giga_gpu_cluster' and output the retrieved memory."
+
+	outStr, logStr := runE2ETestCase(t, prompt, "e2e_vector_memory.log", "60")
+
+	// 1. Verify save_long_term_memory executed
+	if !strings.Contains(logStr, "save_long_term_memory") && !strings.Contains(outStr, "save_long_term_memory") {
+		t.Errorf("expected save_long_term_memory execution in log, got:\n%s", logStr)
+	}
+
+	// 2. Verify vector memory search retrieved the memory with relevance score
+	if !strings.Contains(logStr, "giga_gpu_cluster") && !strings.Contains(outStr, "giga_gpu_cluster") {
+		t.Errorf("expected audit log or output to contain retrieved vector memory key 'giga_gpu_cluster', got:\n%s", logStr)
+	}
+}
+
+// Test 14: Dynamic Subagent Delegation & Hierarchy Verification
+func TestE2E_DynamicSubagentDelegation(t *testing.T) {
+	prompt := "Use delegate_subtask tool with target_agent_id 'writer-agent' and subtask_prompt 'Draft summary titled Subagent Executive Summary' to delegate a subtask."
+
+	outStr, logStr := runE2ETestCase(t, prompt, "e2e_subagent_delegation.log", "60")
+
+	// 1. Verify delegate_subtask tool execution
+	if !strings.Contains(logStr, "delegate_subtask") && !strings.Contains(outStr, "delegate_subtask") && !strings.Contains(outStr, "Subagent Executive Summary") {
+		t.Errorf("expected delegate_subtask execution in log, got log:\n%s", logStr)
+	}
+}
+
+

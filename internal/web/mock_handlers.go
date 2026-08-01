@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fabith10/synapse-go/internal/agent"
+	"github.com/fabith10/synapse-go/internal/agent/pricing"
 )
 
 // MockTask represents an asynchronous compute/data task submitted to the mock server.
@@ -749,7 +749,7 @@ func (s *Server) handleCancelMockTask(w http.ResponseWriter, _ *http.Request, id
 // handlePricingProviderConfig handles reading and updating the active Pricing Oracle provider profile.
 // Routes: GET/POST /api/config/pricing-provider
 func (s *Server) handlePricingProviderConfig(w http.ResponseWriter, r *http.Request) {
-	mgr := agent.GetPricingOracleManager()
+	mgr := pricing.GetPricingOracleManager()
 
 	if r.Method == http.MethodPost {
 		var req struct {

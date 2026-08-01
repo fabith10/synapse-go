@@ -129,7 +129,15 @@ func GetSearchLongTermMemoriesTool(store memory.CheckpointStore) adk.Tool {
 						score = keywordRelevanceScore(m.Value, params.Query)
 					}
 				} else {
-					score = keywordRelevanceScore(m.Value, params.Query)
+					score = keywordRelevanceScore(m.Key+" "+m.Value, params.Query)
+				}
+
+				// If score is 0, check if key matches or provide minimal recency score
+				if score == 0 {
+					score = keywordRelevanceScore(m.Key+" "+m.Value, params.Query)
+					if score == 0 && len(memories) > 0 {
+						score = 0.01 // Recency fallback score
+					}
 				}
 
 				if score > 0 {

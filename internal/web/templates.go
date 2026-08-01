@@ -17,87 +17,78 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
     <!-- Marked.js for markdown rendering in the event stream -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
         
         body { 
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; 
             background-color: #09090b; 
             color: #f4f4f5;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.05) 0px, transparent 50%),
-                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
-            background-attachment: fixed;
         }
         
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         
         /* Custom Scrollbar Styling */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(24, 24, 27, 0.6); }
-        ::-webkit-scrollbar-thumb { background: rgba(63, 63, 70, 0.8); border-radius: 9999px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(113, 113, 122, 1); }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
 
-        /* Glassmorphism utility */
+        /* Minimal Card & Elevation Utility */
         .glass-card {
-            background: rgba(24, 24, 27, 0.65);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(63, 63, 70, 0.4);
+            background: #121215;
+            border: 1px solid #27272a;
         }
         
         .glass-card-hover {
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.15s ease-out;
         }
         .glass-card-hover:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.15);
-            transform: translateY(-1px);
+            border-color: #3f3f46;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         }
 
         /* Markdown rendered inside log entries */
         .md-content h1, .md-content h2, .md-content h3, .md-content h4 {
-            font-weight: 700; margin-top: 0.6em; margin-bottom: 0.3em; color: #fafafa;
+            font-weight: 600; margin-top: 0.5em; margin-bottom: 0.25em; color: #ffffff;
         }
-        .md-content h1 { font-size: 1.05em; border-bottom: 1px solid rgba(63, 63, 70, 0.5); padding-bottom: 0.2em; }
-        .md-content h2 { font-size: 0.98em; }
-        .md-content h3, .md-content h4 { font-size: 0.92em; }
-        .md-content p { margin: 0.3em 0; line-height: 1.6; }
-        .md-content strong { font-weight: 700; color: #ffffff; }
-        .md-content em { font-style: italic; color: #e4e4e7; }
+        .md-content h1 { font-size: 1.02em; border-bottom: 1px solid #27272a; padding-bottom: 0.2em; }
+        .md-content h2 { font-size: 0.95em; }
+        .md-content h3, .md-content h4 { font-size: 0.9em; }
+        .md-content p { margin: 0.25em 0; line-height: 1.55; }
+        .md-content strong { font-weight: 600; color: #ffffff; }
+        .md-content em { font-style: italic; color: #a1a1aa; }
         .md-content code {
             font-family: 'JetBrains Mono', monospace;
-            background: rgba(39, 39, 42, 0.9); 
-            border: 1px solid rgba(63, 63, 70, 0.6);
-            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #a5f3fc;
+            background: #18181b; 
+            border: 1px solid #27272a;
+            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #f4f4f5;
         }
-        .md-content pre code { background: none; border: none; padding: 0; color: #e4e4e7; }
+        .md-content pre code { background: none; border: none; padding: 0; color: #f4f4f5; }
         .approval-content code {
             font-family: 'JetBrains Mono', monospace;
-            background: rgba(24, 24, 27, 0.95); 
-            border: 1px solid rgba(63, 63, 70, 0.7);
-            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #a5f3fc;
+            background: #18181b; 
+            border: 1px solid #27272a;
+            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #f4f4f5;
         }
         .approval-content pre {
-            background: #05070a; border: 1px solid rgba(63, 63, 70, 0.8);
+            background: #09090b; border: 1px solid #27272a;
             border-radius: 8px; padding: 12px 16px; overflow-x: auto;
             margin: 0.5em 0; font-size: 0.86em; line-height: 1.55;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
         }
-        .approval-content pre code { background: none; border: none; padding: 0; color: #34d399; }
+        .approval-content pre code { background: none; border: none; padding: 0; color: #f4f4f5; }
         .md-content ul { list-style: disc; padding-left: 1.3em; margin: 0.3em 0; }
         .md-content ol { list-style: decimal; padding-left: 1.3em; margin: 0.3em 0; }
         .md-content li { margin: 0.15em 0; }
-        .md-content a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+        .md-content a { color: #f4f4f5; text-decoration: underline; text-underline-offset: 2px; }
         .md-content blockquote {
-            border-left: 3px solid #6366f1; padding-left: 10px;
-            color: #a1a1aa; margin: 0.4em 0; font-style: italic; background: rgba(99, 102, 241, 0.05);
+            border-left: 2px solid #52525b; padding-left: 10px;
+            color: #a1a1aa; margin: 0.4em 0; font-style: italic; background: #18181b;
             border-radius: 0 4px 4px 0; padding-top: 4px; padding-bottom: 4px;
         }
-        .md-content hr { border-color: rgba(63, 63, 70, 0.5); margin: 0.6em 0; }
+        .md-content hr { border-color: #27272a; margin: 0.6em 0; }
         .md-content table { border-collapse: collapse; width: 100%; font-size: 0.86em; margin: 0.4em 0; }
-        .md-content th { background: rgba(39, 39, 42, 0.8); font-weight: 700; color: #f4f4f5; }
-        .md-content th, .md-content td { border: 1px solid rgba(63, 63, 70, 0.5); padding: 5px 8px; text-align: left; }
+        .md-content th { background: #18181b; font-weight: 600; color: #ffffff; }
+        .md-content th, .md-content td { border: 1px solid #27272a; padding: 5px 8px; text-align: left; }
 
         /* ----------------------------------------------------------------- */
         /* Complete Premium Light Theme Overrides                            */
@@ -387,65 +378,65 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                         <span>Agentic Control Center</span>
                         <span class="text-[9px] font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full lowercase">v2.4.0</span>
                     </h1>
-                    <p class="text-[10px] text-zinc-400 font-mono">Go Orchestration Tier // Ephemeral WASM &amp; Docker Sandboxing</p>
+                    <p class="text-[10px] text-zinc-500 font-mono">Go Orchestration Tier // Ephemeral WASM &amp; Docker Sandboxing</p>
                 </div>
             </div>
 
             <!-- Live Status & System Indicators -->
             <div class="flex items-center gap-4">
-                <button id="theme-toggle-btn" onclick="toggleTheme()" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 rounded-full text-xs font-mono font-bold transition-all cursor-pointer shadow-sm">
+                <button id="theme-toggle-btn" onclick="toggleTheme()" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-sm">
                     <span id="theme-toggle-icon">☀️</span> <span id="theme-toggle-text" class="hidden sm:inline">Light Mode</span>
                 </button>
 
                 {{ if .Warnings }}
-                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider" title="System warnings or mock settings connected">
-                    <span>⚠️</span> <span>Mock/Warnings Active</span>
+                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-full text-[10px] font-mono uppercase tracking-wider" title="System warnings or mock settings connected">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> <span>Warnings Active</span>
                 </div>
                 {{ end }}
 
                 <div class="hidden md:flex items-center gap-3 border-r border-zinc-800 pr-4">
                     <div class="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                         <span>Docker: Connected</span>
                     </div>
                     <div class="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
-                        <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
                         <span>Wasm: Active</span>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2 bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-full shadow-inner">
-                    <span class="relative flex h-2.5 w-2.5">
+                <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full shadow-inner">
+                    <span class="relative flex h-2 w-2">
                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
-                    <span class="text-[10px] font-bold text-zinc-300 font-mono tracking-wider uppercase">SSE Stream Live</span>
+                    <span class="text-[10px] font-medium text-zinc-300 font-mono tracking-wider uppercase">SSE Stream Live</span>
                 </div>
             </div>
         </div>
     </header>
 
     <!-- Navigation Tabs -->
-    <div class="border-b border-zinc-800/60 bg-zinc-950/60 backdrop-blur-md">
+    <div class="border-b border-zinc-800/80 bg-zinc-950">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="flex space-x-6" aria-label="Tabs">
-                <button id="tab-btn-dashboard" onclick="switchTab('dashboard')" class="border-b-2 border-indigo-500 py-3.5 px-2 text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>⚡ Control Center</span>
+                <button id="tab-btn-dashboard" onclick="switchTab('dashboard')" class="border-b-2 border-white py-3.5 px-2 text-xs font-semibold uppercase tracking-wider text-white flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Control Center</span>
                 </button>
-                <button id="tab-btn-studio" onclick="switchTab('studio')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>🎨 Agent Studio</span>
+                <button id="tab-btn-studio" onclick="switchTab('studio')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Agent Studio</span>
                 </button>
-                <button id="tab-btn-audit" onclick="switchTab('audit')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>📊 Cost &amp; Audit</span>
+                <button id="tab-btn-audit" onclick="switchTab('audit')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Cost &amp; Audit</span>
                 </button>
-                <button id="tab-btn-network" onclick="switchTab('network')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>🕸️ Network Graph</span>
+                <button id="tab-btn-network" onclick="switchTab('network')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Network Graph</span>
                 </button>
-                <button id="tab-btn-config" onclick="switchTab('config')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>⚙️ System Settings</span>
+                <button id="tab-btn-config" onclick="switchTab('config')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>System Settings</span>
                 </button>
-                <button id="tab-btn-scheduler" onclick="switchTab('scheduler')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>⏱️ Cron Scheduler</span>
+                <button id="tab-btn-scheduler" onclick="switchTab('scheduler')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Cron Scheduler</span>
                 </button>
             </nav>
         </div>
@@ -453,13 +444,13 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
 
     <!-- System Config Warnings Banner -->
     {{ if .Warnings }}
-    <div class="bg-amber-950/40 border-b border-amber-500/30 px-4 py-3 text-amber-200 backdrop-blur-md warning-banner">
+    <div class="bg-zinc-900 border-b border-zinc-800 px-4 py-3 text-zinc-300 warning-banner">
         <div class="max-w-7xl mx-auto flex flex-col gap-2">
             <div class="flex items-center gap-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-zinc-950 px-2 py-0.5 rounded font-mono shadow-sm warning-title-badge">System Warnings</span>
-                <span class="text-xs text-amber-300 font-mono warning-subtitle">Environment setup recommendations:</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-200 border border-zinc-700 px-2 py-0.5 rounded font-mono shadow-sm warning-title-badge">System Warnings</span>
+                <span class="text-xs text-zinc-400 font-mono warning-subtitle">Environment setup recommendations:</span>
             </div>
-            <ul class="list-disc list-inside text-xs space-y-1 text-amber-200/90 font-mono warning-list">
+            <ul class="list-disc list-inside text-xs space-y-1 text-zinc-400 font-mono warning-list">
                 {{ range .Warnings }}
                 <li>{{ . }}</li>
                 {{ end }}
@@ -476,14 +467,13 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
             <div class="space-y-8 lg:col-span-2">
                 
                 <!-- Task Dispatcher Card -->
-                <section class="glass-card rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full filter blur-3xl pointer-events-none"></div>
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3">
+                <section class="glass-card rounded-xl p-6 shadow-sm relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3">
                         <div class="flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span>
-                            <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100">Task Dispatcher</h2>
+                            <span class="w-2 h-2 rounded-full bg-zinc-100"></span>
+                            <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-100">Task Dispatcher</h2>
                         </div>
-                        <span class="text-[9px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-0.5 rounded-full uppercase">Dynamic Routing</span>
+                        <span class="text-[9px] font-mono bg-zinc-900 text-zinc-400 border border-zinc-800 px-2.5 py-0.5 rounded-full uppercase">Dynamic Routing</span>
                     </div>
 
                     <form id="task-form" hx-post="/api/task" hx-swap="none" enctype="multipart/form-data" class="space-y-4">
@@ -493,32 +483,32 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                         
                         <div>
                             <div class="flex items-center gap-2 flex-wrap mb-2.5">
-                                <span class="text-[10px] font-mono text-zinc-400 font-bold uppercase">Preset Task Launchers:</span>
-                                <button type="button" onclick="setPromptTask('Search the web for AI market news and compile an executive PDF report')" class="text-[10px] font-mono bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-800/80 text-indigo-300 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm">⚡ Web Search &amp; PDF Report</button>
-                                <button type="button" onclick="setPromptTask('Inspect financial workbook in chicago_offsite_budget.xlsx and audit expense metrics')" class="text-[10px] font-mono bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-800/80 text-emerald-300 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm">📊 Excel Model Audit</button>
-                                <button type="button" onclick="setPromptTask('Inspect host system hardware and query spot GPU rental prices')" class="text-[10px] font-mono bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-800/80 text-cyan-300 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm">🖥️ Host Hardware Audit</button>
+                                <span class="text-[10px] font-mono text-zinc-500 uppercase font-medium">Preset Launchers:</span>
+                                <button type="button" onclick="setPromptTask('Search the web for AI market news and compile an executive PDF report')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Web Search &amp; PDF Report</button>
+                                <button type="button" onclick="setPromptTask('Inspect financial workbook in chicago_offsite_budget.xlsx and audit expense metrics')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Excel Model Audit</button>
+                                <button type="button" onclick="setPromptTask('Inspect host system hardware and query spot GPU rental prices')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Host Hardware Audit</button>
                             </div>
                             <textarea name="content" id="content" rows="3" required 
                                 placeholder="e.g. Search web for latest tech news and compile a PDF summary report" 
-                                class="w-full bg-zinc-950/80 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-zinc-100 placeholder-zinc-500 resize-none transition-all shadow-inner"></textarea>
+                                class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700 text-zinc-100 placeholder-zinc-600 resize-none transition-all"></textarea>
                         </div>
 
                         <!-- File Attachment & Orchestration Settings Grid -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                             <div class="space-y-1.5">
-                                <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">Context Attachment (Optional)</label>
+                                <label class="block text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Context Attachment (Optional)</label>
                                 <div class="flex items-center gap-3">
                                     <input type="file" name="file" id="task-file" class="hidden" onchange="document.getElementById('file-chosen').textContent = this.files[0] ? this.files[0].name : 'No file chosen'" />
-                                    <label for="task-file" class="px-4 py-2 border border-zinc-700 hover:border-zinc-500 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-zinc-200 active:scale-95 shadow-sm inline-flex items-center gap-2">
+                                    <label for="task-file" class="px-3.5 py-2 border border-zinc-800 hover:border-zinc-700 rounded-lg text-[10px] font-medium uppercase tracking-wider transition-all cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-zinc-200 active:scale-95 shadow-sm inline-flex items-center gap-2">
                                         <span>📁</span> <span>Choose File</span>
                                     </label>
-                                    <span id="file-chosen" class="text-[10px] text-zinc-400 font-mono italic truncate max-w-[140px]">No file chosen</span>
+                                    <span id="file-chosen" class="text-[10px] text-zinc-500 font-mono italic truncate max-w-[140px]">No file chosen</span>
                                 </div>
                             </div>
 
                             <div class="space-y-1.5">
-                                <label class="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">Orchestration Mode</label>
-                                <select name="orchestration_mode" id="orchestration_mode" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm">
+                                <label class="block text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Orchestration Mode</label>
+                                <select name="orchestration_mode" id="orchestration_mode" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700 cursor-pointer shadow-sm">
                                     <option value="autonomous" selected>Fully Autonomous (Execute immediately)</option>
                                     <option value="steered">Steered (Review &amp; Approve Plan first)</option>
                                     <option value="deferred">Off-Peak Deferred (Oracle schedules optimal low-cost time)</option>
@@ -526,7 +516,7 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2">
+                        <button type="submit" class="w-full py-3 bg-white hover:bg-zinc-200 text-zinc-950 font-semibold rounded-lg text-xs uppercase tracking-wider transition-all shadow-sm active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2">
                             <span>Dispatch Autonomous Task</span>
                             <span class="text-sm">➔</span>
                         </button>
@@ -552,18 +542,23 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
 
                 <!-- Real-time Console Log Stream -->
                 <section class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col h-[520px]">
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3 flex-wrap gap-2">
-                        <div class="flex items-center gap-2" id="log-filter-bar">
-                            <span class="text-xs font-extrabold uppercase tracking-widest text-zinc-300 flex items-center gap-2 mr-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3 flex-wrap gap-2">
+                        <div class="flex items-center gap-2 flex-wrap" id="log-filter-bar">
+                            <span class="text-xs font-semibold uppercase tracking-widest text-zinc-200 flex items-center gap-2 mr-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                 Event Stream
                             </span>
-                            <button onclick="setLogFilter('all')" id="filter-btn-all" class="px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-wider bg-indigo-600 text-white rounded-md cursor-pointer transition-all active:scale-95 shadow-sm">All</button>
-                            <button onclick="setLogFilter('user')" id="filter-btn-user" class="px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">User Chat</button>
-                            <button onclick="setLogFilter('orchestration')" id="filter-btn-orchestration" class="px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Orchestration</button>
-                            <button onclick="setLogFilter('specialists')" id="filter-btn-specialists" class="px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Specialists</button>
+                            <button onclick="setLogFilter('all')" id="filter-btn-all" class="px-3 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm">All</button>
+                            <button onclick="setLogFilter('user')" id="filter-btn-user" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">User Chat</button>
+                            <button onclick="setLogFilter('orchestration')" id="filter-btn-orchestration" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Orchestration</button>
+                            <button onclick="setLogFilter('specialists')" id="filter-btn-specialists" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Specialists</button>
                         </div>
-                        <span class="text-[9px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">SSE Live Feed</span>
+                        <div class="flex items-center gap-2">
+                            <button hx-post="/api/session/new" hx-target="#console-logs" hx-swap="innerHTML" hx-confirm="Start a new session? This will clear active conversation history and event log." class="px-2.5 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-md cursor-pointer transition-all active:scale-95 shadow-sm inline-flex items-center gap-1">
+                                <span>✨ New Session</span>
+                            </button>
+                            <span class="text-[9px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded">SSE Live Feed</span>
+                        </div>
                     </div>
 
                     <div id="console-logs" sse-swap="log-message" hx-swap="beforeend"
@@ -1220,9 +1215,9 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 const btn = document.getElementById('filter-btn-' + b);
                 if (btn) {
                     if (b === filter) {
-                        btn.className = "px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-wider bg-indigo-600 text-white rounded-md cursor-pointer transition-all active:scale-95 shadow-sm";
+                        btn.className = "px-3 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm";
                     } else {
-                        btn.className = "px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95";
+                        btn.className = "px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95";
                     }
                 }
             });
@@ -1820,105 +1815,27 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                 const cy = height / 2;
                 const maxRadius = Math.min(width, height) * 0.42;
 
-                // --- MISSION CONTROL RADAR HUD: Concentric Sonar Rings ---
-                [0.25, 0.5, 0.75, 1.0].forEach((ratio, idx) => {
+                // --- MINIMALIST NETWORK CANVAS BACKGROUND ---
+                [0.4, 0.75].forEach((ratio) => {
                     const r = maxRadius * ratio;
                     ctx.beginPath();
                     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-                    ctx.strokeStyle = isLight ? 'rgba(79, 70, 229, 0.15)' : 'rgba(16, 185, 129, 0.18)';
+                    ctx.strokeStyle = isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(255, 255, 255, 0.05)';
                     ctx.lineWidth = 1;
-                    ctx.setLineDash([3, 4]);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    ctx.font = '9px "JetBrains Mono", monospace';
-                    ctx.fillStyle = isLight ? 'rgba(79, 70, 229, 0.45)' : 'rgba(16, 185, 129, 0.45)';
-                    ctx.textAlign = 'center';
-                    ctx.fillText((ratio * 200).toFixed(0) + 'KM', cx + r - 14, cy - 3);
-                });
-
-                // --- MISSION CONTROL RADAR HUD: Azimuth Axes & Crosshairs ---
-                ctx.beginPath();
-                ctx.moveTo(cx - maxRadius - 12, cy); ctx.lineTo(cx + maxRadius + 12, cy);
-                ctx.moveTo(cx, cy - maxRadius - 12); ctx.lineTo(cx, cy + maxRadius + 12);
-                ctx.strokeStyle = isLight ? 'rgba(79, 70, 229, 0.25)' : 'rgba(16, 185, 129, 0.28)';
-                ctx.setLineDash([2, 3]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                // Diagonal 45° Radial Guides
-                [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4].forEach(ang => {
-                    ctx.beginPath();
-                    ctx.moveTo(cx, cy);
-                    ctx.lineTo(cx + Math.cos(ang) * maxRadius, cy + Math.sin(ang) * maxRadius);
-                    ctx.strokeStyle = isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(16, 185, 129, 0.12)';
-                    ctx.setLineDash([1, 4]);
+                    ctx.setLineDash([4, 6]);
                     ctx.stroke();
                     ctx.setLineDash([]);
                 });
-
-                // Compass Azimuth Labels
-                ctx.font = '10px "JetBrains Mono", monospace';
-                ctx.fillStyle = isLight ? '#4f46e5' : '#10b981';
-                ctx.textAlign = 'center';
-                ctx.fillText('N 000°', cx, cy - maxRadius - 14);
-                ctx.fillText('S 180°', cx, cy + maxRadius + 18);
-                ctx.textAlign = 'left';
-                ctx.fillText('E 090°', cx + maxRadius + 16, cy + 3);
-                ctx.textAlign = 'right';
-                ctx.fillText('W 270°', cx - maxRadius - 16, cy + 3);
-
-                // --- MISSION CONTROL RADAR HUD: Rotating Radar Sweep Scanner Beam ---
-                window.radarSweepAngle = (window.radarSweepAngle + 0.012) % (Math.PI * 2);
-                const currentAngle = window.radarSweepAngle;
-
-                // Sweep Trail (Conical Sector)
-                ctx.save();
-                const sweepSteps = 30;
-                for (let i = 0; i < sweepSteps; i++) {
-                    const alpha = (1 - i / sweepSteps) * 0.15;
-                    const a1 = currentAngle - (i * 0.015);
-                    const a2 = currentAngle - ((i + 1) * 0.015);
-
-                    ctx.beginPath();
-                    ctx.moveTo(cx, cy);
-                    ctx.arc(cx, cy, maxRadius, a2, a1);
-                    ctx.fillStyle = isLight ? 'rgba(99, 102, 241, ' + alpha + ')' : 'rgba(16, 185, 129, ' + alpha + ')';
-                    ctx.fill();
-                }
-
-                // Leading Edge Line of Radar Sweep
-                ctx.beginPath();
-                ctx.moveTo(cx, cy);
-                ctx.lineTo(cx + Math.cos(currentAngle) * maxRadius, cy + Math.sin(currentAngle) * maxRadius);
-                ctx.strokeStyle = isLight ? '#4f46e5' : '#10b981';
-                ctx.lineWidth = 2;
-                ctx.shadowColor = isLight ? '#6366f1' : '#34d399';
-                ctx.shadowBlur = 10;
-                ctx.stroke();
-                ctx.shadowBlur = 0;
-                ctx.restore();
-
-                // --- MISSION CONTROL RADAR HUD: Corner Tactical Reticles ---
-                const hudM = 14;
-                const hudL = 18;
-                ctx.strokeStyle = isLight ? 'rgba(79, 70, 229, 0.45)' : 'rgba(16, 185, 129, 0.5)';
-                ctx.lineWidth = 2;
-
-                ctx.beginPath(); ctx.moveTo(hudM, hudM + hudL); ctx.lineTo(hudM, hudM); ctx.lineTo(hudM + hudL, hudM); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(width - hudM - hudL, hudM); ctx.lineTo(width - hudM, hudM); ctx.lineTo(width - hudM, hudM + hudL); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(hudM, height - hudM - hudL); ctx.lineTo(hudM, height - hudM); ctx.lineTo(hudM + hudL, height - hudM); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(width - hudM - hudL, height - hudM); ctx.lineTo(width - hudM, height - hudM); ctx.lineTo(width - hudM, height - hudM - hudL); ctx.stroke();
 
                 // Telemetry Header Info Overlay
-                const degVal = Math.floor((currentAngle * 180 / Math.PI) % 360);
-                const degStr = (degVal < 100 ? (degVal < 10 ? '00' : '0') : '') + degVal;
-                ctx.font = '10px "JetBrains Mono", monospace';
-                ctx.fillStyle = isLight ? '#4f46e5' : '#10b981';
+                const hudM = 16;
+                ctx.font = '500 10px "JetBrains Mono", monospace';
+                ctx.fillStyle = isLight ? '#4f46e5' : '#a1a1aa';
                 ctx.textAlign = 'left';
-                ctx.fillText('📡 RADAR TELEMETRY // SWEEP: ' + degStr + '°', hudM + 10, hudM + 18);
-                ctx.fillStyle = isLight ? '#64748b' : '#71717a';
-                ctx.fillText('TARGETS: ' + networkNodes.length + ' ACTIVE AGENTS | ORBIT RAD: ' + Math.floor(maxRadius) + 'PX', hudM + 10, hudM + 32);
+                ctx.fillText('NETWORK TOPOLOGY', hudM, hudM + 12);
+                ctx.font = '400 9px "JetBrains Mono", monospace';
+                ctx.fillStyle = isLight ? '#64748b' : '#52525b';
+                ctx.fillText(networkNodes.length + ' ACTIVE NODES', hudM, hudM + 26);
 
                 // --- RENDER INTERACTION EDGES ---
                 networkEdges.forEach(e => {
@@ -1927,9 +1844,9 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     ctx.beginPath();
                     ctx.moveTo(e.source.x, e.source.y);
                     ctx.lineTo(e.target.x, e.target.y);
-                    ctx.strokeStyle = isLight ? 'rgba(199, 210, 254, 0.8)' : 'rgba(52, 211, 153, 0.25)';
-                    ctx.lineWidth = Math.min(3, 1 + e.weight * 0.2);
-                    ctx.setLineDash([4, 2]);
+                    ctx.strokeStyle = isLight ? 'rgba(99, 102, 241, 0.2)' : 'rgba(63, 63, 70, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
                     ctx.stroke();
                     ctx.setLineDash([]);
                 });
@@ -1947,10 +1864,10 @@ var DashboardPage = template.Must(template.New("dashboard").Parse(`
                     const py = p.source.y + (p.target.y - p.source.y) * p.progress;
 
                     ctx.beginPath();
-                    ctx.arc(px, py, 6, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color || '#38bdf8';
-                    ctx.shadowColor = p.color || '#38bdf8';
-                    ctx.shadowBlur = 14;
+                    ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+                    ctx.fillStyle = isLight ? '#4f46e5' : '#818cf8';
+                    ctx.shadowColor = isLight ? '#6366f1' : '#818cf8';
+                    ctx.shadowBlur = 8;
                     ctx.fill();
                     ctx.shadowBlur = 0;
                 }
@@ -2484,41 +2401,33 @@ var LogSnippetTemplate = template.Must(template.New("log").Parse(`
 
 // ActionTakenTemplate renders the state of the card after decision is submitted.
 var ActionTakenTemplate = template.Must(template.New("action").Parse(`
-<div class="p-4 bg-zinc-950 border border-zinc-800 text-indigo-400 rounded-xl text-[10px] uppercase font-mono tracking-wider text-center flex items-center justify-center gap-2 shadow-inner">
-    <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+<div class="p-4 bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-xl text-[10px] uppercase font-mono tracking-wider text-center flex items-center justify-center gap-2">
+    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
     <span>RESOLVED // OPERATOR DECISION: {{.Decision}}</span>
 </div>
 `))
 
 // ArtifactCardTemplate renders a downloadable artifact card pushed via SSE.
 var ArtifactCardTemplate = template.Must(template.New("artifact").Parse(`
-<div class="p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl flex flex-col gap-3 shadow-lg glass-card-hover" style="animation: fadeSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+<div class="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col gap-3 glass-card-hover" style="animation: fadeSlideIn 0.2s ease-out;">
     <div class="flex items-start justify-between gap-2">
         <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2 flex-wrap">
-                {{if eq .ArtifactType "pdf"}}<span class="text-[9px] font-bold font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded uppercase">PDF Report</span>{{end}}
-                {{if eq .ArtifactType "email"}}<span class="text-[9px] font-bold font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded uppercase">Email Draft</span>{{end}}
-                {{if eq .ArtifactType "excel"}}<span class="text-[9px] font-bold font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded uppercase">Workbook</span>{{end}}
-                {{if eq .ArtifactType "code"}}<span class="text-[9px] font-bold font-mono bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded uppercase">Code Script</span>{{end}}
-                {{if eq .ArtifactType "json"}}<span class="text-[9px] font-bold font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded uppercase">JSON Data</span>{{end}}
-                {{if eq .ArtifactType "doc"}}<span class="text-[9px] font-bold font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded uppercase">Markdown</span>{{end}}
-                {{if eq .ArtifactType "image"}}<span class="text-[9px] font-bold font-mono bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded uppercase">Image</span>{{end}}
-                {{if eq .ArtifactType "text"}}<span class="text-[9px] font-bold font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Text File</span>{{end}}
-                {{if eq .ArtifactType "file"}}<span class="text-[9px] font-bold font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">File</span>{{end}}
+                <span class="text-[9px] font-mono font-medium bg-zinc-950 text-zinc-300 border border-zinc-800 px-2 py-0.5 rounded uppercase">{{.ArtifactType}}</span>
                 <span class="text-[9px] font-mono text-zinc-500">{{.Time}}</span>
             </div>
-            <span class="text-xs font-mono font-bold text-zinc-100 break-all pt-0.5">{{.Filename}}</span>
-            <span class="text-[10px] text-zinc-400 font-mono">produced by <span class="font-bold text-indigo-400">{{.Agent}}</span></span>
+            <span class="text-xs font-mono font-semibold text-white break-all pt-0.5">{{.Filename}}</span>
+            <span class="text-[10px] text-zinc-400 font-mono">agent <span class="font-semibold text-zinc-200">{{.Agent}}</span></span>
         </div>
     </div>
     <div class="grid grid-cols-2 gap-2 pt-1">
         <button onclick="openArtifactViewer('{{.Path}}', '{{.Filename}}', '{{.ArtifactType}}', '{{.Agent}}')"
-                class="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-sm">
-            <span>👁️ Preview</span>
+                class="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-sm">
+            <span>Preview</span>
         </button>
         <a href="/api/artifact?path={{.Path}}" target="_blank"
-           class="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 text-center">
-            <span>↗️ Download</span>
+           class="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded-lg text-[10px] font-medium uppercase tracking-wider transition-all active:scale-95 text-center">
+            <span>Download</span>
         </a>
     </div>
 </div>

@@ -1,23 +1,20 @@
-package agent
+package adapter
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/fabith10/synapse-go/internal/agent/pricing/types"
 )
 
 // NullPricingAdapter is the zero-configuration fallback adapter registered whenever
-// no real pricing provider is wired up. It never returns a Go error; instead it
-// returns a structured JSON response with status "unconfigured" so agents and
-// callers can relay a clear, actionable message to the user rather than crashing.
-//
-// In a live environment users should replace this by setting active_provider in
-// pricing_providers.json to a configured custom_http or static_json entry.
+// no real pricing provider is wired up.
 type NullPricingAdapter struct{}
 
 func (n *NullPricingAdapter) Name() string { return "null" }
 
-func (n *NullPricingAdapter) Query(_ context.Context, q PricingQuery) (*PricingResult, error) {
+func (n *NullPricingAdapter) Query(_ context.Context, q types.PricingQuery) (*types.PricingResult, error) {
 	res := map[string]interface{}{
 		"status":      "unconfigured",
 		"provider":    "null",
@@ -27,13 +24,11 @@ func (n *NullPricingAdapter) Query(_ context.Context, q PricingQuery) (*PricingR
 		"docs":        "See docs/Compute_Derivatives_Pricing.md for configuration options.",
 	}
 	b, _ := json.Marshal(res)
-	return buildResult("null", q.Asset, q.MarketType, string(b)), nil
+	return BuildResult("null", q.Asset, q.MarketType, string(b)), nil
 }
 
-// nullAdapterResponse returns the formatted "unconfigured" JSON string directly.
-// Used by PricingOracleManager.ExecuteQuery when no registered adapter matches the
-// active provider name and the null adapter is configured as the final fallback.
-func nullAdapterResponse(activeName, asset, marketType string) string {
+// NullAdapterResponse returns the formatted "unconfigured" JSON string directly.
+func NullAdapterResponse(activeName, asset, marketType string) string {
 	res := map[string]interface{}{
 		"status":      "unconfigured",
 		"provider":    "null",
@@ -49,4 +44,17 @@ func nullAdapterResponse(activeName, asset, marketType string) string {
 	}
 	b, _ := json.Marshal(res)
 	return string(b)
+}
+
+// BuildResult constructs a PricingResult from a raw JSON string.
+func BuildResult(provider, asset, marketType, raw string) *types.PricingResult {
+	var data map[string]interface{}
+	_ = json.Unmarshal([]byte(raw), &data)
+	return &types.PricingResult{
+		Provider:   provider,
+		Asset:      asset,
+		MarketType: marketType,
+		Raw:        raw,
+		Data:       data,
+	}
 }

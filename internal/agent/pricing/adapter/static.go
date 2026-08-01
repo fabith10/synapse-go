@@ -1,4 +1,4 @@
-package agent
+package adapter
 
 import (
 	"context"
@@ -6,18 +6,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/fabith10/synapse-go/internal/agent/pricing/types"
 )
 
 // StaticJSONAdapter implements PricingProvider by reading a local JSON pricing matrix.
-// It is useful for air-gapped environments or as a deterministic test fixture.
-// If the configured file does not exist a built-in baseline matrix is returned.
 type StaticJSONAdapter struct {
 	name     string
 	filePath string
 }
 
 // NewStaticJSONAdapter creates a new static adapter reading from filePath.
-// If filePath is empty it defaults to "pricing_matrix.json" in the working directory.
 func NewStaticJSONAdapter(name, filePath string) *StaticJSONAdapter {
 	if name == "" {
 		name = "static_json"
@@ -33,12 +32,11 @@ func NewStaticJSONAdapter(name, filePath string) *StaticJSONAdapter {
 
 func (a *StaticJSONAdapter) Name() string { return a.name }
 
-func (a *StaticJSONAdapter) Query(_ context.Context, q PricingQuery) (*PricingResult, error) {
+func (a *StaticJSONAdapter) Query(_ context.Context, q types.PricingQuery) (*types.PricingResult, error) {
 	data, err := os.ReadFile(a.filePath)
 	if err != nil {
-		// Return the built-in baseline matrix; missing file is not a hard error.
 		raw := a.baselineMatrix(q.Asset, q.MarketType)
-		return buildResult(a.name, q.Asset, q.MarketType, raw), nil
+		return BuildResult(a.name, q.Asset, q.MarketType, raw), nil
 	}
 
 	var root map[string]interface{}
@@ -46,10 +44,9 @@ func (a *StaticJSONAdapter) Query(_ context.Context, q PricingQuery) (*PricingRe
 		return nil, fmt.Errorf("static_json adapter %q: parse error: %w", a.name, err)
 	}
 	b, _ := json.Marshal(root)
-	return buildResult(a.name, q.Asset, q.MarketType, string(b)), nil
+	return BuildResult(a.name, q.Asset, q.MarketType, string(b)), nil
 }
 
-// baselineMatrix returns a hardcoded minimal pricing matrix when no file is present.
 func (a *StaticJSONAdapter) baselineMatrix(asset, marketType string) string {
 	res := map[string]interface{}{
 		"status":   "success",

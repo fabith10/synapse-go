@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fabith10/synapse-go/adk"
+	"github.com/fabith10/synapse-go/internal/agent/pricing"
 )
 
 // Default baseURL for server mock endpoints during test/local execution.
@@ -19,6 +20,7 @@ var mockServerBaseURL = "http://localhost:8080"
 // SetMockServerBaseURL configures the target URL for mock API calls.
 func SetMockServerBaseURL(urlStr string) {
 	mockServerBaseURL = urlStr
+	pricing.SetMockServerBaseURL(urlStr)
 }
 
 // GetQueryComputePricesTool returns a tool to query spot and on-demand GPU/CPU market prices.
@@ -327,14 +329,14 @@ func GetSubmitMockTaskTool() adk.Tool {
 
 			// If the user already specified a deferral schedule, bypass checks
 			if params.DeferredUntil == "" {
-				shouldDefer, reason := GetPricingOracleManager().ShouldDefer(params.EstimatedCost, 0, forceImm)
+				shouldDefer, reason := pricing.GetPricingOracleManager().ShouldDefer(params.EstimatedCost, 0, forceImm)
 				if shouldDefer {
 					// Retrieve optimal window from the pricing oracle to include in recommendation
 					optimalStartHour := 3
 					savingsPct := 35.0
 					optCost := params.EstimatedCost * 0.79 // rough off-peak multiplier fallback
 
-					oracleRes, err := GetPricingOracleManager().ExecuteQuery(ctx, "H100_SXM", "execution_window", "", map[string]string{
+					oracleRes, err := pricing.GetPricingOracleManager().ExecuteQuery(ctx, "H100_SXM", "execution_window", "", map[string]string{
 						"duration_hours": "4",
 					})
 					if err == nil {

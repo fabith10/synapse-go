@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -88,6 +89,14 @@ func (m *mockSandbox) Execute(ctx context.Context, req adk.ExecutionRequest) adk
 }
 
 func TestExecuteBashDocker_HITL(t *testing.T) {
+	oldBypass := os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL")
+	os.Unsetenv("AGENT_FRAMEWORK_BYPASS_HITL")
+	defer func() {
+		if oldBypass != "" {
+			os.Setenv("AGENT_FRAMEWORK_BYPASS_HITL", oldBypass)
+		}
+	}()
+
 	sb := &mockSandbox{}
 	orch := orchestrator.NewOrchestrator()
 	mailbox := make(chan adk.Message, 5)
@@ -103,10 +112,13 @@ func TestExecuteBashDocker_HITL(t *testing.T) {
 
 	tool := GetExecuteBashDockerTool(sb, orch, "test-agent", mailbox)
 
-	// Verify dangerous script triggers HITL approval
+	// Verify dangerous script triggers HITL approval.
+	// Use a WaitGroup so the test body waits for the goroutine to complete
+	// before returning — prevents "Fail in goroutine after test has completed".
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		time.Sleep(100 * time.Millisecond)
-		// Receive approval request
+		defer wg.Done()
 		select {
 		case req := <-orch.HumanApprovalChan():
 			if req.Metadata == nil || req.Metadata["Type"] != "HITL_APPROVAL" {
@@ -131,6 +143,10 @@ func TestExecuteBashDocker_HITL(t *testing.T) {
 		"bash_script": "rm -rf /some/dir",
 	})
 	res, err := tool.Execute(context.Background(), args)
+
+	// Wait for the approval goroutine to finish before checking results
+	wg.Wait()
+
 	if err != nil {
 		t.Fatalf("unexpected bash execute error: %v", err)
 	}
@@ -138,6 +154,7 @@ func TestExecuteBashDocker_HITL(t *testing.T) {
 		t.Errorf("expected executed script output, got: %q", res)
 	}
 }
+
 
 func TestModernCodingTools(t *testing.T) {
 	os.Setenv("AGENT_FRAMEWORK_TESTING", "true")

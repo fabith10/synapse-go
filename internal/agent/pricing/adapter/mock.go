@@ -1,4 +1,4 @@
-package agent
+package adapter
 
 import (
 	"context"
@@ -9,23 +9,31 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/fabith10/synapse-go/internal/agent/pricing/types"
 )
 
+var MockServerBaseURL = "http://localhost:8080"
+
+// SetMockServerBaseURL sets the base URL for the mock pricing server.
+func SetMockServerBaseURL(urlStr string) {
+	MockServerBaseURL = urlStr
+}
+
 // MockPricingAdapter implements PricingProvider by dispatching to the framework's
-// internal mock HTTP API (/api/mock/compute/*). It requires no external connectivity.
+// internal mock HTTP API (/api/mock/compute/*).
 type MockPricingAdapter struct {
 	baseURL string
 }
 
 // NewMockPricingAdapter creates a new mock adapter pointed at the given base URL.
-// If baseURL is empty the global mockServerBaseURL variable is resolved dynamically.
 func NewMockPricingAdapter(baseURL string) *MockPricingAdapter {
 	return &MockPricingAdapter{baseURL: baseURL}
 }
 
 func (a *MockPricingAdapter) Name() string { return "mock" }
 
-func (a *MockPricingAdapter) Query(ctx context.Context, q PricingQuery) (*PricingResult, error) {
+func (a *MockPricingAdapter) Query(ctx context.Context, q types.PricingQuery) (*types.PricingResult, error) {
 	asset := q.Asset
 	if asset == "" {
 		asset = "H100_SXM"
@@ -33,7 +41,7 @@ func (a *MockPricingAdapter) Query(ctx context.Context, q PricingQuery) (*Pricin
 
 	baseURL := a.baseURL
 	if baseURL == "" {
-		baseURL = mockServerBaseURL
+		baseURL = MockServerBaseURL
 	}
 	if envURL := os.Getenv("PRICING_ORACLE_URL"); envURL != "" {
 		baseURL = envURL
@@ -52,16 +60,12 @@ func (a *MockPricingAdapter) Query(ctx context.Context, q PricingQuery) (*Pricin
 
 	raw, err := a.fetchJSON(ctx, endpoint.String())
 	if err != nil {
-		// Return a minimal inline fallback rather than a hard error, so agents
-		// are never blocked by a temporarily unavailable mock server.
 		raw = a.fallback(asset, q.MarketType, q.Options)
 	}
 
-	return buildResult("mock", asset, q.MarketType, raw), nil
+	return BuildResult("mock", asset, q.MarketType, raw), nil
 }
 
-// resolveEndpoint maps a market type to the correct mock API path and query params.
-// Options are passed through directly as query string parameters for applicable endpoints.
 func (a *MockPricingAdapter) resolveEndpoint(asset, marketType, providerFilter string, _ map[string]string) (string, map[string]string) {
 	params := map[string]string{"asset": asset}
 	mt := strings.ToLower(marketType)
@@ -72,7 +76,7 @@ func (a *MockPricingAdapter) resolveEndpoint(asset, marketType, providerFilter s
 		return "/api/mock/compute/options", params
 	case mt == "vol_surface" || mt == "volatility_surface" || mt == "vol-surface":
 		return "/api/mock/compute/vol-surface", params
-	default: // "spot", "on_demand", or empty
+	default:
 		if providerFilter != "" {
 			params["provider"] = providerFilter
 		}
@@ -82,7 +86,6 @@ func (a *MockPricingAdapter) resolveEndpoint(asset, marketType, providerFilter s
 	}
 }
 
-// fetchJSON performs a GET request and returns the raw response body.
 func (a *MockPricingAdapter) fetchJSON(ctx context.Context, rawURL string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -102,7 +105,6 @@ func (a *MockPricingAdapter) fetchJSON(ctx context.Context, rawURL string) (stri
 	return string(b), nil
 }
 
-// fallback returns a minimal inline JSON response when the mock server is unreachable.
 func (a *MockPricingAdapter) fallback(asset, marketType string, _ map[string]string) string {
 	spot := spotBaseRate(asset)
 	switch strings.ToLower(marketType) {
@@ -123,7 +125,6 @@ func (a *MockPricingAdapter) fallback(asset, marketType string, _ map[string]str
 	}
 }
 
-// spotBaseRate returns a direct USD/hour baseline for a given asset string.
 func spotBaseRate(asset string) float64 {
 	up := strings.ToUpper(asset)
 	switch {

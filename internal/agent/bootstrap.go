@@ -133,6 +133,9 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 		"write_email": func(id string, mb chan adk.Message) adk.Tool {
 			return tools.SecureTool(GetWriteEmailTool(rt.Orchestrator(), id, mb), []string{id})
 		},
+		"delegate_subtask": func(id string, mb chan adk.Message) adk.Tool {
+			return GetDelegateSubtaskTool(rt.Orchestrator(), id, mb)
+		},
 	}
 
 	// Helper to resolve dynamic or default tools list for an agent
@@ -293,6 +296,7 @@ func GetAvailableToolsList() []ToolDescriptor {
 		{Name: "wasm_json_mapper", Description: "Transform JSON data inside Wazero WebAssembly sandbox", Category: "WASM (Tier 2)", IsGated: false},
 		{Name: "execute_python_docker", Description: "Execute dynamic Python math & analytics in Docker container", Category: "Docker (Tier 3)", IsGated: true},
 		{Name: "execute_bash_docker", Description: "Execute shell script pipeline inside Docker container", Category: "Docker (Tier 3)", IsGated: true},
+		{Name: "delegate_subtask", Description: "Delegate a subtask to another specialist agent (developer-agent, researcher-agent, quant-agent, writer-agent)", Category: "Native Go (Tier 1)", IsGated: false},
 	}
 }
 

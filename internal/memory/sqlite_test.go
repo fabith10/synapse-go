@@ -2,7 +2,9 @@ package memory_test
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -410,4 +412,55 @@ func TestAuditLedgerStore(t *testing.T) {
 		t.Errorf("expected 0 records pruned for recent data, got %d", pruned)
 	}
 }
+
+func TestQueryLog_VectorCosineSimilarityRanking(t *testing.T) {
+	ctx := context.Background()
+	store := openTestStore(t)
+
+	// Helper to serialize float64 slice to LittleEndian binary
+	ser := func(v []float64) []byte {
+		b := make([]byte, len(v)*8)
+		for i, f := range v {
+			bits := math.Float64bits(f)
+			binary.LittleEndian.PutUint64(b[i*8:], bits)
+		}
+		return b
+	}
+
+	// Store log 1 (weather topic: vector [1.0, 0.0, 0.0])
+	_ = store.AppendLog(ctx, memory.ContextLog{
+		ID:        "log-weather",
+		AgentID:   "rag-agent",
+		Role:      memory.RoleAgent,
+		Content:   "Sunny forecast for tomorrow",
+		Embedding: ser([]float64{1.0, 0.0, 0.0}),
+		CreatedAt: time.Now().UTC().Add(2 * time.Second), // Newer timestamp
+	})
+
+	// Store log 2 (finance topic: vector [0.0, 1.0, 0.0])
+	_ = store.AppendLog(ctx, memory.ContextLog{
+		ID:        "log-finance",
+		AgentID:   "rag-agent",
+		Role:      memory.RoleAgent,
+		Content:   "Stock prices surged in options market",
+		Embedding: ser([]float64{0.0, 1.0, 0.0}),
+		CreatedAt: time.Now().UTC().Add(1 * time.Second), // Older timestamp
+	})
+
+	// Query with finance query vector [0.1, 0.9, 0.0] -> should rank log-finance FIRST despite older timestamp
+	queryVec := ser([]float64{0.1, 0.9, 0.0})
+	logs, err := store.QueryRelevantLogs(ctx, "rag-agent", queryVec, 2)
+	if err != nil {
+		t.Fatalf("QueryRelevantLogs vector query failed: %v", err)
+	}
+
+	if len(logs) != 2 {
+		t.Fatalf("expected 2 logs, got %d", len(logs))
+	}
+
+	if logs[0].ID != "log-finance" {
+		t.Errorf("expected vector similarity ranking to return 'log-finance' first, got %q", logs[0].ID)
+	}
+}
+
 

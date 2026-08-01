@@ -15,6 +15,7 @@ import (
 	"github.com/fabith10/synapse-go/adk"
 	"github.com/fabith10/synapse-go/internal/broker"
 	"github.com/fabith10/synapse-go/internal/memory"
+	"github.com/fabith10/synapse-go/internal/orchestrator"
 )
 
 type mockGatekeeperProvider struct {
@@ -615,4 +616,44 @@ func TestLoadAgentsConfig(t *testing.T) {
 		t.Errorf("expected EtlPrompt to be overridden, got %q", etlPrompt)
 	}
 }
+
+func TestDelegateSubtaskTool(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	orch := orchestrator.NewOrchestrator()
+	mb := make(chan adk.Message, 10)
+
+	tool := GetDelegateSubtaskTool(orch, "researcher-agent", mb)
+	if tool.Name != "delegate_subtask" {
+		t.Fatalf("expected tool name 'delegate_subtask', got %q", tool.Name)
+	}
+
+	// Prepare tool execution args
+	args, _ := json.Marshal(map[string]string{
+		"target_agent_id": "developer-agent",
+		"subtask_prompt":  "Write a Python script for data processing",
+	})
+
+	// Pre-stage subagent response in mailbox
+	mb <- adk.Message{
+		Sender:    "developer-agent",
+		Recipient: "researcher-agent",
+		Content:   "def process(): pass",
+		Metadata: map[string]string{
+			"parent_agent_id": "researcher-agent",
+		},
+	}
+
+	res, err := tool.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("tool.Execute failed: %v", err)
+	}
+
+	resStr := fmt.Sprintf("%v", res)
+	if !strings.Contains(resStr, "DELEGATED SUBAGENT (developer-agent) RESULT:") || !strings.Contains(resStr, "def process(): pass") {
+		t.Errorf("unexpected tool output: %s", resStr)
+	}
+}
+
 

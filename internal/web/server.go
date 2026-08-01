@@ -446,6 +446,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Agent Network Topology Visualizer Endpoint
 	mux.HandleFunc("/api/network/topology", s.handleNetworkTopology)
 
+	// Session Management Endpoint
+	mux.HandleFunc("/api/session/new", s.handleNewSession)
+
 	// Mock APIs for testing framework end-to-end
 	mux.HandleFunc("/api/mock/compute/prices", s.handleMockComputePrices)
 	mux.HandleFunc("/api/mock/compute/forward-curves", s.handleMockForwardCurves)
@@ -1796,6 +1799,23 @@ func (s *Server) handleNetworkTopology(w http.ResponseWriter, r *http.Request) {
 		"nodes": nodes,
 		"edges": edges,
 	})
+}
+
+func (s *Server) handleNewSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	s.historyMu.Lock()
+	s.convHistory = nil
+	s.historyMu.Unlock()
+
+	s.LogEvent("SYSTEM", "WEB", "New session initialized. Conversation history and active thread state reset.")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`<div class="text-zinc-500 italic font-mono text-xs text-center py-8">[New session initialized. Conversation history &amp; thread state reset.]</div>`))
 }
 
 

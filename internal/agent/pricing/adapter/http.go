@@ -1,4 +1,4 @@
-package agent
+package adapter
 
 import (
 	"context"
@@ -9,56 +9,29 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/fabith10/synapse-go/internal/agent/pricing/types"
 )
 
 // HTTPEndpointTemplate describes how a CustomHTTPAdapter resolves a URL for a given market type.
-// BaseURL is the root of the remote API. Path overrides the default "/prices" for this market.
-// QueryParams adds fixed query-string parameters (e.g. {"format": "json"}).
 type HTTPEndpointTemplate struct {
-	// Path is the URL path for this market type (e.g. "/v1/options/chain").
-	// If empty the adapter uses the DefaultPath configured on the parent adapter.
-	Path string `json:"path,omitempty"`
-
-	// QueryParams are additional fixed key-value pairs appended to every request
-	// for this market type (e.g. {"currency": "USD"}).
+	Path        string            `json:"path,omitempty"`
 	QueryParams map[string]string `json:"query_params,omitempty"`
 }
 
-// CustomHTTPAdapterConfig configures a CustomHTTPAdapter without requiring code changes.
-// It is typically populated from ProviderProfile fields or pricing_providers.json.
+// CustomHTTPAdapterConfig configures a CustomHTTPAdapter.
 type CustomHTTPAdapterConfig struct {
-	// Name is the unique adapter identifier (matches the provider key in pricing_providers.json).
-	Name string
-
-	// BaseURL is the root of the remote pricing API (e.g. "https://pricing.company.com").
-	BaseURL string
-
-	// DefaultPath is the fallback HTTP path used when no per-market endpoint template is defined.
-	// Defaults to "/prices" if empty.
-	DefaultPath string
-
-	// Endpoints maps MarketType strings to per-market endpoint templates.
-	// E.g.: {"spot": {Path: "/v1/spot"}, "options": {Path: "/v1/options/chain"}}
-	// Any market type not present here falls back to DefaultPath.
-	Endpoints map[string]HTTPEndpointTemplate
-
-	// AuthHeaderName is the request header used for authentication (default: "Authorization").
-	AuthHeaderName string
-
-	// AuthHeaderPrefix is the scheme prefix for the auth value (default: "Bearer ").
+	Name             string
+	BaseURL          string
+	DefaultPath      string
+	Endpoints        map[string]HTTPEndpointTemplate
+	AuthHeaderName   string
 	AuthHeaderPrefix string
-
-	// APIKeyEnv is the environment variable name holding the API key.
-	// If empty "PRICING_API_KEY" is used.
-	APIKeyEnv string
-
-	// Timeout for each HTTP request. Defaults to 5 seconds.
-	Timeout time.Duration
+	APIKeyEnv        string
+	Timeout          time.Duration
 }
 
 // CustomHTTPAdapter implements PricingProvider by querying an external HTTP pricing API.
-// It supports fully configurable per-market-type endpoint paths, auth schemes, and fixed
-// query parameters — no code changes are required to integrate a new external provider.
 type CustomHTTPAdapter struct {
 	cfg CustomHTTPAdapterConfig
 }
@@ -86,24 +59,10 @@ func NewCustomHTTPAdapter(cfg CustomHTTPAdapterConfig) *CustomHTTPAdapter {
 	return &CustomHTTPAdapter{cfg: cfg}
 }
 
-// NewCustomHTTPAdapterFromProfile builds a CustomHTTPAdapter from a ProviderProfile.
-// EndpointTemplates in the profile are read from the Endpoints field if present.
-func NewCustomHTTPAdapterFromProfile(name string, profile ProviderProfile) *CustomHTTPAdapter {
-	baseURL := profile.BaseURL
-	if envURL := os.Getenv("PRICING_ORACLE_URL"); envURL != "" {
-		baseURL = envURL
-	}
-	return NewCustomHTTPAdapter(CustomHTTPAdapterConfig{
-		Name:      name,
-		BaseURL:   baseURL,
-		Endpoints: profile.Endpoints,
-		APIKeyEnv: profile.APIKeyEnv,
-	})
-}
 
 func (a *CustomHTTPAdapter) Name() string { return a.cfg.Name }
 
-func (a *CustomHTTPAdapter) Query(ctx context.Context, q PricingQuery) (*PricingResult, error) {
+func (a *CustomHTTPAdapter) Query(ctx context.Context, q types.PricingQuery) (*types.PricingResult, error) {
 	baseURL := a.cfg.BaseURL
 	if envURL := os.Getenv("PRICING_ORACLE_URL"); envURL != "" {
 		baseURL = envURL
@@ -156,10 +115,9 @@ func (a *CustomHTTPAdapter) Query(ctx context.Context, q PricingQuery) (*Pricing
 	}
 
 	b, _ := json.Marshal(result)
-	return buildResult(a.cfg.Name, q.Asset, q.MarketType, string(b)), nil
+	return BuildResult(a.cfg.Name, q.Asset, q.MarketType, string(b)), nil
 }
 
-// resolveEndpoint returns the URL path and any fixed query params for the given market type.
 func (a *CustomHTTPAdapter) resolveEndpoint(marketType string) (string, map[string]string) {
 	key := strings.ToLower(marketType)
 	if tmpl, ok := a.cfg.Endpoints[key]; ok {

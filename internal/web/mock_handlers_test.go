@@ -419,6 +419,23 @@ func TestNetworkTopologyAPI(t *testing.T) {
 	}
 }
 
+func TestNewSessionAPI(t *testing.T) {
+	srv := NewServer(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/session/new", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	if !strings.Contains(rec.Body.String(), "New session initialized") {
+		t.Errorf("expected response to contain session initialization notice, got: %s", rec.Body.String())
+	}
+}
+
+
 
 
 

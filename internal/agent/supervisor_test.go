@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -86,6 +87,7 @@ func TestSupervisorResultRouting(t *testing.T) {
 	orch := orchestrator.NewOrchestrator()
 	s := NewSupervisorAgent("supervisor-agent", llm, orch)
 
+	var mu sync.Mutex
 	var sentMsgs []orchestrator.Message
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -94,7 +96,9 @@ func TestSupervisorResultRouting(t *testing.T) {
 	go func() {
 		ch := orch.HumanApprovalChan()
 		for msg := range ch {
+			mu.Lock()
 			sentMsgs = append(sentMsgs, msg)
+			mu.Unlock()
 		}
 	}()
 
@@ -118,15 +122,20 @@ func TestSupervisorResultRouting(t *testing.T) {
 	// Give a tiny moment for routing delivery goroutine
 	time.Sleep(50 * time.Millisecond)
 
+	mu.Lock()
+	msgsCopy := make([]orchestrator.Message, len(sentMsgs))
+	copy(msgsCopy, sentMsgs)
+	mu.Unlock()
+
 	// Should have sent 2 messages to "USER":
 	// 1. The progress/evaluation log message (with is_subtask deleted, and Type set to PROGRESS).
 	// 2. The forwarded original message content (retaining is_subtask="true" and supervisor_bypass="true").
-	if len(sentMsgs) != 2 {
-		t.Fatalf("expected 2 messages sent to USER, got %d", len(sentMsgs))
+	if len(msgsCopy) != 2 {
+		t.Fatalf("expected 2 messages sent to USER, got %d", len(msgsCopy))
 	}
 
 	// Message 1 is the progress log
-	m1 := sentMsgs[0]
+	m1 := msgsCopy[0]
 	if m1.Metadata["is_subtask"] != "" {
 		t.Errorf("expected is_subtask to be deleted on progress log, got: %q", m1.Metadata["is_subtask"])
 	}
@@ -135,7 +144,7 @@ func TestSupervisorResultRouting(t *testing.T) {
 	}
 
 	// Message 2 is the forwarded output
-	m2 := sentMsgs[1]
+	m2 := msgsCopy[1]
 	if m2.Metadata["is_subtask"] != "true" {
 		t.Errorf("expected is_subtask to be true on forwarded output, got: %q", m2.Metadata["is_subtask"])
 	}
