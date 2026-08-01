@@ -66,9 +66,9 @@
       "description": "Internal mock compute pricing and task execution endpoints",
       "base_url": "http://localhost:8080"
     },
-    "nonexistent_provider": {
-      "type": "nonexistent_provider",
-      "description": "Dynamic provider nonexistent_provider"
+    "mock_fallback": {
+      "type": "mock_fallback",
+      "description": "Dynamic provider mock_fallback"
     },
     "static_json": {
       "type": "static_json",
