@@ -1,0 +1,1216 @@
+
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-zinc-950 text-zinc-100 dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic Control Center // Multi-Agent Autonomous Framework</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com" defer></script>
+    <!-- Marked.js for markdown rendering in the event stream -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; 
+            background-color: #09090b; 
+            color: #f4f4f5;
+        }
+        
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom Scrollbar Styling */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+        /* Minimal Card & Elevation Utility */
+        .glass-card {
+            background: #121215;
+            border: 1px solid #27272a;
+        }
+        
+        .glass-card-hover {
+            transition: all 0.15s ease-out;
+        }
+        .glass-card-hover:hover {
+            border-color: #3f3f46;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Markdown rendered inside log entries */
+        .md-content h1, .md-content h2, .md-content h3, .md-content h4 {
+            font-weight: 600; margin-top: 0.5em; margin-bottom: 0.25em; color: #ffffff;
+        }
+        .md-content h1 { font-size: 1.02em; border-bottom: 1px solid #27272a; padding-bottom: 0.2em; }
+        .md-content h2 { font-size: 0.95em; }
+        .md-content h3, .md-content h4 { font-size: 0.9em; }
+        .md-content p { margin: 0.25em 0; line-height: 1.55; }
+        .md-content strong { font-weight: 600; color: #ffffff; }
+        .md-content em { font-style: italic; color: #a1a1aa; }
+        .md-content code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #18181b; 
+            border: 1px solid #27272a;
+            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #f4f4f5;
+        }
+        .md-content pre code { background: none; border: none; padding: 0; color: #f4f4f5; }
+        .approval-content code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #18181b; 
+            border: 1px solid #27272a;
+            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #f4f4f5;
+        }
+        .approval-content pre {
+            background: #09090b; border: 1px solid #27272a;
+            border-radius: 8px; padding: 12px 16px; overflow-x: auto;
+            margin: 0.5em 0; font-size: 0.86em; line-height: 1.55;
+        }
+        .approval-content pre code { background: none; border: none; padding: 0; color: #f4f4f5; }
+        .md-content ul { list-style: disc; padding-left: 1.3em; margin: 0.3em 0; }
+        .md-content ol { list-style: decimal; padding-left: 1.3em; margin: 0.3em 0; }
+        .md-content li { margin: 0.15em 0; }
+        .md-content a { color: #f4f4f5; text-decoration: underline; text-underline-offset: 2px; }
+        .md-content blockquote {
+            border-left: 2px solid #52525b; padding-left: 10px;
+            color: #a1a1aa; margin: 0.4em 0; font-style: italic; background: #18181b;
+            border-radius: 0 4px 4px 0; padding-top: 4px; padding-bottom: 4px;
+        }
+        .md-content hr { border-color: #27272a; margin: 0.6em 0; }
+        .md-content table { border-collapse: collapse; width: 100%; font-size: 0.86em; margin: 0.4em 0; }
+        .md-content th { background: #18181b; font-weight: 600; color: #ffffff; }
+        .md-content th, .md-content td { border: 1px solid #27272a; padding: 5px 8px; text-align: left; }
+
+        /* ----------------------------------------------------------------- */
+        /* Complete Premium Light Theme Overrides                            */
+        /* ----------------------------------------------------------------- */
+        html.light-theme,
+        body.light-theme,
+        html.light-theme body {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.04) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.03) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%) !important;
+        }
+
+        body.light-theme header,
+        body.light-theme footer,
+        body.light-theme nav,
+        body.light-theme section,
+        body.light-theme .backdrop-blur-md,
+        body.light-theme .backdrop-blur-xl {
+            background-color: rgba(255, 255, 255, 0.95) !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+
+        body.light-theme .glass-card,
+        body.light-theme .log-entry,
+        body.light-theme [id^="approval-"],
+        body.light-theme #artifact-viewer-modal > div,
+        body.light-theme #console-logs {
+            background-color: #ffffff !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+            box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        body.light-theme .glass-card-hover:hover {
+            border-color: #6366f1 !important;
+            box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.15) !important;
+        }
+
+        /* High Contrast Typography */
+        body.light-theme .text-zinc-100,
+        body.light-theme .text-zinc-200,
+        body.light-theme .text-zinc-300,
+        body.light-theme .text-white { color: #0f172a !important; }
+        body.light-theme .text-zinc-400 { color: #334155 !important; }
+        body.light-theme .text-zinc-500 { color: #64748b !important; }
+
+        /* Sender & Recipient Badges in Light Theme */
+        body.light-theme .sender-badge[data-sender="SYSTEM"],
+        body.light-theme [data-sender="SYSTEM"] .sender-badge {
+            background-color: #fef3c7 !important;
+            color: #92400e !important;
+            border-color: #fcd34d !important;
+        }
+        body.light-theme .sender-badge[data-sender="USER"],
+        body.light-theme [data-sender="USER"] .sender-badge {
+            background-color: #e0e7ff !important;
+            color: #3730a3 !important;
+            border-color: #c7d2fe !important;
+        }
+        body.light-theme .sender-badge[data-sender="ADMIN"],
+        body.light-theme [data-sender="ADMIN"] .sender-badge {
+            background-color: #ffe4e6 !important;
+            color: #9f1239 !important;
+            border-color: #fecdd3 !important;
+        }
+        body.light-theme .sender-badge {
+            background-color: #e2e8f0 !important;
+            color: #1e293b !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light-theme .recipient-badge {
+            background-color: #f1f5f9 !important;
+            color: #475569 !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        /* Solid Action Buttons: Preserve White Text */
+        body.light-theme .bg-indigo-600,
+        body.light-theme .bg-indigo-700,
+        body.light-theme .bg-emerald-600,
+        body.light-theme .bg-rose-600,
+        body.light-theme button.bg-indigo-600,
+        body.light-theme button.bg-emerald-600,
+        body.light-theme a.bg-indigo-600 {
+            color: #ffffff !important;
+        }
+
+        /* Universal Light Background & Border Overrides */
+        body.light-theme .bg-zinc-950,
+        body.light-theme .bg-zinc-900,
+        body.light-theme .bg-zinc-850,
+        body.light-theme .bg-zinc-800,
+        body.light-theme .bg-zinc-700,
+        body.light-theme .bg-slate-950,
+        body.light-theme .bg-slate-900,
+        body.light-theme .bg-slate-800,
+        body.light-theme .bg-black,
+        body.light-theme .bg-black\/80,
+        body.light-theme .bg-zinc-950\/80,
+        body.light-theme .bg-zinc-950\/60,
+        body.light-theme .bg-zinc-950\/40,
+        body.light-theme .bg-zinc-900\/90,
+        body.light-theme .bg-zinc-900\/80,
+        body.light-theme .bg-zinc-900\/60,
+        body.light-theme .bg-zinc-900\/50,
+        body.light-theme .bg-zinc-900\/40,
+        body.light-theme #artifact-modal-content-wrapper {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+
+        body.light-theme .border-zinc-800,
+        body.light-theme .border-zinc-800\/90,
+        body.light-theme .border-zinc-800\/80,
+        body.light-theme .border-zinc-800\/60,
+        body.light-theme .border-zinc-800\/40,
+        body.light-theme .border-zinc-700,
+        body.light-theme .border-zinc-900 {
+            border-color: #cbd5e1 !important;
+        }
+
+        /* Form Controls & Inputs */
+        body.light-theme input[type="text"],
+        body.light-theme textarea,
+        body.light-theme select {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light-theme input::placeholder,
+        body.light-theme textarea::placeholder {
+            color: #94a3b8 !important;
+        }
+
+        /* Preset Task Buttons in Light Theme */
+        body.light-theme .bg-indigo-950\/60 {
+            background-color: #e0e7ff !important;
+            color: #3730a3 !important;
+            border-color: #c7d2fe !important;
+        }
+        body.light-theme .bg-emerald-950\/60 {
+            background-color: #d1fae5 !important;
+            color: #065f46 !important;
+            border-color: #a7f3d0 !important;
+        }
+        body.light-theme .bg-cyan-950\/60 {
+            background-color: #cffaff !important;
+            color: #164e63 !important;
+            border-color: #a5f3fc !important;
+        }
+
+        /* High Visibility Warning & Amber Styling in Light Theme */
+        body.light-theme .warning-banner,
+        html.light-theme .warning-banner {
+            background-color: #fffbeb !important; /* Soft warm amber-50 background */
+            border-color: #fcd34d !important; /* Gold border */
+            color: #78350f !important;
+        }
+
+        body.light-theme .warning-title-badge,
+        html.light-theme .warning-title-badge {
+            background-color: #b45309 !important; /* Rich dark amber badge fill */
+            color: #ffffff !important; /* CRISP WHITE TEXT */
+        }
+
+        body.light-theme .warning-subtitle,
+        html.light-theme .warning-subtitle {
+            color: #92400e !important; /* Deep amber-800 text */
+            font-weight: 700 !important;
+        }
+
+        body.light-theme .warning-list,
+        body.light-theme .warning-list li,
+        html.light-theme .warning-list li {
+            color: #78350f !important; /* Deep amber-900 text */
+            font-weight: 600 !important;
+        }
+
+        body.light-theme .text-amber-400,
+        body.light-theme .text-amber-300,
+        body.light-theme .text-amber-200,
+        body.light-theme .text-yellow-400,
+        body.light-theme .text-yellow-300,
+        body.light-theme .text-yellow-500 {
+            color: #92400e !important; /* Dark amber-800 for high readability */
+            font-weight: 700 !important;
+        }
+
+        body.light-theme .bg-amber-500\/10,
+        body.light-theme .bg-amber-500\/20,
+        body.light-theme .bg-amber-950\/60,
+        body.light-theme .bg-amber-900\/40,
+        body.light-theme .bg-amber-950\/40 {
+            background-color: #fef3c7 !important; /* Rich amber-100 tint */
+            color: #92400e !important;
+        }
+
+        body.light-theme .border-amber-500\/20,
+        body.light-theme .border-amber-500\/30,
+        body.light-theme .border-amber-800,
+        body.light-theme .border-l-amber-500 {
+            border-color: #d97706 !important;
+        }
+
+        /* Emerald / Success Overrides */
+        body.light-theme .text-emerald-400,
+        body.light-theme .text-emerald-300 {
+            color: #047857 !important;
+            font-weight: 700 !important;
+        }
+        body.light-theme .bg-emerald-500\/10,
+        body.light-theme .bg-emerald-500\/20,
+        body.light-theme .bg-emerald-950\/60 {
+            background-color: #d1fae5 !important;
+            color: #065f46 !important;
+        }
+
+        /* Indigo / Primary Overrides */
+        body.light-theme .text-indigo-400,
+        body.light-theme .text-indigo-300 {
+            color: #4338ca !important;
+            font-weight: 700 !important;
+        }
+        body.light-theme .bg-indigo-500\/10,
+        body.light-theme .bg-indigo-500\/20,
+        body.light-theme .bg-indigo-950\/60 {
+            background-color: #e0e7ff !important;
+            color: #3730a3 !important;
+        }
+
+        /* Rose / Danger Overrides */
+        body.light-theme .text-rose-400,
+        body.light-theme .text-rose-300 {
+            color: #be123c !important;
+            font-weight: 700 !important;
+        }
+        body.light-theme .bg-rose-500\/10,
+        body.light-theme .bg-rose-500\/20,
+        body.light-theme .bg-rose-950\/60 {
+            background-color: #ffe4e6 !important;
+            color: #9f1239 !important;
+        }
+
+        /* Markdown Overrides */
+        body.light-theme .md-content h1,
+        body.light-theme .md-content h2,
+        body.light-theme .md-content h3,
+        body.light-theme .md-content strong {
+            color: #0f172a !important;
+        }
+        body.light-theme .md-content p,
+        body.light-theme .md-content li {
+            color: #1e293b !important;
+        }
+        body.light-theme .md-content code {
+            background: #e2e8f0 !important;
+            border-color: #cbd5e1 !important;
+            color: #0369a1 !important;
+        }
+        body.light-theme .md-content pre {
+            background: #0f172a !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+    </style>
+</head>
+<body hx-ext="sse" sse-connect="/stream/logs" class="h-full flex flex-col selection:bg-indigo-500 selection:text-white">
+
+    <!-- Top Header -->
+    <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-400 p-[1px] shadow-lg shadow-indigo-500/20">
+                    <div class="w-full h-full bg-zinc-950 rounded-[7px] flex items-center justify-center font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-300 text-sm">
+                        ⚡
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-sm font-extrabold tracking-wider text-zinc-100 uppercase flex items-center gap-2">
+                        <span>Agentic Control Center</span>
+                        <span class="text-[9px] font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full lowercase">v2.4.0</span>
+                    </h1>
+                    <p class="text-[10px] text-zinc-500 font-mono">Go Orchestration Tier // Ephemeral WASM &amp; Docker Sandboxing</p>
+                </div>
+            </div>
+
+            <!-- Live Status & System Indicators -->
+            <div class="flex items-center gap-4">
+                <button id="theme-toggle-btn" onclick="toggleTheme()" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-sm">
+                    <span id="theme-toggle-icon">☀️</span> <span id="theme-toggle-text" class="hidden sm:inline">Light Mode</span>
+                </button>
+
+                {{ if .Warnings }}
+                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-full text-[10px] font-mono uppercase tracking-wider" title="System warnings or mock settings connected">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> <span>Warnings Active</span>
+                </div>
+                {{ end }}
+
+                <div class="hidden md:flex items-center gap-3 border-r border-zinc-800 pr-4">
+                    <div class="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>Docker: Connected</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                        <span>Wasm: Active</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full shadow-inner">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span class="text-[10px] font-medium text-zinc-300 font-mono tracking-wider uppercase">SSE Stream Live</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="border-b border-zinc-800/80 bg-zinc-950">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex space-x-6" aria-label="Tabs">
+                <button id="tab-btn-dashboard" onclick="switchTab('dashboard')" class="border-b-2 border-white py-3.5 px-2 text-xs font-semibold uppercase tracking-wider text-white flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Control Center</span>
+                </button>
+                <button id="tab-btn-studio" onclick="switchTab('studio')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Agent Studio</span>
+                </button>
+                <button id="tab-btn-audit" onclick="switchTab('audit')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Cost &amp; Audit</span>
+                </button>
+                <button id="tab-btn-network" onclick="switchTab('network')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Network Graph</span>
+                </button>
+                <button id="tab-btn-config" onclick="switchTab('config')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>System Settings</span>
+                </button>
+                <button id="tab-btn-scheduler" onclick="switchTab('scheduler')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
+                    <span>Cron Scheduler</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- System Config Warnings Banner -->
+    {{ if .Warnings }}
+    <div class="bg-zinc-900 border-b border-zinc-800 px-4 py-3 text-zinc-300 warning-banner">
+        <div class="max-w-7xl mx-auto flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-200 border border-zinc-700 px-2 py-0.5 rounded font-mono shadow-sm warning-title-badge">System Warnings</span>
+                <span class="text-xs text-zinc-400 font-mono warning-subtitle">Environment setup recommendations:</span>
+            </div>
+            <ul class="list-disc list-inside text-xs space-y-1 text-zinc-400 font-mono warning-list">
+                {{ range .Warnings }}
+                <li>{{ . }}</li>
+                {{ end }}
+            </ul>
+        </div>
+    </div>
+    {{ end }}
+
+    <!-- Control Center Tab Content -->
+    <div id="tab-content-dashboard" class="tab-pane flex-1 flex flex-col">
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Column: Tasks, Controls & Event Stream (Taking 2/3 width) -->
+            <div class="space-y-8 lg:col-span-2">
+                
+                <!-- Task Dispatcher Card -->
+                <section class="glass-card rounded-xl p-6 shadow-sm relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-zinc-100"></span>
+                            <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-100">Task Dispatcher</h2>
+                        </div>
+                        <span class="text-[9px] font-mono bg-zinc-900 text-zinc-400 border border-zinc-800 px-2.5 py-0.5 rounded-full uppercase">Dynamic Routing</span>
+                    </div>
+
+                    <form id="task-form" hx-post="/api/task" hx-swap="none" enctype="multipart/form-data" class="space-y-4">
+                        <p class="text-xs text-zinc-400 leading-relaxed">
+                            Specify your task goal below. The system triage-agent will evaluate requirements, select the optimal specialist agent, and execute sandboxed actions.
+                        </p>
+                        
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap mb-2.5">
+                                <span class="text-[10px] font-mono text-zinc-500 uppercase font-medium">Preset Launchers:</span>
+                                <button type="button" onclick="setPromptTask('Search the web for AI market news and compile an executive PDF report')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Web Search &amp; PDF Report</button>
+                                <button type="button" onclick="setPromptTask('Inspect financial workbook in chicago_offsite_budget.xlsx and audit expense metrics')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Excel Model Audit</button>
+                                <button type="button" onclick="setPromptTask('Inspect host system hardware and query spot GPU rental prices')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Host Hardware Audit</button>
+                            </div>
+                            <textarea name="content" id="content" rows="3" required 
+                                placeholder="e.g. Search web for latest tech news and compile a PDF summary report" 
+                                class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700 text-zinc-100 placeholder-zinc-600 resize-none transition-all"></textarea>
+                        </div>
+
+                        <!-- File Attachment & Orchestration Settings Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                            <div class="space-y-1.5">
+                                <label class="block text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Context Attachment (Optional)</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="file" name="file" id="task-file" class="hidden" onchange="document.getElementById('file-chosen').textContent = this.files[0] ? this.files[0].name : 'No file chosen'" />
+                                    <label for="task-file" class="px-3.5 py-2 border border-zinc-800 hover:border-zinc-700 rounded-lg text-[10px] font-medium uppercase tracking-wider transition-all cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-zinc-200 active:scale-95 shadow-sm inline-flex items-center gap-2">
+                                        <span>📁</span> <span>Choose File</span>
+                                    </label>
+                                    <span id="file-chosen" class="text-[10px] text-zinc-500 font-mono italic truncate max-w-[140px]">No file chosen</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="block text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Orchestration Mode</label>
+                                <select name="orchestration_mode" id="orchestration_mode" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700 cursor-pointer shadow-sm">
+                                    <option value="autonomous" selected>Fully Autonomous (Execute immediately)</option>
+                                    <option value="steered">Steered (Review &amp; Approve Plan first)</option>
+                                    <option value="deferred">Off-Peak Deferred (Oracle schedules optimal low-cost time)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full py-3 bg-white hover:bg-zinc-200 text-zinc-950 font-semibold rounded-lg text-xs uppercase tracking-wider transition-all shadow-sm active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2">
+                            <span>Dispatch Autonomous Task</span>
+                            <span class="text-sm">➔</span>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Steering Controls (HITL Approval Queue) -->
+                <section class="glass-card rounded-2xl p-6 shadow-2xl">
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3">
+                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            Human-in-the-Loop Steering Queue
+                        </h2>
+                        <span class="text-[9px] font-mono text-zinc-400">Security Gateways Active</span>
+                    </div>
+                    
+                    <div id="approvals-list" sse-swap="hitl-request" hx-swap="beforeend" class="space-y-4">
+                        <div class="empty-state text-[11px] text-zinc-400 italic p-6 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
+                            AWAITING INSTRUCTIONS. STEERING CONTROLS WILL POPULATE HERE UPON CRITICAL ACTIONS.
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Real-time Console Log Stream -->
+                <section class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col h-[520px]">
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3 flex-wrap gap-2">
+                        <div class="flex items-center gap-2 flex-wrap" id="log-filter-bar">
+                            <span class="text-xs font-semibold uppercase tracking-widest text-zinc-200 flex items-center gap-2 mr-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Event Stream
+                            </span>
+                            <button onclick="setLogFilter('all')" id="filter-btn-all" class="px-3 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm">All</button>
+                            <button onclick="setLogFilter('user')" id="filter-btn-user" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">User Chat</button>
+                            <button onclick="setLogFilter('orchestration')" id="filter-btn-orchestration" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Orchestration</button>
+                            <button onclick="setLogFilter('specialists')" id="filter-btn-specialists" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Specialists</button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button hx-post="/api/session/new" hx-target="#console-logs" hx-swap="innerHTML" hx-confirm="Start a new session? This will clear active conversation history and event log." class="px-2.5 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-md cursor-pointer transition-all active:scale-95 shadow-sm inline-flex items-center gap-1">
+                                <span>✨ New Session</span>
+                            </button>
+                            <span class="text-[9px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded">SSE Live Feed</span>
+                        </div>
+                    </div>
+
+                    <div id="console-logs" sse-swap="log-message" hx-swap="beforeend"
+                         hx-on::after-settle="this.scrollTop = this.scrollHeight"
+                         class="flex-1 font-mono text-[11px] overflow-y-auto bg-zinc-950 text-zinc-200 p-4 rounded-xl border border-zinc-800/90 space-y-3 scroll-smooth shadow-inner">
+                        <div class="text-zinc-500 italic font-mono text-xs text-center py-8">[Ready to process autonomous agent telemetry...]</div>
+                    </div>
+                </section>
+
+                <!-- Agent Artifacts Panel -->
+                <section class="glass-card rounded-2xl p-6 shadow-2xl">
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3">
+                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
+                            <span>📎</span>
+                            Agent Artifacts &amp; Generated Deliverables
+                        </h2>
+                        <div class="flex items-center gap-3 font-mono">
+                            <span class="text-[9px] text-zinc-400">Reports, Code, PDF &amp; Workbooks</span>
+                            <button hx-post="/api/artifact/delete-all" hx-target="#artifacts-list" hx-swap="innerHTML" hx-confirm="Are you sure you want to delete ALL generated artifacts from disk?"
+                                    class="px-2.5 py-1 bg-zinc-900 hover:bg-rose-950/80 text-zinc-400 hover:text-rose-300 border border-zinc-800 hover:border-rose-800 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer flex items-center gap-1">
+                                <span>🗑️</span> <span>Clear All</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="artifacts-list" sse-swap="artifact-ready" hx-swap="afterbegin" class="space-y-3">
+                        {{if .ArtifactsHTML}}
+                            {{.ArtifactsHTML}}
+                        {{else}}
+                            <div id="artifacts-empty" class="text-[11px] text-zinc-400 italic p-6 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
+                                NO ARTIFACTS PRODUCED YET. GENERATED DELIVERABLES WILL BE CAPTURED HERE.
+                            </div>
+                        {{end}}
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Agent Registry Sidebar (Taking 1/3 width) -->
+            <div class="space-y-8 lg:col-span-1">
+                <section class="glass-card rounded-2xl p-6 shadow-2xl overflow-y-auto max-h-[920px]">
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3">
+                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200">Registered Blueprints</h2>
+                        <span class="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase">Dynamic Active</span>
+                    </div>
+                    <div class="space-y-4">
+                        
+                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-zinc-100 text-xs font-mono">triage-agent</span>
+                                <span class="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded uppercase">Gatekeeper</span>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Analyzes prompt requirements, resolves target capabilities, and routes compute efficiently.</p>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">query_pricing_oracle</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-zinc-100 text-xs font-mono">developer-agent</span>
+                                <span class="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded uppercase">Developer</span>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Executes code, inspects workspace directories, refactors codebases, and performs git operations.</p>
+                            <div class="flex flex-wrap gap-1.5 mt-1">
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">execute_bash_docker</span>
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">replace_file_content</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-zinc-100 text-xs font-mono">quant-agent</span>
+                                <span class="text-[9px] font-mono bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded uppercase">Quant Sandboxer</span>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Writes Python code to perform financial modeling and Monte Carlo simulations inside Docker containers.</p>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">execute_python_docker</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-zinc-100 text-xs font-mono">excel-agent</span>
+                                <span class="text-[9px] font-mono bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded uppercase">Spreadsheet Hero</span>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Modifies financial spreadsheets, updates cell formulas, and extracts model assumptions natively.</p>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">modify_excel_workbook</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-zinc-100 text-xs font-mono">researcher-agent</span>
+                                <span class="text-[9px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded uppercase">Deep Researcher</span>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Searches live web context, parses search extracts, and compiles PDF research reports natively.</p>
+                            <div class="flex flex-wrap gap-1.5 mt-1">
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">web_search_and_extract</span>
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">generate_pdf_report</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-zinc-100 text-xs font-mono">email-agent</span>
+                                <span class="text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded uppercase">Email Assistant</span>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Drafts formatted emails with automatic recipient extraction and security checks for external domains.</p>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">write_email</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-zinc-100 text-xs font-mono">browser-agent</span>
+                                <span class="text-[9px] font-mono bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 rounded uppercase">Web Browser Agent</span>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Navigates websites statefully, enters input values, and submits forms step-by-step.</p>
+                            <div class="flex flex-wrap gap-1.5 mt-1">
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">browser_navigate</span>
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">browser_input</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-zinc-100 text-xs font-mono">planner-agent</span>
+                                <span class="text-[9px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded uppercase">Task Planner</span>
+                            </div>
+                            <p class="text-xs text-zinc-400 leading-relaxed">Dissects complex instructions into sub-tasks with dependencies and executes them in parallel.</p>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">dag scheduling</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Configurations Tab Content -->
+    <div id="tab-content-config" class="tab-pane hidden flex-1 flex flex-col">
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="glass-card rounded-2xl p-8 shadow-2xl">
+                
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 border-b border-zinc-800 pb-5 gap-4">
+                    <div>
+                        <h2 class="text-sm font-extrabold uppercase tracking-wider text-zinc-100">System Configurations</h2>
+                        <p class="text-xs text-zinc-400 mt-1">Configure agent system prompts, tool blocklists, and core LLM provider models.</p>
+                    </div>
+                    <div>
+                        <button type="submit" form="config-form" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 active:scale-95 cursor-pointer">
+                            Save Configurations
+                        </button>
+                    </div>
+                </div>
+
+                <form id="config-form" hx-post="/api/config/save" hx-target="#save-status" class="space-y-8">
+                    <!-- Status Box -->
+                    <div id="save-status"></div>
+
+                    <!-- Dynamic Agent Prompts Grid -->
+                    <div>
+                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-indigo-400 mb-4 border-b border-zinc-800 pb-2">Agent System Prompts</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {{ range $id, $prompt := .AgentsConfig }}
+                            <div class="space-y-1.5">
+                                <label for="{{$id}}_prompt" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">{{$id}} Prompt</label>
+                                <textarea name="{{$id}}_prompt" id="{{$id}}_prompt" rows="7" 
+                                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner transition-all">{{$prompt}}</textarea>
+                            </div>
+                            {{ end }}
+
+                        </div>
+                    </div>
+
+                    <!-- Human-in-the-Loop Command & Tool Approvals -->
+                    <div class="pt-6 border-t border-zinc-800">
+                        <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3 flex-wrap gap-2">
+                            <div>
+                                <h3 class="text-xs font-extrabold uppercase tracking-widest text-indigo-400">Human-in-the-Loop &amp; Security Controls</h3>
+                                <p class="text-[10px] text-zinc-400 font-mono mt-0.5">Configure command blocklists, risky Python syscalls, and tool approval triggers (.agents/critical_actions.json).</p>
+                            </div>
+                            <label class="flex items-center space-x-2 cursor-pointer bg-zinc-900 border border-zinc-800 px-3.5 py-2 rounded-lg hover:bg-zinc-800 transition-colors">
+                                <input type="checkbox" name="auto_approve_all" {{if .CriticalActions.AutoApproveAll}}checked{{end}} class="w-4 h-4 text-indigo-600 border-zinc-700 rounded focus:ring-indigo-500">
+                                <span class="text-[10px] font-bold font-mono text-zinc-300 uppercase">Auto-Approve All (Auto-Pilot Mode)</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="space-y-1.5">
+                                <label for="risky_bash_keywords" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Risky Bash Commands (comma/newline separated)</label>
+                                <textarea name="risky_bash_keywords" id="risky_bash_keywords" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner" placeholder="rm, rmdir, sudo, chmod, curl, pkill">{{.RiskyBashKeywordsStr}}</textarea>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label for="risky_python_keywords" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Risky Python Syscalls (comma/newline separated)</label>
+                                <textarea name="risky_python_keywords" id="risky_python_keywords" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner" placeholder="shutil.rmtree, os.remove, os.system, subprocess, eval">{{.RiskyPythonKeywordsStr}}</textarea>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label for="require_approval_tools" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Tools Requiring HITL Approval (comma/newline separated)</label>
+                                <textarea name="require_approval_tools" id="require_approval_tools" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner" placeholder="execute_bash_docker, write_email">{{.RequireApprovalToolsStr}}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LLM Providers raw JSON editing -->
+                    <div class="pt-6 border-t border-zinc-800">
+                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-indigo-400 mb-2 border-b border-zinc-800 pb-2">LLM Providers (models.json)</h3>
+                        <p class="text-[10px] text-zinc-400 font-mono mb-4">Edit the active provider endpoints below. Updates require a server restart to take effect.</p>
+                        <div class="space-y-1.5">
+                            <textarea name="models_json" id="models_json" rows="10" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner">{{.ModelsConfig}}</textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Agent Studio Tab Content (No-Code Builder & Blueprint Studio) -->
+    <div id="tab-content-studio" class="tab-pane hidden flex-1 flex flex-col">
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            
+            <!-- Header & Admin Controls -->
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between border-b border-zinc-800 pb-5 gap-4">
+                <div>
+                    <h2 class="text-sm font-extrabold uppercase tracking-wider text-zinc-100 flex items-center gap-2">
+                        <span>🎨 Agent Studio &amp; No-Code Builder</span>
+                        <span class="text-[9px] font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-0.5 rounded-full uppercase">Dynamic Registry</span>
+                    </h2>
+                    <p class="text-xs text-zinc-400 mt-1">Create custom specialized agents, assign tool permissions visually, and import/export team blueprints without modifying Go source code.</p>
+                </div>
+                
+                <!-- Admin Policy Toggle for Docker Tier 3 Tools -->
+                <div class="glass-card px-4 py-3 rounded-xl border border-zinc-800 flex items-center gap-4 shadow-md">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-200 font-mono">Tier 3 Docker Tools</span>
+                        <span id="docker-policy-status-label" class="text-[9px] font-mono text-amber-400 font-bold">Gated by Admin Policy</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="docker-policy-checkbox" onchange="toggleDockerAdminPolicy(this.checked)" class="sr-only peer">
+                        <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Two Column Studio Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <!-- Left 2 Columns: Visual Agent Creator Form -->
+                <div class="lg:col-span-2 space-y-6">
+                    <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-6">
+                        <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+                            <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                                Visual Agent Creator
+                            </h3>
+                            <span class="text-[9px] font-mono text-zinc-400">Instant Orchestrator Binding</span>
+                        </div>
+
+                        <form id="studio-agent-form" onsubmit="createStudioAgent(event)" class="space-y-6">
+                            <div id="studio-alert" class="hidden p-4 rounded-xl text-xs font-mono"></div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="space-y-1.5">
+                                    <label for="studio_agent_id" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Agent Unique ID</label>
+                                    <input type="text" id="studio_agent_id" required placeholder="e.g. market-analyst-agent" 
+                                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label for="studio_description" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Role / Capability Summary</label>
+                                    <input type="text" id="studio_description" required placeholder="e.g. Evaluates market research and builds financial forecasts" 
+                                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+                                </div>
+                            </div>
+
+                            <!-- System Prompt Textarea with Templates -->
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label for="studio_system_prompt" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">System Prompt Instructions</label>
+                                    <div class="flex gap-2">
+                                        <button type="button" onclick="insertPromptTemplate('analyst')" class="text-[9px] font-mono text-indigo-400 hover:underline cursor-pointer">Insert Analyst Template</button>
+                                        <button type="button" onclick="insertPromptTemplate('researcher')" class="text-[9px] font-mono text-indigo-400 hover:underline cursor-pointer">Insert Researcher Template</button>
+                                    </div>
+                                </div>
+                                <textarea id="studio_system_prompt" rows="6" required 
+                                    placeholder="You are a specialized agent responsible for processing..." 
+                                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-xs font-mono text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner"></textarea>
+                            </div>
+
+                            <!-- Tool Permissions Checklist -->
+                            <div class="space-y-3">
+                                <label class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Assign Tool Capabilities</label>
+                                <div id="studio-tools-checklist" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto p-3 bg-zinc-950 rounded-xl border border-zinc-800/90 shadow-inner">
+                                    <div class="text-xs text-zinc-500 italic">Loading framework tools...</div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 active:scale-95 cursor-pointer flex items-center justify-center gap-2">
+                                <span>✨ Register &amp; Deploy Agent</span>
+                                <span>➔</span>
+                            </button>
+                        </form>
+                    </section>
+                </div>
+
+                <!-- Right 1 Column: Blueprint Import/Export & Active Blueprints -->
+                <div class="space-y-6 lg:col-span-1">
+                    
+                    <!-- Blueprint Import/Export Card -->
+                    <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 border-b border-zinc-800 pb-3 flex items-center gap-2">
+                            <span>📦</span> Blueprint Import &amp; Export
+                        </h3>
+                        <p class="text-xs text-zinc-400 leading-relaxed">Share agent blueprints across teams using standard .json configuration files.</p>
+                        
+                        <!-- Import Blueprint Form -->
+                        <div class="p-4 bg-zinc-950 rounded-xl border border-zinc-800/90 space-y-3">
+                            <span class="block text-[10px] font-bold text-zinc-300 uppercase font-mono">Import Blueprint File</span>
+                            <input type="file" id="blueprint-file-input" accept=".json" class="hidden" onchange="importAgentBlueprint(event)" />
+                            <label for="blueprint-file-input" class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-500 text-zinc-200 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer inline-flex items-center justify-center gap-2 text-center shadow-sm">
+                                <span>📥 Choose .json Blueprint File</span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Active Blueprints Registry -->
+                    <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 border-b border-zinc-800 pb-3 flex items-center gap-2">
+                            <span>⚡</span> Active Registered Blueprints
+                        </h3>
+                        <div id="studio-registered-agents-list" class="space-y-3 max-h-80 overflow-y-auto">
+                            <!-- Dynamic cards populated via JS -->
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Audit Explorer Tab Content -->
+    <div id="tab-content-audit" class="tab-pane hidden flex-1 flex flex-col">
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <!-- Header Banner -->
+            <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-emerald-500">
+                <div>
+                    <h2 class="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                        <span>📊 Token Cost &amp; Execution Audit Explorer</span>
+                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">SQLite Ledger</span>
+                    </h2>
+                    <p class="text-xs text-zinc-400 mt-1">Real-time token metrics, estimated USD LLM execution costs, latency breakdown, and historical audit reports.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="exportAuditCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+                        <span>📥 Export CSV Report</span>
+                    </button>
+                    <button onclick="pruneAuditRecords()" class="px-3 py-2 bg-zinc-800 hover:bg-rose-900/40 text-rose-300 border border-rose-800/40 rounded-xl text-xs font-medium transition-all cursor-pointer">
+                        <span>🗑️ Prune (&gt;30 Days)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top Metric Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
+                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Total Spent (USD)</div>
+                    <div id="audit-kpi-total-cost" class="text-2xl font-extrabold text-emerald-400 mt-1">$0.0000</div>
+                    <div class="text-[9px] text-zinc-500 mt-1">Calculated via LLM node rates</div>
+                </div>
+                <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
+                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Total Tokens Processed</div>
+                    <div id="audit-kpi-total-tokens" class="text-2xl font-extrabold text-indigo-400 mt-1">0 Tokens</div>
+                    <div class="text-[9px] text-zinc-500 mt-1">Prompt &amp; Completion tokens</div>
+                </div>
+                <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
+                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Avg Execution Duration</div>
+                    <div id="audit-kpi-avg-duration" class="text-2xl font-extrabold text-amber-400 mt-1">0 ms</div>
+                    <div class="text-[9px] text-zinc-500 mt-1">Average task turn latency</div>
+                </div>
+                <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
+                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Total Execution Turns</div>
+                    <div id="audit-kpi-total-tasks" class="text-2xl font-extrabold text-sky-400 mt-1">0 Turns</div>
+                    <div class="text-[9px] text-zinc-500 mt-1">Recorded audit ledger rows</div>
+                </div>
+            </div>
+
+            <!-- Cost Breakdown Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Agent Cost Distribution -->
+                <div class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+                    <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 border-b border-zinc-800 pb-3 flex items-center justify-between">
+                        <span>Cost Distribution by Agent</span>
+                        <span class="text-[9px] text-zinc-400 font-mono">USD ($)</span>
+                    </h3>
+                    <div id="audit-agent-cost-bars" class="space-y-3 max-h-60 overflow-y-auto pr-1">
+                        <div class="text-xs text-zinc-500 italic">No audit records recorded yet.</div>
+                    </div>
+                </div>
+
+                <!-- Model Cost Distribution -->
+                <div class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+                    <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 border-b border-zinc-800 pb-3 flex items-center justify-between">
+                        <span>Cost Distribution by Model Node</span>
+                        <span class="text-[9px] text-zinc-400 font-mono">USD ($)</span>
+                    </h3>
+                    <div id="audit-model-cost-bars" class="space-y-3 max-h-60 overflow-y-auto pr-1">
+                        <div class="text-xs text-zinc-500 italic">No audit records recorded yet.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filterable Audit Table -->
+            <div class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                    <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200">Execution Telemetry Ledger</h3>
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <input type="text" id="audit-search-input" onkeyup="fetchAuditExplorerData()" placeholder="Filter by Agent, Model or Correlation ID..." class="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500 w-full sm:w-64" />
+                        <button onclick="fetchAuditExplorerData()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-zinc-800/80 text-[10px] font-mono text-zinc-400 uppercase tracking-wider bg-zinc-950/40">
+                                <th class="py-3 px-3">Timestamp</th>
+                                <th class="py-3 px-3">Correlation ID</th>
+                                <th class="py-3 px-3">Agent ID</th>
+                                <th class="py-3 px-3">Model Node</th>
+                                <th class="py-3 px-3">Prompt / Comp</th>
+                                <th class="py-3 px-3">Est. Cost (USD)</th>
+                                <th class="py-3 px-3">Duration</th>
+                                <th class="py-3 px-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-records-table-body" class="divide-y divide-zinc-800/40 text-xs">
+                            <tr>
+                                <td colspan="8" class="py-6 text-center text-zinc-500 italic">Loading audit telemetry records...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Agent Network Topology Graph Tab Content -->
+    <div id="tab-content-network" class="tab-pane hidden flex-1 flex flex-col">
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex flex-col">
+            <!-- Header Banner -->
+            <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-indigo-500">
+                <div>
+                    <h2 class="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                        <span>📡 Mission Control Radar &amp; Network Topology</span>
+                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> RADAR SWEEP ACTIVE
+                        </span>
+                    </h2>
+                    <p class="text-xs text-zinc-400 mt-1 font-mono">Tactical agent radar telemetry, real-time azimuth bearings, and active signal firing pulses.</p>
+                </div>
+                <div class="flex items-center gap-3 font-mono">
+                    <button onclick="resetNetworkLayout()" class="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-bold transition-all cursor-pointer border border-zinc-700">🔄 Reset Radar Grid</button>
+                    <button onclick="triggerSamplePulse()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-600/20 cursor-pointer">📡 Fire Pulse</button>
+                </div>
+            </div>
+
+            <!-- Tactical Mission Control Legend & Status Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-4 bg-zinc-950/80 p-3.5 rounded-xl border border-emerald-500/20 font-mono shadow-inner">
+                <div class="flex items-center gap-4 flex-wrap text-xs">
+                    <span class="text-emerald-400 font-bold uppercase text-[10px] tracking-wider">HUD RETICLE:</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> <span class="text-zinc-300">User Client</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span> <span class="text-zinc-300">Orchestrator</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> <span class="text-zinc-300">Specialist Node</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span> <span class="text-cyan-300 font-bold">SSE Signal Pulse</span></span>
+                </div>
+                <div class="text-[10px] text-emerald-400/90 font-bold tracking-widest flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>FREQUENCY: 2.4GHZ // ALL SYSTEMS NOMINAL</span>
+                </div>
+            </div>
+
+            <!-- Canvas Container & Side Inspector Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-[550px]">
+                <!-- Interactive Canvas (3 Cols) -->
+                <div class="lg:col-span-3 glass-card rounded-2xl p-2 relative overflow-hidden border border-zinc-800 flex flex-col h-[540px]">
+                    <canvas id="network-canvas" class="w-full h-[520px] rounded-xl bg-zinc-950/80 cursor-grab active:cursor-grabbing block" style="width: 100%; height: 520px;"></canvas>
+                </div>
+
+                <!-- Node Inspector Drawer (1 Col) -->
+                <div class="lg:col-span-1 glass-card rounded-2xl p-5 border border-zinc-800 flex flex-col space-y-4">
+                    <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 border-b border-zinc-800 pb-3 flex items-center justify-between">
+                        <span>Node Inspector</span>
+                        <span id="inspector-badge" class="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">SELECT NODE</span>
+                    </h3>
+                    <div id="inspector-content" class="space-y-4 text-xs font-mono text-zinc-300 flex-1 overflow-y-auto">
+                        <div class="text-center text-zinc-500 italic py-12">Click any agent or tool node in the network to inspect properties and recent activity.</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Schedules Tab Content -->
+    <div id="tab-content-scheduler" class="tab-pane hidden flex-1 flex flex-col">
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Add Schedule Form (Taking 1/3 width) -->
+            <div class="lg:col-span-1 space-y-8">
+                <section class="glass-card rounded-2xl p-6 shadow-2xl">
+                    <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 mb-4 border-b border-zinc-800 pb-3">Create Cron Schedule</h2>
+                    <form id="schedule-form" hx-post="/api/schedules" hx-target="#schedules-list" hx-swap="innerHTML" class="space-y-4">
+                        <div class="space-y-1.5">
+                            <label for="sched_name" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Schedule Name</label>
+                            <input type="text" name="name" id="sched_name" required placeholder="e.g. Daily Market Briefing" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-zinc-200" />
+                        </div>
+                        <div class="space-y-1.5">
+                            <label for="sched_cron" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Cron Expression (5-field)</label>
+                            <input type="text" name="cron" id="sched_cron" required placeholder="e.g. 0 9 * * 1-5" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-zinc-200" />
+                            <div class="text-[9px] text-zinc-500 font-mono">Min Hour DOM Month DOW</div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label for="sched_task" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Goal/Task Prompt</label>
+                            <textarea name="task" id="sched_task" rows="4" required placeholder="e.g. Research options volatility surfaces and compile a report" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-zinc-200 resize-none"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-md cursor-pointer flex items-center justify-center">
+                            Add Cron Schedule
+                        </button>
+                    </form>
+                </section>
+            </div>
+
+            <!-- Right Column: Active Schedules (Taking 2/3 width) -->
+            <div class="lg:col-span-2 space-y-8">
+                <section class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col h-[560px]">
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3">
+                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200">Active Cron Schedules</h2>
+                        <span class="text-[9px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 px-2 py-0.5 rounded">Persistent SQLite</span>
+                    </div>
+                    <div id="schedules-list" class="flex-1 overflow-y-auto space-y-4">
+                        {{ template "schedules-list-tmpl" .Schedules }}
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-zinc-800/80 bg-zinc-950/80 py-4 text-center text-[10px] text-zinc-500 font-mono uppercase tracking-widest mt-auto">
+        Go Engine // HTMX SSE Telemetry // Ephemeral WASM &amp; Docker Runtime
+    </footer>
+
+    <!-- HTMX Local -->
+    <script src="/static/htmx.min.js"></script>
+    <!-- HTMX SSE Extension Local -->
+    <script src="/static/sse.js"></script>
+
+    <!-- Security (C-3): CSRF Token injection for all HTMX mutating requests.
+         Reads the _csrf_token cookie (set by the server on page load) and
+         attaches it as an X-CSRF-Token header on every state-mutating request. -->
+    <script src="/static/js/dashboard.js"></script>
+<script src="/static/js/studio.js"></script>
+<script src="/static/js/network.js"></script>
+<script src="/static/js/artifacts.js"></script>
+
+    <!-- Auto-scroll, form reset, and tab navigation helpers -->
+    <script src="/static/js/dashboard.js"></script>
+<script src="/static/js/studio.js"></script>
+<script src="/static/js/network.js"></script>
+<script src="/static/js/artifacts.js"></script>
+
+    <!-- Artifact Viewer Modal Overlay -->
+    <div id="artifact-viewer-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden p-4 sm:p-6 transition-all duration-300">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 bg-zinc-950 text-white border-b border-zinc-800">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <span id="artifact-modal-icon" class="text-xl">📄</span>
+                    <div class="flex flex-col truncate">
+                        <div class="flex items-center gap-2">
+                            <span id="artifact-modal-title" class="font-mono text-sm font-bold text-white truncate">artifact</span>
+                            <span id="artifact-modal-badge" class="text-[9px] font-mono font-bold bg-zinc-800 text-indigo-400 px-2.5 py-0.5 rounded border border-zinc-700 uppercase">FILE</span>
+                        </div>
+                        <span id="artifact-modal-agent" class="text-[10px] text-zinc-400 font-mono">produced by agent</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="artifact-modal-copy-btn" onclick="copyArtifactToClipboard()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer border border-zinc-700">
+                        <span>📋</span> <span>Copy</span>
+                    </button>
+                    <a id="artifact-modal-download-btn" href="#" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer shadow-sm">
+                        <span>↗️</span> <span>Download / Open</span>
+                    </a>
+                    <button onclick="closeArtifactViewer()" class="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-all cursor-pointer text-lg font-bold">
+                        ✕
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="flex-1 overflow-auto bg-zinc-950 p-6 text-zinc-100 font-mono text-xs leading-relaxed" id="artifact-modal-content-wrapper">
+                <!-- Text / Code Viewer -->
+                <pre id="artifact-modal-text-content" class="whitespace-pre-wrap break-all hidden selection:bg-indigo-500 selection:text-white"></pre>
+
+                <!-- PDF Viewer Iframe -->
+                <iframe id="artifact-modal-pdf-iframe" class="w-full h-[65vh] border-0 rounded-xl hidden bg-white"></iframe>
+
+                <!-- Image Viewer -->
+                <div id="artifact-modal-image-wrapper" class="flex justify-center items-center min-h-[400px] hidden bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
+                    <img id="artifact-modal-image" src="" class="max-h-[65vh] max-w-full object-contain rounded-lg shadow-2xl" alt="Artifact Preview" />
+                </div>
+
+                <!-- Loading Spinner -->
+                <div id="artifact-modal-loading" class="flex flex-col items-center justify-center py-20 gap-3 text-zinc-400 font-mono">
+                    <div class="w-8 h-8 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <span>Loading artifact content...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+`))
+
+// PendingApprovalTemplate renders a pending approval card with glowing amber left border.
+var PendingApprovalTemplate = template.Must(template.New("approval").Parse(`
+<div id="approval-{{.CorrelationID}}" class="p-5 bg-zinc-900/90 border border-zinc-800 border-l-4 border-l-amber-500 rounded-xl flex flex-col gap-4 shadow-xl backdrop-blur-md">
+    <div class="flex justify-between items-start">
+        <div class="flex flex-col">
+            <span class="text-[9px] text-amber-400 font-bold font-mono uppercase tracking-widest flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Approval Requested (HITL)
+            </span>
+            <span class="font-bold text-zinc-100 text-xs mt-0.5 font-mono">{{.Sender}} ──▶ {{.Metadata.action}}</span>
+        </div>
+        <span class="text-[9px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded-full uppercase font-bold">
+            {{.Metadata.risk_level}} RISK
+        </span>
+    </div>
+    
+    <div id="approval-content-{{.CorrelationID}}" class="approval-content text-xs text-zinc-300 font-mono bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 leading-relaxed shadow-inner overflow-x-auto max-h-[360px]">
+        {{.Content}}
+    </div>
+
+    <!-- Approval form using htmx POST, replacing the parent card with response HTML -->
+    <form hx-post="/api/hitl/respond" hx-target="#approval-{{.CorrelationID}}" hx-swap="outerHTML" class="flex gap-3 justify-end">
+        <input type="hidden" name="correlation_id" value="{{.CorrelationID}}">
+        <button type="submit" name="decision" value="REJECTED" class="px-4 py-2 bg-zinc-900 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-zinc-700 hover:border-rose-800 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer">
+            Deny Execution
+        </button>
+        <button type="submit" name="decision" value="APPROVED" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer">
+            Approve &amp; Continue
+        </button>
+    </form>
+</div>
+<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/studio.js"></script>
+<script src="/static/js/network.js"></script>
+<script src="/static/js/artifacts.js"></script>
+`))
+
+// LogSnippetTemplate renders a log entry with marked.js markdown rendering and role-colored badges.

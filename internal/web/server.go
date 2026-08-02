@@ -27,7 +27,7 @@ import (
 	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
-//go:embed static/*
+//go:embed static/* static/js/*
 var staticFS embed.FS
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,64 @@
+<div id="approval-{{.CorrelationID}}" class="p-5 bg-zinc-900/90 border border-zinc-800 border-l-4 border-l-amber-500 rounded-xl flex flex-col gap-4 shadow-xl backdrop-blur-md">
+    <div class="flex justify-between items-start">
+        <div class="flex flex-col">
+            <span class="text-[9px] text-amber-400 font-bold font-mono uppercase tracking-widest flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Approval Requested (HITL)
+            </span>
+            <span class="font-bold text-zinc-100 text-xs mt-0.5 font-mono">{{.Sender}} ──▶ {{.Metadata.action}}</span>
+        </div>
+        <span class="text-[9px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded-full uppercase font-bold">
+            {{.Metadata.risk_level}} RISK
+        </span>
+    </div>
+    
+    <div id="approval-content-{{.CorrelationID}}" class="approval-content text-xs text-zinc-300 font-mono bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 leading-relaxed shadow-inner overflow-x-auto max-h-[360px]" data-raw="{{.RawJSONContent}}" data-action="{{.RawJSONAction}}">
+        {{.Content}}
+    </div>
+
+    <!-- Approval form using htmx POST, replacing the parent card with response HTML -->
+    <form hx-post="/api/hitl/respond" hx-target="#approval-{{.CorrelationID}}" hx-swap="outerHTML" class="flex gap-3 justify-end">
+        <input type="hidden" name="correlation_id" value="{{.CorrelationID}}">
+        <button type="submit" name="decision" value="REJECTED" class="px-4 py-2 bg-zinc-900 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-zinc-700 hover:border-rose-800 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer">
+            Deny Execution
+        </button>
+        <button type="submit" name="decision" value="APPROVED" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer">
+            Approve &amp; Continue
+        </button>
+    </form>
+</div>
+<script>(function(){
+  var el = document.getElementById("approval-content-{{.CorrelationID}}");
+  if (!el) return;
+  var raw = el.getAttribute("data-raw") || "";
+  var action = el.getAttribute("data-action") || "";
+  var lowerAction = action.toLowerCase();
+  var lowerRaw = raw.toLowerCase();
+
+  var isPython = lowerAction.includes("python") || lowerAction.includes("docker") || lowerAction.includes("code") ||
+                 lowerAction.includes("script") || lowerRaw.includes("import ") || lowerRaw.includes("def ") ||
+                 lowerRaw.includes("print(") || lowerRaw.includes("return ");
+
+  var fence = "```";
+  var formattedMd = raw;
+  if (isPython && !raw.trim().startsWith(fence)) {
+      formattedMd = fence + "python\n" + raw.trim() + "\n" + fence;
+  }
+
+  if (typeof marked !== "undefined") {
+      el.innerHTML = marked.parse(formattedMd, { breaks: true, gfm: true });
+  } else {
+      el.textContent = raw;
+  }
+
+  if (isPython) {
+      el.querySelectorAll("pre code").forEach(function(block) {
+          var codeText = block.innerHTML;
+          codeText = codeText
+              .replace(/(#(.*)$)/gm, '<span class="text-zinc-500 italic">$1</span>')
+              .replace(/(".*?"|'.*?')/g, '<span class="text-amber-300">$1</span>')
+              .replace(/\b(def|class|import|from|return|if|elif|else|while|for|in|try|except|finally|with|as|pass|break|continue|lambda|yield|raise|async|await|and|or|not|is|True|False|None)\b/g, '<span class="text-purple-400 font-bold">$1</span>')
+              .replace(/\b(print|len|range|enumerate|zip|dict|list|set|tuple|int|str|float|bool|open|map|filter)\b(?=\()/g, '<span class="text-cyan-400 font-bold">$1</span>');
+          block.innerHTML = codeText;
+      });
+  }
+})();</script>

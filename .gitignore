@@ -37,3 +37,4 @@ __pycache__/
 .agents/
 .idea/
 Antigravity.md
+mcp_config.json

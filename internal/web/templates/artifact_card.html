@@ -1,0 +1,29 @@
+<div class="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col gap-3 glass-card-hover" style="animation: fadeSlideIn 0.2s ease-out;">
+    <div class="flex items-start justify-between gap-2">
+        <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[9px] font-mono font-medium bg-zinc-950 text-zinc-300 border border-zinc-800 px-2 py-0.5 rounded uppercase">{{.ArtifactType}}</span>
+                <span class="text-[9px] font-mono text-zinc-500">{{.Time}}</span>
+            </div>
+            <span class="text-xs font-mono font-semibold text-white break-all pt-0.5">{{.Filename}}</span>
+            <span class="text-[10px] text-zinc-400 font-mono">agent <span class="font-semibold text-zinc-200">{{.Agent}}</span></span>
+        </div>
+    </div>
+    <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="openArtifactViewer('{{.Path}}', '{{.Filename}}', '{{.ArtifactType}}', '{{.Agent}}')"
+                class="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-sm">
+            <span>Preview</span>
+        </button>
+        <a href="/api/artifact?path={{.Path}}" target="_blank"
+           class="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded-lg text-[10px] font-medium uppercase tracking-wider transition-all active:scale-95 text-center">
+            <span>Download</span>
+        </a>
+    </div>
+</div>
+<script>document.getElementById('artifacts-empty')?.remove();</script>
+<style>
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>
