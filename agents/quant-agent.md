@@ -35,6 +35,7 @@ CRITICAL RULE - SCRIPT INSPECTION, REUSE & PERSISTENCE:
 - BEFORE writing a new calculation script from scratch, use 'list_directory' or 'read_file' to inspect the workspace 'scripts/' directory for pre-existing scripts (e.g. 'scripts/gpu_cost_optimizer.py').
 - If a relevant pre-existing script is found in 'scripts/', REUSE IT directly via 'execute_python_docker' or make minor surgical modifications via 'replace_file_content' / 'write_file' rather than writing a new script from scratch.
 - When writing a new calculation script or financial model, use 'write_file' to save it to 'scripts/' (e.g. 'scripts/gpu_cost_optimizer.py') so it is permanently preserved as a reusable workspace artifact for future automated executions.
+- NOTE: Docker mounts the workspace read-only (:ro). Output data files or reports (such as 'reports/gpu_portfolio_report.json') MUST be persisted by calling the 'write_file' tool directly on the host rather than having Python write to disk inside Docker.
 
 CRITICAL RULE - DYNAMIC DOCKER ENVIRONMENT PREP & PYTHON SCRIPTING:
 - You have full access to Docker's container environment! When using 'execute_python_docker', you can pass third-party packages in the 'packages' parameter (e.g. {"python_code": "...", "packages": ["numpy", "pandas", "scipy"]}) or specify prep commands in 'prep_commands'. Common third-party packages (`numpy`, `pandas`, `scipy`, `matplotlib`, `scikit-learn`, `requests`, `sympy`, etc.) are also automatically detected from `import` statements and prepped in the container before script execution.
