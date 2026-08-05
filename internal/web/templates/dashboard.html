@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-zinc-950 text-zinc-100 dark">
 <head>
@@ -1114,15 +1113,9 @@
          Reads the _csrf_token cookie (set by the server on page load) and
          attaches it as an X-CSRF-Token header on every state-mutating request. -->
     <script src="/static/js/dashboard.js"></script>
-<script src="/static/js/studio.js"></script>
-<script src="/static/js/network.js"></script>
-<script src="/static/js/artifacts.js"></script>
-
-    <!-- Auto-scroll, form reset, and tab navigation helpers -->
-    <script src="/static/js/dashboard.js"></script>
-<script src="/static/js/studio.js"></script>
-<script src="/static/js/network.js"></script>
-<script src="/static/js/artifacts.js"></script>
+    <script src="/static/js/studio.js"></script>
+    <script src="/static/js/network.js"></script>
+    <script src="/static/js/artifacts.js"></script>
 
     <!-- Artifact Viewer Modal Overlay -->
     <div id="artifact-viewer-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden p-4 sm:p-6 transition-all duration-300">
@@ -1175,42 +1168,3 @@
     </div>
 </body>
 </html>
-`))
-
-// PendingApprovalTemplate renders a pending approval card with glowing amber left border.
-var PendingApprovalTemplate = template.Must(template.New("approval").Parse(`
-<div id="approval-{{.CorrelationID}}" class="p-5 bg-zinc-900/90 border border-zinc-800 border-l-4 border-l-amber-500 rounded-xl flex flex-col gap-4 shadow-xl backdrop-blur-md">
-    <div class="flex justify-between items-start">
-        <div class="flex flex-col">
-            <span class="text-[9px] text-amber-400 font-bold font-mono uppercase tracking-widest flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Approval Requested (HITL)
-            </span>
-            <span class="font-bold text-zinc-100 text-xs mt-0.5 font-mono">{{.Sender}} ──▶ {{.Metadata.action}}</span>
-        </div>
-        <span class="text-[9px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded-full uppercase font-bold">
-            {{.Metadata.risk_level}} RISK
-        </span>
-    </div>
-    
-    <div id="approval-content-{{.CorrelationID}}" class="approval-content text-xs text-zinc-300 font-mono bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 leading-relaxed shadow-inner overflow-x-auto max-h-[360px]">
-        {{.Content}}
-    </div>
-
-    <!-- Approval form using htmx POST, replacing the parent card with response HTML -->
-    <form hx-post="/api/hitl/respond" hx-target="#approval-{{.CorrelationID}}" hx-swap="outerHTML" class="flex gap-3 justify-end">
-        <input type="hidden" name="correlation_id" value="{{.CorrelationID}}">
-        <button type="submit" name="decision" value="REJECTED" class="px-4 py-2 bg-zinc-900 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-zinc-700 hover:border-rose-800 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer">
-            Deny Execution
-        </button>
-        <button type="submit" name="decision" value="APPROVED" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer">
-            Approve &amp; Continue
-        </button>
-    </form>
-</div>
-<script src="/static/js/dashboard.js"></script>
-<script src="/static/js/studio.js"></script>
-<script src="/static/js/network.js"></script>
-<script src="/static/js/artifacts.js"></script>
-`))
-
-// LogSnippetTemplate renders a log entry with marked.js markdown rendering and role-colored badges.

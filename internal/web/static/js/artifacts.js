@@ -2,21 +2,6 @@ let currentArtifactRawText = "";
 
         function openArtifactViewer(path, filename, artifactType, agentName) {
             path = (path || '').replace(/^file:\/\//, '').replace(/^file:/, '').replace(/[\x60"'\s.,;:]+$/g, '').replace(/^[\x60"'\s]+/g, '');
-
-            const lowerPath = path.toLowerCase();
-            const lowerFile = (filename || '').toLowerCase();
-            if (lowerPath.endsWith('.pdf') || lowerFile.endsWith('.pdf')) {
-                artifactType = 'pdf';
-            } else if (lowerPath.endsWith('.png') || lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg') || lowerPath.endsWith('.webp') || lowerPath.endsWith('.svg')) {
-                artifactType = 'image';
-            } else if (lowerPath.endsWith('.xlsx') || lowerPath.endsWith('.xls')) {
-                artifactType = 'excel';
-            } else if (lowerPath.endsWith('.py') || lowerPath.endsWith('.sh') || lowerPath.endsWith('.go') || lowerPath.endsWith('.js') || lowerPath.endsWith('.html') || lowerPath.endsWith('.css')) {
-                artifactType = 'code';
-            } else if (lowerPath.endsWith('.json')) {
-                artifactType = 'json';
-            }
-
             const modal = document.getElementById('artifact-viewer-modal');
             const titleEl = document.getElementById('artifact-modal-title');
             const badgeEl = document.getElementById('artifact-modal-badge');
@@ -54,11 +39,6 @@ let currentArtifactRawText = "";
                 imgEl.src = '/api/artifact?path=' + encodeURIComponent(path);
                 imgWrapper.classList.remove('hidden');
                 loadingEl.classList.add('hidden');
-            } else if (artifactType === 'excel') {
-                iconEl.textContent = '📊';
-                textEl.innerHTML = '<div class="p-6 bg-zinc-900 border border-zinc-800 rounded-xl text-center space-y-3"><div class="text-3xl">📊</div><div class="text-sm font-bold text-zinc-100">Excel Workbook Deliverable (' + (filename || 'workbook') + ')</div><div class="text-xs text-zinc-400 font-sans">Binary Excel spreadsheets are saved to disk. Click below to download and view in Excel or your spreadsheet viewer.</div><a href="/api/artifact?path=' + encodeURIComponent(path) + '" target="_blank" class="inline-block px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs uppercase font-mono tracking-wider">Download Excel Workbook</a></div>';
-                loadingEl.classList.add('hidden');
-                textEl.classList.remove('hidden');
             } else {
                 iconEl.textContent = artifactType === 'code' ? '💻' : (artifactType === 'json' ? '⚙️' : '📄');
                 copyBtn.classList.remove('hidden');
