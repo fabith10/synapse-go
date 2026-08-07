@@ -74,6 +74,9 @@ type ExecutionRequest struct {
 
 	// PrepCommands specifies arbitrary setup commands (e.g. "apt-get update && apt-get install -y build-essential") to run prior to execution.
 	PrepCommands []string
+
+	// AllowNetwork enables container internet access when explicitly granted (e.g., via HITL operator approval).
+	AllowNetwork bool
 }
 
 // ExecutionResult holds the captured output of one sandboxed execution.

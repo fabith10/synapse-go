@@ -26,10 +26,11 @@ reports/
 *.xlsx
 security_analysis_report.txt
 
-# Python bytecode and cache files
+# Python bytecode, cache files & virtualenvs
 __pycache__/
 *.pyc
 *.pyo
+venv/
 
 # Operating system & IDE artifacts
 .DS_Store

@@ -173,6 +173,7 @@ type ArtifactItem struct {
 }
 
 // Server acts as the web backend serving dashboard templates and HTMX requests.
+// ponytail: In-memory state maps guarded by sync.Mutex without TTL or persistence; upgrade to DB/Redis backing store for multi-node web server scale.
 type Server struct {
 	runtime     *adk.Runtime
 	logBroker   *LogBroker
@@ -287,11 +288,20 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 				return
 			case msg := <-approvalCh:
 				if msg.Metadata != nil && msg.Metadata["Type"] == "HITL_APPROVAL" {
-					// Store approval
+					// Store approval with max cap pruning to prevent memory leaks
 					s.approvalsMu.Lock()
 					corrID := msg.Metadata["correlation_id"]
 					if corrID == "" {
 						corrID = "unknown"
+					}
+					if len(s.approvals) > 50 {
+						// Evict an arbitrary stale key to bound memory footprint
+						for k := range s.approvals {
+							delete(s.approvals, k)
+							if len(s.approvals) <= 40 {
+								break
+							}
+						}
 					}
 					s.approvals[corrID] = msg
 					s.approvalsMu.Unlock()

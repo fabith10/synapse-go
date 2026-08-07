@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -186,9 +187,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?)`
 	return nil
 }
 
-// QueryRelevantLogs returns up to limit entries for agentID ordered by
-// created_at DESC. If agentID is empty, it returns entries across all agents.
-// Vector-similarity ranking is a planned enhancement (tracked as a TODO);
 // DeserializeEmbedding decodes a byte slice of LittleEndian float64s into []float64.
 func DeserializeEmbedding(b []byte) []float64 {
 	if len(b) == 0 || len(b)%8 != 0 {
@@ -318,12 +316,16 @@ LIMIT  ?`
 		}
 
 		if hasValidEmbedding {
+			// ponytail: In-memory O(N log N) sort via stdlib slices.SortFunc over candidate log slice. For million-scale vector indexing, upgrade to sqlite-vss or FAISS.
 			// Sort by similarity score DESC
-			for i := 1; i < len(scoredLogs); i++ {
-				for j := i; j > 0 && scoredLogs[j].score > scoredLogs[j-1].score; j-- {
-					scoredLogs[j], scoredLogs[j-1] = scoredLogs[j-1], scoredLogs[j]
+			slices.SortFunc(scoredLogs, func(a, b scored) int {
+				if b.score > a.score {
+					return 1
+				} else if b.score < a.score {
+					return -1
 				}
-			}
+				return 0
+			})
 			outLimit := limit
 			if outLimit > len(scoredLogs) {
 				outLimit = len(scoredLogs)

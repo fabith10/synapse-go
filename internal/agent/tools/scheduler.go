@@ -29,6 +29,7 @@ type scheduleFile struct {
 }
 
 // CronScheduler manages recurring agent tasks using native Go timers.
+// ponytail: Single-node in-memory map & mutex with local JSON persistence; upgrade to distributed cron scheduler (e.g. Redis/Temporal) for multi-node deployments.
 // It has no external dependencies — the cron parser and timer management
 // are implemented from scratch for full control.
 type CronScheduler struct {

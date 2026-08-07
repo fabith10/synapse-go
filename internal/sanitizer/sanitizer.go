@@ -39,6 +39,7 @@ var injectionPatterns = []string{
 	"bypass all safety",
 	"bypass system directives",
 	"bypass your instructions",
+	"bypass instructions",
 	"you are now",
 	"pretend you are",
 	"act as if you are",

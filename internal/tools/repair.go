@@ -3,6 +3,8 @@ package tools
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -116,4 +118,82 @@ func repairSingleQuotesAndNewlines(input string) string {
 	}
 
 	return buf.String()
+}
+
+// ExtractJSON strips markdown code fences and surrounding prose from a string,
+// returning the first JSON object or array found. Used by the broker, orchestrator,
+// and agent packages to normalise LLM responses.
+func ExtractJSON(input string) string {
+	trimmed := strings.TrimSpace(input)
+
+	// Strip markdown code fences first
+	trimmed = StripMarkdownFences(trimmed)
+
+	// Find the first brace `{` or `[` and the matching closing brace
+	firstBrace := strings.Index(trimmed, "{")
+	firstBracket := strings.Index(trimmed, "[")
+
+	start := -1
+	end := -1
+
+	if firstBrace != -1 && (firstBracket == -1 || firstBrace < firstBracket) {
+		start = firstBrace
+		end = strings.LastIndex(trimmed, "}")
+	} else if firstBracket != -1 {
+		start = firstBracket
+		end = strings.LastIndex(trimmed, "]")
+	}
+
+	if start == -1 || end == -1 || end <= start {
+		return trimmed
+	}
+	return trimmed[start : end+1]
+}
+
+// StripMarkdownFences removes ``` or ```json code fences from LLM output,
+// returning the inner content. If no fences are found, returns input unchanged.
+func StripMarkdownFences(input string) string {
+	if idx := strings.Index(input, "```json"); idx != -1 {
+		content := input[idx+7:]
+		if endIdx := strings.Index(content, "```"); endIdx != -1 {
+			return strings.TrimSpace(content[:endIdx])
+		}
+	} else if idx := strings.Index(input, "```"); idx != -1 {
+		content := input[idx+3:]
+		if endIdx := strings.Index(content, "```"); endIdx != -1 {
+			return strings.TrimSpace(content[:endIdx])
+		}
+	}
+	return input
+}
+
+// CopyMeta returns a shallow clone of a string map. Nil input returns an empty map.
+func CopyMeta(m map[string]string) map[string]string {
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
+// FindConfigPath walks parent directories from cwd looking for a file or directory
+// named `name`. Returns the first match, or `name` unchanged if nothing is found.
+func FindConfigPath(name string) string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return name
+	}
+	curr := wd
+	for {
+		candidate := filepath.Join(curr, name)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+		parent := filepath.Dir(curr)
+		if parent == curr {
+			break
+		}
+		curr = parent
+	}
+	return name
 }

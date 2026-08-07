@@ -14,6 +14,7 @@ A high-speed, secure multi-agent orchestrator framework built strictly in Go. Th
 - ⏰ **Optimal Execution Window Finding & Cross-Data-Center Off-Peak Unloading**: Automatically calculates cost-vs-latency trade-offs across global data center regions (e.g., US-East, EU-Central, Asia-Pacific). For heavy open-weight model tasks (such as Llama 3, DeepSeek, or Qwen inference), the orchestrator calculates regional timezone rate curves and can defer or unload execution to data centers currently operating in their lowest off-peak spot pricing windows.
 - 🔒 **Three-Tier Execution Containment**: Isolates workloads across Native Go (Tier 1), WebAssembly/Wazero zero-trust memory sandboxes (Tier 2), and resource-capped Docker SDK containers (Tier 3).
 - 🕸️ **Real-Time Live Topology & SSE Firing Pulses**: Displays dynamic agent topology on a force-directed canvas with real-time Server-Sent Events (SSE) illuminating firing agent nodes with expanding ripple rings.
+- 📱 **Bi-Directional ntfy Push Notifications & Remote Steering**: Connects agent workflows with mobile devices and desktop clients over public or self-hosted `ntfy` topics. Agents publish push alerts via `send_ntfy_notification`, and real-time stream listeners enable remote Human-in-the-Loop (HITL) steering directly from mobile phones.
 
 ---
 ## Architecture Overview
@@ -605,7 +606,56 @@ The framework supports hybrid multi-provider LLM setups (Ollama, OpenAI, Anthrop
 
 ---
 
-### 4. Customizing Dashboard Themes & Control Views
+### 4. Agent Communication & Remote Steering via `ntfy`
+
+SynapseGo supports bi-directional agent-to-human communication using **[ntfy](https://ntfy.sh)**, an HTTP-based pub-sub notification service. This allows agents to send push notifications to your mobile phone/desktop, and allows you to steer agents or approve Human-in-the-Loop (HITL) checkpoints directly from your phone.
+
+#### Step 1: Environment & Server Configuration
+
+Configure ntfy parameters in your local `.env` file or environment variables:
+
+```bash
+# Target ntfy topic (e.g. your private topic name)
+export NTFY_TOPIC="synapsego_alerts_9876"
+
+# Server URL (defaults to public https://ntfy.sh, or set a self-hosted instance)
+export NTFY_SERVER="https://ntfy.sh"
+
+# Optional: Bearer token if using a protected topic or private ntfy server
+export NTFY_AUTH_TOKEN="tk_1234567890abcdef"
+```
+
+Alternatively, pass the topic flag when launching main:
+```bash
+go run ./cmd/main.go -ntfy-topic "synapsego_alerts_9876"
+```
+
+#### Step 2: Outbound Push Notifications (Agent → User)
+
+Agents configured with the `send_ntfy_notification` tool can publish real-time notifications, status updates, or alerts to your ntfy topic:
+
+- **Parameters supported**:
+  - `topic`: Target topic (defaults to `NTFY_TOPIC`).
+  - `message`: Notification body content.
+  - `title`: Header title.
+  - `priority`: Priority level `1` (min) to `5` (urgent/max).
+  - `tags`: Array of emoji tags (e.g. `["warning", "robot"]`).
+  - `click_url`: URL opened when tapping the notification.
+  - `server_url` / `auth_token`: Override default server or authentication.
+
+#### Step 3: Inbound Streaming & Remote HITL Steering (User → Agent)
+
+When `NTFY_TOPIC` is set, SynapseGo automatically starts a background real-time stream listener (`NtfyListener`).
+
+- **Remote Human-in-the-Loop (HITL) Approvals**: When an agent requests risk checkpoint approval (e.g., executing shell scripts or sending emails), SynapseGo dispatches an ntfy notification containing a correlation ID.
+- **Approving from your Mobile Phone**:
+  1. Open the ntfy app (iOS / Android) or web console (`https://ntfy.sh/<your-topic>`).
+  2. Send a message to the topic containing `APPROVED correlation_id: <id>` (or reply with `APPROVED`).
+  3. SynapseGo automatically catches the response via the JSON stream, unblocks the waiting agent goroutine, and resumes execution!
+
+---
+
+### 5. Customizing Dashboard Themes & Control Views
 
 - **Theme Preference**: Toggle between Dark Mode and high-contrast Light Mode via the header ☀️/🌙 toggle. Preferences are saved automatically in local browser storage.
 - **Extending Web UI**: Add new tabs, metrics, or custom HTMX endpoints in `internal/web/templates.go` and `internal/web/server.go`.

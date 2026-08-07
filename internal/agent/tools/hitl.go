@@ -128,3 +128,38 @@ func IsProductionFile(path string) bool {
 	}
 	return false
 }
+
+// RequiresNetworkApproval checks if code, parameters, or packages indicate a requirement for container internet access.
+func RequiresNetworkApproval(code string, params map[string]interface{}) bool {
+	if os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL") == "true" && os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" {
+		return false
+	}
+	if CriticalActions.AutoApproveAll {
+		return false
+	}
+	if params != nil {
+		if reqNet, ok := params["allow_network"].(bool); ok && reqNet {
+			return true
+		}
+		if reqNet, ok := params["request_network"].(bool); ok && reqNet {
+			return true
+		}
+		if pkgs, ok := params["packages"].([]interface{}); ok && len(pkgs) > 0 {
+			return true
+		}
+		if preps, ok := params["prep_commands"].([]interface{}); ok && len(preps) > 0 {
+			return true
+		}
+	}
+	lower := strings.ToLower(code)
+	networkKeywords := []string{
+		"pip install", "curl ", "wget ", "urllib", "requests.", "http.client", "socket.",
+		"git clone", "npm install", "apt-get", "apk add", "pacman",
+	}
+	for _, kw := range networkKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
+}

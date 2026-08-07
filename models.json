@@ -1,0 +1,46 @@
+{
+  "llm_providers": [
+    {
+      "name": "qwen",
+      "provider": "openai",
+      "tier": "local",
+      "input_rate_usd": 0.0,
+      "output_rate_usd": 0.0,
+      "api_url": "http://localhost:8000/v1/chat/completions"
+    },
+    {
+      "name": "llama3",
+      "provider": "ollama",
+      "tier": "local",
+      "input_rate_usd": 0.0,
+      "output_rate_usd": 0.0
+    },
+    {
+      "name": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "tier": "commercial",
+      "input_rate_usd": 0.000000075,
+      "output_rate_usd": 0.0000003,
+      "api_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "api_key_env": "GEMINI_API_KEY"
+    },
+    {
+      "name": "gemini-flash-lite-latest",
+      "provider": "gemini",
+      "tier": "commercial",
+      "input_rate_usd": 0.000000075,
+      "output_rate_usd": 0.0000003,
+      "api_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "api_key_env": "GEMINI_API_KEY"
+    },
+    {
+      "name": "gemini-3.1-flash-lite-preview",
+      "provider": "gemini",
+      "tier": "commercial",
+      "input_rate_usd": 0.000000075,
+      "output_rate_usd": 0.0000003,
+      "api_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "api_key_env": "GEMINI_API_KEY"
+    }
+  ]
+}

@@ -314,11 +314,6 @@ func (MiddlewareNamespace) InjectionGuardrail(optionalClient ...LLMClient) Middl
 		if _, blocked := sanitizer.SanitizeUserContent(scanTarget); blocked {
 			reason := sanitizer.DetectInjectionReason(scanTarget)
 			logger.Warn("adk: security violation blocked pattern", "reason", reason, "recipient", msg.Recipient)
-			next(Message{
-				Sender:    "security-guardrail",
-				Recipient: "WEB",
-				Content:   fmt.Sprintf("🚨 **[SECURITY GUARDRAIL BLOCKED MESSAGE]** Go-layer detected injection pattern (%q) in message destined for `%s`. Action was dropped for safety.", reason, msg.Recipient),
-			})
 			return
 		}
 

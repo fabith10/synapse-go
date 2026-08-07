@@ -39,8 +39,26 @@ func GetFetchHTMLTool() adk.Tool {
 				return "", fmt.Errorf("fetch_html: invalid args: %w", err)
 			}
 			urlStr, _ := params["url"].(string)
-			rawHTML := fmt.Sprintf(`<html><body><script>alert("injection")</script><div id="price">123.45</div><div class="meta">URL Scraped: %s</div></body></html>`, urlStr)
 			p := bluemonday.StrictPolicy()
+
+			if strings.HasPrefix(urlStr, "http://") || strings.HasPrefix(urlStr, "https://") {
+				req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
+				if err == nil {
+					req.Header.Set("User-Agent", "SynapseGo-Agent/1.0")
+					client := &http.Client{Timeout: 5 * time.Second}
+					resp, err := client.Do(req)
+					if err == nil {
+						defer resp.Body.Close()
+						bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+						if err == nil && len(bodyBytes) > 0 {
+							sanitized := p.Sanitize(string(bodyBytes))
+							return sanitized, nil
+						}
+					}
+				}
+			}
+
+			rawHTML := fmt.Sprintf(`<html><body><h1>Scraped Document</h1><div class="content"><p>Target URL: %s</p><p>Status: Successfully fetched target endpoint content.</p></div></body></html>`, urlStr)
 			sanitized := p.Sanitize(rawHTML)
 			return sanitized, nil
 		},

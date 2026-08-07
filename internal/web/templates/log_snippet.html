@@ -25,6 +25,9 @@
   if (typeof window.emitLiveNetworkPulse === "function") {
     window.emitLiveNetworkPulse("{{.Sender}}", "{{.Recipient}}");
   }
+  if (typeof window.updateParallelismSwimlane === "function") {
+    window.updateParallelismSwimlane("{{.Sender}}", "{{.Recipient}}", raw);
+  }
 
   var log = document.getElementById("console-logs");
   if (log) log.scrollTop = log.scrollHeight;

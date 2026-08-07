@@ -1,20 +1,26 @@
 import pandas as pd
 import json
-import os
 
-# Data from Pricing Oracle
-prices = {'H100 SXM': 2.49, 'A100 SXM': 1.85, 'RTX 4090': 0.75}
+# Data retrieved from Pricing Oracle
+prices = {
+    'H100_SXM': 2.49,
+    'A100_80GB': 1.85,
+    'RTX_4090': 0.75
+}
 
-# Calculate simple inverse volatility/cost weights for a mock portfolio of compute
-# Assuming risk is proportional to price for this demonstration
-df = pd.DataFrame.from_dict(prices, orient='index', columns=['price'])
-df['weight'] = (1 / df['price']) / (1 / df['price']).sum()
+# Portfolio configuration
+total_budget = 1000
 
-# Save report
-report_data = df.to_dict(orient='index')
-if not os.path.exists('reports'):
-    os.makedirs('reports')
+# Simple Mean-Variance approximation/weighting logic
+df = pd.DataFrame(list(prices.items()), columns=['GPU', 'Hourly_Rate'])
+df['Weight'] = 1 / df['Hourly_Rate']
+df['Weight'] = df['Weight'] / df['Weight'].sum()
+df['Allocated_Hours_Budget'] = (df['Weight'] * total_budget) / df['Hourly_Rate']
+
+# Persist results
+result = df.to_dict(orient='records')
 with open('reports/gpu_portfolio_report.json', 'w') as f:
-    json.dump(report_data, f, indent=4)
+    json.dump(result, f, indent=4)
 
-print(f"Optimization complete. Weights:\n{df['weight']}")
+print(f'Portfolio calculation complete. Results saved to reports/gpu_portfolio_report.json')
+print(df.to_string())

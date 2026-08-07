@@ -38,6 +38,7 @@ type BrowserSession struct {
 	Inputs        map[int]string // Maps element index -> user filled value
 	HasCaptcha    bool
 	CaptchaNotice string
+	lastAccess    time.Time
 }
 
 type cancelFuncWrapper context.CancelFunc
@@ -59,6 +60,7 @@ func (b *BrowserSession) Close() {
 }
 
 // BrowserSessionManager stores thread-safe browser sessions isolated by session ID.
+// ponytail: In-memory map storage with stdlib TTL eviction and Chrome process cleanup; upgrade to Redis/LRU for multi-node deployments.
 type BrowserSessionManager struct {
 	mu       sync.Mutex
 	sessions map[string]*BrowserSession
@@ -70,6 +72,16 @@ func (m *BrowserSessionManager) GetSession(sessionID string) *BrowserSession {
 	if sessionID == "" {
 		sessionID = "default"
 	}
+
+	// Prune sessions idle for >15 minutes or if total active sessions exceed 20
+	now := time.Now()
+	for id, s := range m.sessions {
+		if id != sessionID && (now.Sub(s.lastAccess) > 15*time.Minute || len(m.sessions) > 20) {
+			s.Close()
+			delete(m.sessions, id)
+		}
+	}
+
 	s, ok := m.sessions[sessionID]
 	if !ok {
 		s = &BrowserSession{
@@ -77,6 +89,7 @@ func (m *BrowserSessionManager) GetSession(sessionID string) *BrowserSession {
 		}
 		m.sessions[sessionID] = s
 	}
+	s.lastAccess = now
 	return s
 }
 

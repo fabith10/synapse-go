@@ -3,6 +3,8 @@ package broker
 import (
 	"fmt"
 	"sync"
+
+	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -214,9 +216,9 @@ func (o *PricingOracle) RankLLMNodes(
 		}
 
 		estCost := EstimateLLMCost(n, estimatedTokens)
-		fmt.Printf("[Oracle DEBUG] RankLLMNodes checking node %s: tier=%d, estCost=%f, maxCost=%f, inputRate=%f, outputRate=%f\n", n.Name, n.Tier, estCost, maxCostUSD, n.InputRateUSD, n.OutputRateUSD)
+		logger.WithComponent("oracle").Debug("RankLLMNodes checking node", "node", n.Name, "tier", n.Tier, "est_cost", estCost, "max_cost", maxCostUSD)
 		if maxCostUSD > 0 && estCost > maxCostUSD {
-			fmt.Printf("[Oracle DEBUG] Node %s skipped: estCost %f > maxCost %f\n", n.Name, estCost, maxCostUSD)
+			logger.WithComponent("oracle").Debug("Node skipped: exceeds budget", "node", n.Name, "est_cost", estCost, "max_cost", maxCostUSD)
 			continue // exceeds budget
 		}
 
@@ -232,7 +234,7 @@ func (o *PricingOracle) RankLLMNodes(
 		for _, n := range o.llmNodes {
 			nodeNames = append(nodeNames, fmt.Sprintf("%s(tier:%d)", n.Name, n.Tier))
 		}
-		fmt.Printf("[Oracle DEBUG] RankLLMNodes: 0 providers matched minTier=%d, maxCost=%f. Registered nodes: %v\n", minTier, maxCostUSD, nodeNames)
+		logger.WithComponent("oracle").Debug("RankLLMNodes: 0 providers matched", "min_tier", minTier, "max_cost", maxCostUSD, "registered_nodes", nodeNames)
 		return nil, fmt.Errorf("%w: tier>=%d", ErrNoProviders, minTier)
 	}
 

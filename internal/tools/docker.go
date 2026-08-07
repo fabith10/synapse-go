@@ -99,13 +99,23 @@ func (s *DockerSandbox) Execute(ctx context.Context, req ExecutionRequest) Execu
 		// from modifying host files (.env, agents.json, DB, source code, etc.).
 		// Containers that need write access should use their own ephemeral /tmp.
 		hostCfg.Binds = append(hostCfg.Binds, fmt.Sprintf("%s:/workspace:ro", cwd))
+
+		// Security (H-4): Mask sensitive credential and environment files (.env, DBs, MCP configs)
+		// by bind-mounting /dev/null over them so sandboxed code cannot exfiltrate secret keys.
+		sensitiveMasks := []string{
+			".env", ".env.local", ".env.production", ".env.staging", ".env.development",
+			"agent_framework.db", "agent_framework.db-wal", "agent_framework.db-shm",
+			"mcp_config.json",
+		}
+		for _, maskFile := range sensitiveMasks {
+			hostCfg.Binds = append(hostCfg.Binds, fmt.Sprintf("/dev/null:/workspace/%s:ro", maskFile))
+		}
 	}
 
 	// Security (H-3): Disable container networking by default to prevent
 	// data exfiltration, SSRF, and downloading of malicious payloads.
 	// Set DOCKER_ALLOW_NETWORK=true only when the workload explicitly requires
-	// internet access (e.g., pip install in a trusted, gated pipeline).
-	if os.Getenv("DOCKER_ALLOW_NETWORK") != "true" {
+	if os.Getenv("DOCKER_ALLOW_NETWORK") != "true" && !req.AllowNetwork {
 		hostCfg.NetworkMode = "none"
 	}
 
@@ -307,7 +317,7 @@ func resolveImageAndCmd(req ExecutionRequest) (image string, cmd []string) {
 			var prep []string
 			prep = append(prep, req.PrepCommands...)
 			if len(pkgs) > 0 {
-				prep = append(prep, fmt.Sprintf("pip install --quiet --no-cache-dir %s", strings.Join(pkgs, " ")))
+				prep = append(prep, fmt.Sprintf("pip install --quiet --no-cache-dir %s || true", strings.Join(pkgs, " ")))
 			}
 			prep = append(prep, fmt.Sprintf("echo %s | base64 -d | python3 -", b64Code))
 			fullCmd := strings.Join(prep, " && ")

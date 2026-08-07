@@ -14,13 +14,13 @@ import (
 func GetDelegateSubtaskTool(orch *adk.Orchestrator, parentAgentID string, mb chan adk.Message) adk.Tool {
 	return adk.Tool{
 		Name:        "delegate_subtask",
-		Description: "Delegate a focused subtask to another specialist agent (e.g. developer-agent, researcher-agent, quant-agent, writer-agent) and receive its final result.",
+		Description: "Delegate a focused subtask to another registered specialist agent and receive its final result.",
 		Parameters: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"target_agent_id": map[string]interface{}{
 					"type":        "string",
-					"description": "ID of the target specialist agent to delegate to (e.g. developer-agent, researcher-agent, quant-agent, writer-agent).",
+					"description": "ID of the target specialist agent to delegate to (as registered in workspace configuration).",
 				},
 				"subtask_prompt": map[string]interface{}{
 					"type":        "string",

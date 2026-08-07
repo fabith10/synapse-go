@@ -157,6 +157,69 @@ func TestExecuteBashDocker_HITL(t *testing.T) {
 	}
 }
 
+func TestExecutePythonDocker_NetworkHITL(t *testing.T) {
+	oldBypass := os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL")
+	os.Unsetenv("AGENT_FRAMEWORK_BYPASS_HITL")
+	defer func() {
+		if oldBypass != "" {
+			os.Setenv("AGENT_FRAMEWORK_BYPASS_HITL", oldBypass)
+		}
+	}()
+
+	sb := &mockSandbox{}
+	orch := orchestrator.NewOrchestrator()
+	mailbox := make(chan adk.Message, 5)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	orch.Start(ctx)
+
+	baseAgent := adk.NewBaseAgent("test-agent", nil)
+	baseAgent.Mailbox = mailbox
+	_ = orch.Register(&baseAgent.Agent)
+	baseAgent.Run(ctx)
+
+	tool := GetExecutePythonDockerTool(sb, orch, "test-agent", mailbox)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case req := <-orch.HumanApprovalChan():
+			if req.Metadata == nil || req.Metadata["action"] != "docker.network_access" {
+				t.Errorf("expected docker.network_access action, got: %+v", req)
+			}
+			orch.Send(adk.Message{
+				Sender:    "USER",
+				Recipient: "test-agent",
+				Content:   "APPROVED",
+				Metadata: map[string]string{
+					"correlation_id": req.Metadata["correlation_id"],
+					"Type":           "HITL_RESPONSE",
+				},
+			})
+		case <-time.After(10 * time.Second):
+			t.Errorf("timeout waiting for network approval request")
+		}
+	}()
+
+	args, _ := json.Marshal(map[string]interface{}{
+		"python_code":   "import requests\nprint('fetching data')",
+		"allow_network": true,
+	})
+	res, err := tool.Execute(context.Background(), args)
+
+	wg.Wait()
+
+	if err != nil {
+		t.Fatalf("unexpected python execute error: %v", err)
+	}
+	if !strings.Contains(res, "echoed") {
+		t.Errorf("expected output, got: %q", res)
+	}
+}
+
 
 func TestModernCodingTools(t *testing.T) {
 	os.Setenv("AGENT_FRAMEWORK_TESTING", "true")

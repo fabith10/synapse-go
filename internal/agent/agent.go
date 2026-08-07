@@ -301,19 +301,10 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 		})
 
 		// Clean JSON payload
-		cleanedContent := strings.TrimSpace(resp.Content)
-		if strings.HasPrefix(cleanedContent, "```") {
-			lines := strings.Split(cleanedContent, "\n")
-			var inner []string
-			for _, l := range lines {
-				if !strings.HasPrefix(strings.TrimSpace(l), "```") {
-					inner = append(inner, l)
-				}
-			}
-			cleanedContent = strings.TrimSpace(strings.Join(inner, "\n"))
-		}
+		cleanedContent := toolpkg.StripMarkdownFences(strings.TrimSpace(resp.Content))
 
-		// Try parsing into a map
+		// ponytail: Single balanced-brace JSON extractor; assumes one top-level object per LLM turn.
+		// Upgrade to a streaming JSON tokenizer if LLMs start returning multiple objects or deeply nested arrays.
 		var action map[string]interface{}
 		repairedContent := toolpkg.RepairJSON(cleanedContent)
 		if err := json.Unmarshal([]byte(repairedContent), &action); err == nil {
@@ -552,12 +543,7 @@ func (g *GatekeeperAgent) Handle(ctx context.Context, msg adk.Message) error {
 	}
 
 	// Make sure goal_mode and original_goal are in metadata
-	meta := make(map[string]string)
-	if msg.Metadata != nil {
-		for k, v := range msg.Metadata {
-			meta[k] = v
-		}
-	}
+	meta := toolpkg.CopyMeta(msg.Metadata)
 	if isGoal {
 		meta["goal_mode"] = "true"
 		if meta["original_goal"] == "" {
@@ -643,17 +629,7 @@ func (g *GatekeeperAgent) Handle(ctx context.Context, msg adk.Message) error {
 			recipient = ResolveTargetAgent("", taskContent)
 			logger.WithAgent("triage-agent").Warn("LLM error, dynamic fallback engaged", "error", err, "fallback", recipient)
 		} else {
-			cleanContent := strings.TrimSpace(resp.Content)
-			if strings.HasPrefix(cleanContent, "```") {
-				lines := strings.Split(cleanContent, "\n")
-				var codeLines []string
-				for _, line := range lines {
-					if !strings.HasPrefix(line, "```") {
-						codeLines = append(codeLines, line)
-					}
-				}
-				cleanContent = strings.Join(codeLines, "\n")
-			}
+			cleanContent := toolpkg.StripMarkdownFences(strings.TrimSpace(resp.Content))
 
 			var parsed struct {
 				Recipient string `json:"recipient"`
@@ -846,17 +822,7 @@ func (s *SupervisorAgent) Handle(ctx context.Context, msg adk.Message) error {
 	suggestedMaxIter := maxIter
 
 	if err == nil {
-		cleanJSON := strings.TrimSpace(resp.Content)
-		if strings.HasPrefix(cleanJSON, "```") {
-			lines := strings.Split(cleanJSON, "\n")
-			var codeLines []string
-			for _, line := range lines {
-				if !strings.HasPrefix(line, "```") {
-					codeLines = append(codeLines, line)
-				}
-			}
-			cleanJSON = strings.Join(codeLines, "\n")
-		}
+		cleanJSON := toolpkg.StripMarkdownFences(strings.TrimSpace(resp.Content))
 
 		var parsed struct {
 			Verdict       string `json:"verdict"`
@@ -894,12 +860,7 @@ func (s *SupervisorAgent) Handle(ctx context.Context, msg adk.Message) error {
 		maxIter = suggestedMaxIter
 	}
 
-	meta := make(map[string]string)
-	if msg.Metadata != nil {
-		for k, v := range msg.Metadata {
-			meta[k] = v
-		}
-	}
+	meta := toolpkg.CopyMeta(msg.Metadata)
 	meta["max_iterations"] = strconv.Itoa(maxIter)
 	meta["loop_iteration"] = strconv.Itoa(iteration + 1)
 	meta["supervisor_bypass"] = "true" // Ensure if we route to USER, it won't loop back to us
@@ -932,12 +893,7 @@ func (s *SupervisorAgent) Handle(ctx context.Context, msg adk.Message) error {
 
 	if verdict == "RETRY" {
 		// Increment loop iteration and send nextTask to triage-agent
-		retryMeta := make(map[string]string)
-		if msg.Metadata != nil {
-			for k, v := range msg.Metadata {
-				retryMeta[k] = v
-			}
-		}
+		retryMeta := toolpkg.CopyMeta(msg.Metadata)
 		retryMeta["loop_iteration"] = strconv.Itoa(iteration + 1)
 		retryMeta["max_iterations"] = strconv.Itoa(maxIter)
 		retryMeta["planner_bypass"] = "true"
@@ -1062,12 +1018,7 @@ func (pa *PlannerAgent) Handle(ctx context.Context, msg adk.Message) error {
 		return fmt.Errorf("planner agent LLM error: %w", err)
 	}
 
-	meta := make(map[string]string)
-	if msg.Metadata != nil {
-		for k, v := range msg.Metadata {
-			meta[k] = v
-		}
-	}
+	meta := toolpkg.CopyMeta(msg.Metadata)
 
 	pa.orch.Send(adk.Message{
 		Sender:    pa.ID,
@@ -1137,12 +1088,7 @@ func (a *GenericSpecialistAgent) Handle(ctx context.Context, msg adk.Message) er
 		ctx = context.WithValue(ctx, "session_id", sessionID)
 	}
 
-	meta := make(map[string]string)
-	if msg.Metadata != nil {
-		for k, v := range msg.Metadata {
-			meta[k] = v
-		}
-	}
+	meta := toolpkg.CopyMeta(msg.Metadata)
 
 	// If tools are configured, run a dynamic ReAct loop
 	if len(a.tools) > 0 {

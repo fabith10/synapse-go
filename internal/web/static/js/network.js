@@ -242,10 +242,10 @@ function initNetworkVisualizer() {
                     ctx.setLineDash([]);
                 });
 
-                // --- RENDER SIGNAL PULSES ---
+                // --- RENDER SIGNAL PULSES (Multi-particle laser flows) ---
                 for (let i = networkPulses.length - 1; i >= 0; i--) {
                     const p = networkPulses[i];
-                    p.progress += p.speed;
+                    p.progress += (p.speed || 0.025);
                     if (p.progress >= 1) {
                         networkPulses.splice(i, 1);
                         continue;
@@ -254,11 +254,28 @@ function initNetworkVisualizer() {
                     const px = p.source.x + (p.target.x - p.source.x) * p.progress;
                     const py = p.source.y + (p.target.y - p.source.y) * p.progress;
 
+                    // Particle Tail Trail
+                    const trailLen = 0.08;
+                    const tailX = p.source.x + (p.target.x - p.source.x) * Math.max(0, p.progress - trailLen);
+                    const tailY = p.source.y + (p.target.y - p.source.y) * Math.max(0, p.progress - trailLen);
+
+                    const grad = ctx.createLinearGradient(tailX, tailY, px, py);
+                    grad.addColorStop(0, 'rgba(52, 211, 153, 0)');
+                    grad.addColorStop(1, isLight ? '#10b981' : '#34d399');
+
                     ctx.beginPath();
-                    ctx.arc(px, py, 3.5, 0, Math.PI * 2);
-                    ctx.fillStyle = isLight ? '#4f46e5' : '#818cf8';
-                    ctx.shadowColor = isLight ? '#6366f1' : '#818cf8';
-                    ctx.shadowBlur = 8;
+                    ctx.moveTo(tailX, tailY);
+                    ctx.lineTo(px, py);
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    // Glowing Head Particle
+                    ctx.beginPath();
+                    ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#34d399';
+                    ctx.shadowColor = '#34d399';
+                    ctx.shadowBlur = 12;
                     ctx.fill();
                     ctx.shadowBlur = 0;
                 }

@@ -35,6 +35,10 @@ func GetExecutePythonDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID 
 					"items":       map[string]interface{}{"type": "string"},
 					"description": "Optional list of setup commands to execute in the container prior to script execution.",
 				},
+				"allow_network": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Set to true if internet access is strictly required for container execution (e.g. fetching remote API data). Triggers a Human-in-the-Loop operator approval prompt.",
+				},
 			},
 			"required": []string{"python_code"},
 		},
@@ -149,11 +153,41 @@ func GetExecutePythonDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID 
 				}
 			}
 
+			var allowNetwork bool
+			if RequiresNetworkApproval(code, params) {
+				uniqueCorrID := fmt.Sprintf("%s-net-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
+				orch.Send(adk.Message{
+					Sender:    agentID,
+					Recipient: "USER",
+					Content:   fmt.Sprintf("[Network Checkpoint] Agent %q requests human approval to connect Docker container to the internet.\nScript Preview:\n%s\nAllow container network access?", agentID, code),
+					Metadata: map[string]string{
+						"Type":           "HITL_APPROVAL",
+						"correlation_id": uniqueCorrID,
+						"reply_to":       agentID,
+						"risk_level":     "HIGH",
+						"action":         "docker.network_access",
+					},
+				})
+				replyCh := make(chan adk.Message, 1)
+				RegisterPendingResponse(uniqueCorrID, replyCh)
+				defer UnregisterPendingResponse(uniqueCorrID)
+				select {
+				case reply := <-replyCh:
+					allowNetwork = reply.Content == "APPROVED"
+				case <-ctx.Done():
+					return "", ctx.Err()
+				}
+				if !allowNetwork {
+					return "", fmt.Errorf("human operator denied Docker container internet access")
+				}
+			}
+
 			res := sb.Execute(ctx, adk.ExecutionRequest{
 				Language:       "python",
 				RawCode:        code,
 				Packages:       packages,
 				PrepCommands:   prepCommands,
+				AllowNetwork:   allowNetwork,
 				TimeoutSeconds: 45,
 			})
 			if res.Error == tools.ErrDockerUnavailable {
@@ -178,6 +212,10 @@ func GetExecuteBashDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID st
 				"bash_script": map[string]interface{}{
 					"type":        "string",
 					"description": "The full bash script to execute.",
+				},
+				"allow_network": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Set to true if internet access is strictly required for container execution. Triggers a Human-in-the-Loop operator approval prompt.",
 				},
 			},
 			"required": []string{"bash_script"},
@@ -263,9 +301,39 @@ func GetExecuteBashDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID st
 				}
 			}
 
+			var allowNetwork bool
+			if RequiresNetworkApproval(script, params) {
+				uniqueCorrID := fmt.Sprintf("%s-bash-net-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
+				orch.Send(adk.Message{
+					Sender:    agentID,
+					Recipient: "USER",
+					Content:   fmt.Sprintf("[Network Checkpoint] Agent %q requests human approval to connect Docker container to the internet.\nBash Script:\n%s\nAllow container network access?", agentID, script),
+					Metadata: map[string]string{
+						"Type":           "HITL_APPROVAL",
+						"correlation_id": uniqueCorrID,
+						"reply_to":       agentID,
+						"risk_level":     "HIGH",
+						"action":         "docker.network_access",
+					},
+				})
+				replyCh := make(chan adk.Message, 1)
+				RegisterPendingResponse(uniqueCorrID, replyCh)
+				defer UnregisterPendingResponse(uniqueCorrID)
+				select {
+				case reply := <-replyCh:
+					allowNetwork = reply.Content == "APPROVED"
+				case <-ctx.Done():
+					return "", ctx.Err()
+				}
+				if !allowNetwork {
+					return "", fmt.Errorf("human operator denied Docker container internet access")
+				}
+			}
+
 			res := sb.Execute(ctx, adk.ExecutionRequest{
 				Language:       "bash",
 				RawCode:        script,
+				AllowNetwork:   allowNetwork,
 				TimeoutSeconds: 45,
 			})
 			if res.Error == tools.ErrDockerUnavailable {

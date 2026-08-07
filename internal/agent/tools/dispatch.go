@@ -2,13 +2,20 @@ package agenttools
 
 import (
 	"sync"
+	"time"
 
 	"github.com/fabith10/synapse-go/adk"
 )
 
+type pendingEntry struct {
+	ch        chan adk.Message
+	createdAt time.Time
+}
+
 var (
+	// ponytail: In-memory map and channel storage with stdlib TTL auto-pruning for response correlation; upgrade to distributed message broker (e.g. NATS/Redis PubSub) for multi-node agent dispatching.
 	pendingResponsesMu sync.Mutex
-	pendingResponses   = make(map[string]chan adk.Message)
+	pendingResponses   = make(map[string]pendingEntry)
 )
 
 func init() {
@@ -19,7 +26,19 @@ func init() {
 func RegisterPendingResponse(correlationID string, ch chan adk.Message) {
 	pendingResponsesMu.Lock()
 	defer pendingResponsesMu.Unlock()
-	pendingResponses[correlationID] = ch
+
+	// Prune abandoned correlation entries older than 30 minutes
+	now := time.Now()
+	for id, entry := range pendingResponses {
+		if now.Sub(entry.createdAt) > 30*time.Minute {
+			delete(pendingResponses, id)
+		}
+	}
+
+	pendingResponses[correlationID] = pendingEntry{
+		ch:        ch,
+		createdAt: now,
+	}
 }
 
 // UnregisterPendingResponse unregisters the channel for the given correlationID.
@@ -33,9 +52,9 @@ func UnregisterPendingResponse(correlationID string) {
 func DispatchResponse(correlationID string, msg adk.Message) bool {
 	pendingResponsesMu.Lock()
 	defer pendingResponsesMu.Unlock()
-	if ch, ok := pendingResponses[correlationID]; ok {
+	if entry, ok := pendingResponses[correlationID]; ok {
 		select {
-		case ch <- msg:
+		case entry.ch <- msg:
 			return true
 		default:
 			return false
@@ -43,3 +62,4 @@ func DispatchResponse(correlationID string, msg adk.Message) bool {
 	}
 	return false
 }
+

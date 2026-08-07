@@ -11,7 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -26,7 +26,6 @@ import (
 	"github.com/fabith10/synapse-go/pkg/logger"
 	"github.com/joho/godotenv"
 	"github.com/ollama/ollama/api"
-	"github.com/pkg/browser"
 )
 
 // mockLLMProvider satisfies broker.LLMProvider and returns dummy text.
@@ -303,10 +302,11 @@ func main() {
 	cliPrompt := fs.String("prompt", "", "Run a single prompt task in CLI mode")
 	cliLogFile := fs.String("log-file", "", "Path to write agent interaction and audit logs")
 	cliTimeoutSecs := fs.Int("timeout", 60, "Timeout in seconds for CLI mode prompt execution")
+	ntfyTopic := fs.String("ntfy-topic", "", "Ntfy topic for inbound streaming & outbound agent notifications")
 	_ = fs.Parse(os.Args[1:])
 
 	// Load environment variables from .env file if present
-	_ = godotenv.Load(findConfigFile(".env"))
+	_ = godotenv.Load(agent.FindConfigPath(".env"))
 
 	if *cliLogFile != "" && os.Getenv("LOG_FILE") == "" {
 		os.Setenv("LOG_FILE", *cliLogFile)
@@ -316,7 +316,7 @@ func main() {
 	logger.Info("--- Starting Agent Framework Control Center ---")
 
 	// 1. Config loading from models.json if present
-	llmNodes, err := loadModelsConfig(findConfigFile("models.json"))
+	llmNodes, err := loadModelsConfig(agent.FindConfigPath("models.json"))
 	if err != nil {
 		logger.Warn("Could not load models.json, falling back to demo default mock LLM", "error", err)
 		llmNodes = []adk.LLMNode{
@@ -331,7 +331,7 @@ func main() {
 	}
 
 	// Load critical actions configuration if present
-	if err := agenttools.LoadCriticalActionsConfig(findConfigFile("critical_actions.json")); err != nil {
+	if err := agenttools.LoadCriticalActionsConfig(agent.FindConfigPath("critical_actions.json")); err != nil {
 		fmt.Printf("Warning: could not load critical_actions.json: %v (using defaults)\n", err)
 	}
 
@@ -491,6 +491,18 @@ func main() {
 	webServer.StartHITLListener(ctx)
 	fmt.Println("Agents registered and event bus online.")
 
+	topic := *ntfyTopic
+	if topic == "" {
+		topic = os.Getenv("NTFY_TOPIC")
+	}
+	if topic != "" {
+		if _, err := agenttools.StartNtfyListener(ctx, runtime.Orchestrator(), agenttools.NtfyConfig{Topic: topic}); err != nil {
+			logger.Warn("Failed to start ntfy listener", "error", err)
+		} else {
+			logger.Info("Ntfy inbound stream listener started", "topic", topic)
+		}
+	}
+
 	// 6. Spawn web server
 	go func() {
 		port := os.Getenv("PORT")
@@ -538,7 +550,7 @@ func main() {
 }
 
 func unloadOllamaModels() {
-	path := findConfigFile("models.json")
+	path := agent.FindConfigPath("models.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return
@@ -589,32 +601,16 @@ func unloadOllamaModels() {
 	}
 }
 
-func findConfigFile(name string) string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return name
-	}
-	curr := wd
-	for {
-		candidate := filepath.Join(curr, name)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(curr)
-		if parent == curr {
-			break
-		}
-		curr = parent
-	}
-	return name
-}
 
 func openBrowser(url string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "open", url)
-	if err := cmd.Run(); err != nil {
-		return browser.OpenURL(url)
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	default: // windows
+		cmd = exec.Command("cmd", "/c", "start", url)
 	}
-	return nil
+	return cmd.Start()
 }

@@ -15,6 +15,7 @@ import (
 
 	"github.com/fabith10/synapse-go/internal/memory"
 	"github.com/fabith10/synapse-go/internal/orchestrator"
+	toolpkg "github.com/fabith10/synapse-go/internal/tools"
 	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
@@ -393,7 +394,7 @@ func (b *Broker) tryLLMNode(
 		}
 
 		if expectJSON {
-			cleaned := extractJSON(response.Content)
+			cleaned := toolpkg.ExtractJSON(response.Content)
 			var js json.RawMessage
 			if json.Unmarshal([]byte(cleaned), &js) == nil {
 				response.Content = cleaned
@@ -593,41 +594,4 @@ func isInvalidJSONError(err error) bool {
 // cloud provider due to a market price spike.
 func isPreemptionError(err error) bool {
 	return err == ErrSpotPreempted
-}
-
-func extractJSON(input string) string {
-	trimmed := strings.TrimSpace(input)
-
-	// Try to find markdown code fences first
-	if idx := strings.Index(trimmed, "```json"); idx != -1 {
-		content := trimmed[idx+7:]
-		if endIdx := strings.Index(content, "```"); endIdx != -1 {
-			trimmed = strings.TrimSpace(content[:endIdx])
-		}
-	} else if idx := strings.Index(trimmed, "```"); idx != -1 {
-		content := trimmed[idx+3:]
-		if endIdx := strings.Index(content, "```"); endIdx != -1 {
-			trimmed = strings.TrimSpace(content[:endIdx])
-		}
-	}
-
-	// Now look for the first brace `{` or `[` and the last brace `}` or `]`
-	firstBrace := strings.Index(trimmed, "{")
-	firstBracket := strings.Index(trimmed, "[")
-
-	start := -1
-	end := -1
-
-	if firstBrace != -1 && (firstBracket == -1 || firstBrace < firstBracket) {
-		start = firstBrace
-		end = strings.LastIndex(trimmed, "}")
-	} else if firstBracket != -1 {
-		start = firstBracket
-		end = strings.LastIndex(trimmed, "]")
-	}
-
-	if start == -1 || end == -1 || end <= start {
-		return trimmed
-	}
-	return trimmed[start : end+1]
 }

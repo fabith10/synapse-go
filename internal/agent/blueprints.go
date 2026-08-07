@@ -447,7 +447,7 @@ func SaveAgentsConfig(path string) error {
 		return fmt.Errorf("failed to marshal agents config: %w", err)
 	}
 
-	targetPath := findConfigPath(path)
+	targetPath := FindConfigPath(path)
 	if targetPath == "" {
 		targetPath = path
 	}

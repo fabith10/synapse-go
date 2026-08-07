@@ -328,7 +328,7 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
 	/**
 	 * doSettle mirrors much of the functionality in htmx that 
 	 * settles elements after their content has been swapped.
-	 * TODO: this should be published by htmx, and not duplicated here
+	 *
 	 * @param {import("../htmx").HtmxSettleInfo} settleInfo 
 	 * @returns () => void
 	 */

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -72,8 +71,8 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 
 	// Load agents directory if present, otherwise fallback to agents.json to override system prompts dynamically
 	if len(GetLoadedAgentConfigs()) == 0 {
-		if err := LoadAgentsConfig(findConfigPath("agents")); err != nil {
-			if errJSON := LoadAgentsConfig(findConfigPath("agents.json")); errJSON != nil {
+		if err := LoadAgentsConfig(FindConfigPath("agents")); err != nil {
+			if errJSON := LoadAgentsConfig(FindConfigPath("agents.json")); errJSON != nil {
 				logger.Warn("Could not load agent configs, falling back to static blueprints", "dir_error", err, "json_error", errJSON)
 			}
 		}
@@ -82,43 +81,7 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 	// 3. Register agents and their tools
 
 	// Map of shared tools that don't need agent-specific state
-	sharedTools := map[string]adk.Tool{
-		"fetch_html":              agenttools.GetFetchHTMLTool(),
-		"wasm_json_mapper":        agenttools.GetWasmJsonMapperTool(sandbox),
-		"web_search_and_extract":  agenttools.GetWebSearchAndExtractTool(),
-		"generate_pdf_report":     agenttools.GetGeneratePDFReportTool(),
-		"check_lead_score":        agenttools.GetCheckLeadScoreTool(),
-		"browser_navigate":        agenttools.GetBrowserNavigateTool(),
-		"browser_input":           agenttools.GetBrowserInputTool(),
-		"browser_click":           agenttools.GetBrowserClickTool(),
-		"browser_scroll":          agenttools.GetBrowserScrollTool(),
-		"browser_wait":            agenttools.GetBrowserWaitForTool(),
-		"browser_extract_js":      agenttools.GetBrowserExtractJSTool(),
-		"browser_screenshot":      agenttools.GetBrowserScreenshotTool(),
-		"grep_documents":          agenttools.GetGrepDocumentsTool(),
-		"read_file":               agenttools.GetReadFileTool(),
-		"write_file":              agenttools.GetWriteFileTool(),
-		"replace_file_content":    agenttools.GetReplaceFileContentTool(),
-		"list_directory":          agenttools.GetListDirectoryTool(),
-		"query_pricing_oracle":    agenttools.GetQueryPricingOracleTool(),
-		"extract_pdf_text":        agenttools.GetExtractPDFTextTool(),
-		"semantic_search_context": agenttools.GetSemanticSearchContextTool(rt.Store()),
-		"read_state_variable":     GetReadStateVariableTool(rt.Orchestrator()),
-		"write_state_variable":    GetWriteStateVariableTool(rt.Orchestrator()),
-		"schedule_task":           agenttools.GetScheduleTaskTool(),
-		"list_schedules":          agenttools.GetListSchedulesTool(),
-		"cancel_schedule":         agenttools.GetCancelScheduleTool(),
-		"save_long_term_memory":    agenttools.GetSaveLongTermMemoryTool(rt.Store()),
-		"search_long_term_memories": agenttools.GetSearchLongTermMemoriesTool(rt.Store()),
-		"inspect_host_hardware":   agenttools.GetInspectHostHardwareTool(),
-		"query_compute_prices":    agenttools.GetQueryComputePricesTool(),
-		"query_forward_curves":    agenttools.GetQueryForwardCurvesTool(),
-		"query_options_chain":     agenttools.GetQueryOptionsChainTool(),
-		"submit_mock_task":        agenttools.GetSubmitMockTaskTool(),
-		"check_mock_task":         agenttools.GetCheckMockTaskTool(),
-		"wait_seconds":            agenttools.GetWaitSecondsTool(),
-		"wait":                    agenttools.GetWaitSecondsTool(),
-	}
+	sharedTools := getSharedToolsMap(sandbox, rt.Orchestrator(), rt.Store())
 
 	// Map of specific tool builders that take (agentID, mailbox)
 	agentSpecificBuilders := map[string]func(id string, mb chan adk.Message) adk.Tool{
@@ -252,25 +215,9 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 	return rt, nil
 }
 
-func findConfigPath(name string) string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return name
-	}
-	curr := wd
-	for {
-		candidate := filepath.Join(curr, name)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(curr)
-		if parent == curr {
-			break
-		}
-		curr = parent
-	}
-	return name
-}
+// FindConfigPath walks parent directories from cwd looking for a file or directory.
+// Delegates to tools.FindConfigPath.
+func FindConfigPath(name string) string { return tools.FindConfigPath(name) }
 
 // ToolDescriptor represents tool metadata for the UI configuration panel.
 type ToolDescriptor struct {
@@ -297,7 +244,8 @@ func GetAvailableToolsList() []ToolDescriptor {
 		{Name: "wasm_json_mapper", Description: "Transform JSON data inside Wazero WebAssembly sandbox", Category: "WASM (Tier 2)", IsGated: false},
 		{Name: "execute_python_docker", Description: "Execute dynamic Python math & analytics in Docker container", Category: "Docker (Tier 3)", IsGated: true},
 		{Name: "execute_bash_docker", Description: "Execute shell script pipeline inside Docker container", Category: "Docker (Tier 3)", IsGated: true},
-		{Name: "delegate_subtask", Description: "Delegate a subtask to another specialist agent (developer-agent, researcher-agent, quant-agent, writer-agent)", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "delegate_subtask", Description: "Delegate a subtask to another registered specialist agent", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "send_ntfy_notification", Description: "Publish push notifications and status updates via ntfy", Category: "Native Go (Tier 1)", IsGated: false},
 	}
 }
 
@@ -336,23 +284,7 @@ func RegisterDynamicAgent(rt *adk.Runtime, id string, cfg AgentJSONConfig) error
 	dynAgent.BaseAgent = dynBase
 
 	// Build tools map
-	sharedTools := map[string]adk.Tool{
-		"fetch_html":              agenttools.GetFetchHTMLTool(),
-		"wasm_json_mapper":        agenttools.GetWasmJsonMapperTool(sandbox),
-		"web_search_and_extract":  agenttools.GetWebSearchAndExtractTool(),
-		"generate_pdf_report":     agenttools.GetGeneratePDFReportTool(),
-		"check_lead_score":        agenttools.GetCheckLeadScoreTool(),
-		"grep_documents":          agenttools.GetGrepDocumentsTool(),
-		"read_file":               agenttools.GetReadFileTool(),
-		"write_file":              agenttools.GetWriteFileTool(),
-		"replace_file_content":    agenttools.GetReplaceFileContentTool(),
-		"list_directory":          agenttools.GetListDirectoryTool(),
-		"query_pricing_oracle":    agenttools.GetQueryPricingOracleTool(),
-		"extract_pdf_text":        agenttools.GetExtractPDFTextTool(),
-		"semantic_search_context": agenttools.GetSemanticSearchContextTool(rt.Store()),
-		"schedule_task":           agenttools.GetScheduleTaskTool(),
-		"inspect_host_hardware":   agenttools.GetInspectHostHardwareTool(),
-	}
+	sharedTools := getSharedToolsMap(sandbox, rt.Orchestrator(), rt.Store())
 
 	var agentTools []adk.Tool
 	for _, name := range cfg.Tools {
@@ -380,3 +312,43 @@ func RegisterDynamicAgent(rt *adk.Runtime, id string, cfg AgentJSONConfig) error
 	return nil
 }
 
+func getSharedToolsMap(sandbox *MultiTierSandbox, orch *adk.Orchestrator, store adk.CheckpointStore) map[string]adk.Tool {
+	return map[string]adk.Tool{
+		"fetch_html":              agenttools.GetFetchHTMLTool(),
+		"wasm_json_mapper":        agenttools.GetWasmJsonMapperTool(sandbox),
+		"web_search_and_extract":  agenttools.GetWebSearchAndExtractTool(),
+		"generate_pdf_report":     agenttools.GetGeneratePDFReportTool(),
+		"check_lead_score":        agenttools.GetCheckLeadScoreTool(),
+		"browser_navigate":        agenttools.GetBrowserNavigateTool(),
+		"browser_input":           agenttools.GetBrowserInputTool(),
+		"browser_click":           agenttools.GetBrowserClickTool(),
+		"browser_scroll":          agenttools.GetBrowserScrollTool(),
+		"browser_wait":            agenttools.GetBrowserWaitForTool(),
+		"browser_extract_js":      agenttools.GetBrowserExtractJSTool(),
+		"browser_screenshot":      agenttools.GetBrowserScreenshotTool(),
+		"grep_documents":          agenttools.GetGrepDocumentsTool(),
+		"read_file":               agenttools.GetReadFileTool(),
+		"write_file":              agenttools.GetWriteFileTool(),
+		"replace_file_content":    agenttools.GetReplaceFileContentTool(),
+		"list_directory":          agenttools.GetListDirectoryTool(),
+		"query_pricing_oracle":    agenttools.GetQueryPricingOracleTool(),
+		"extract_pdf_text":        agenttools.GetExtractPDFTextTool(),
+		"semantic_search_context": agenttools.GetSemanticSearchContextTool(store),
+		"read_state_variable":     GetReadStateVariableTool(orch),
+		"write_state_variable":    GetWriteStateVariableTool(orch),
+		"schedule_task":           agenttools.GetScheduleTaskTool(),
+		"list_schedules":          agenttools.GetListSchedulesTool(),
+		"cancel_schedule":         agenttools.GetCancelScheduleTool(),
+		"save_long_term_memory":    agenttools.GetSaveLongTermMemoryTool(store),
+		"search_long_term_memories": agenttools.GetSearchLongTermMemoriesTool(store),
+		"inspect_host_hardware":   agenttools.GetInspectHostHardwareTool(),
+		"query_compute_prices":    agenttools.GetQueryComputePricesTool(),
+		"query_forward_curves":    agenttools.GetQueryForwardCurvesTool(),
+		"query_options_chain":     agenttools.GetQueryOptionsChainTool(),
+		"submit_mock_task":        agenttools.GetSubmitMockTaskTool(),
+		"check_mock_task":         agenttools.GetCheckMockTaskTool(),
+		"wait_seconds":            agenttools.GetWaitSecondsTool(),
+		"wait":                    agenttools.GetWaitSecondsTool(),
+		"send_ntfy_notification":  agenttools.GetSendNtfyNotificationTool(),
+	}
+}

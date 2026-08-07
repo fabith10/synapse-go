@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/fabith10/synapse-go/internal/agent/pricing/adapter"
+	"github.com/fabith10/synapse-go/internal/tools"
 )
 
 // ProviderProfile defines a pricing provider config item in pricing_providers.json.
@@ -71,7 +71,7 @@ var (
 // GetPricingOracleManager returns the global PricingOracleManager singleton.
 func GetPricingOracleManager() *PricingOracleManager {
 	globalOracleOnce.Do(func() {
-		configPath := findConfigPath("pricing_providers.json")
+		configPath := tools.FindConfigPath("pricing_providers.json")
 		if configPath == "" {
 			configPath = "pricing_providers.json"
 		}
@@ -406,25 +406,6 @@ func extractSpotPrice(rawJSON, asset string) (float64, error) {
 	return 0, fmt.Errorf("could not parse spot price for %s", asset)
 }
 
-func findConfigPath(name string) string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return name
-	}
-	curr := wd
-	for {
-		candidate := filepath.Join(curr, name)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(curr)
-		if parent == curr {
-			break
-		}
-		curr = parent
-	}
-	return name
-}
 
 func roundTo4(val float64) float64 {
 	return math.Round(val*10000.0) / 10000.0
