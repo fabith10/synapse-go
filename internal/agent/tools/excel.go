@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 	"time"
 
 	"github.com/fabith10/synapse-go/adk"
@@ -81,7 +80,7 @@ func GetModifyExcelWorkbookTool(orch *adk.Orchestrator, agentID string, mailbox 
 
 			// Automated Checkpoint for Production files
 			if IsProductionFile(filePath) {
-				uniqueCorrID := fmt.Sprintf("%s-excel-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
+				uniqueCorrID := fmt.Sprintf("%s-excel-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",

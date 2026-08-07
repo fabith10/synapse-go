@@ -232,3 +232,84 @@ func GetBrowserScreenshotTool() adk.Tool {
 		},
 	}
 }
+
+// GetBrowserBackTool returns a native tool to navigate back in browser history.
+func GetBrowserBackTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_back",
+		Description: "Navigates backwards to the previous page in browser history.",
+		Parameters: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			sessionID, _ := ctx.Value("session_id").(string)
+			return GlobalSessionManager.GetSession(sessionID).Back()
+		},
+	}
+}
+
+// GetBrowserReloadTool returns a native tool to refresh the active webpage.
+func GetBrowserReloadTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_reload",
+		Description: "Refreshes/reloads the current browser page.",
+		Parameters: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			sessionID, _ := ctx.Value("session_id").(string)
+			return GlobalSessionManager.GetSession(sessionID).Reload()
+		},
+	}
+}
+
+// GetBrowserSaveCookiesTool returns a native tool to export browser cookies as JSON.
+func GetBrowserSaveCookiesTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_save_cookies",
+		Description: "Exports active browser session cookies to a JSON string for session authentication persistence.",
+		Parameters: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			sessionID, _ := ctx.Value("session_id").(string)
+			return GlobalSessionManager.GetSession(sessionID).SaveCookies()
+		},
+	}
+}
+
+// GetBrowserLoadCookiesTool returns a native tool to import cookie JSON data into the browser.
+func GetBrowserLoadCookiesTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_load_cookies",
+		Description: "Imports cookie JSON string into active browser session to restore authenticated state.",
+		Parameters: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"cookies_json": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array string containing exported browser cookies.",
+				},
+			},
+			"required": []string{"cookies_json"},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			var params struct {
+				CookiesJSON string `json:"cookies_json"`
+			}
+			if err := json.Unmarshal(args, &params); err != nil {
+				return "", fmt.Errorf("failed to parse cookies_json: %w", err)
+			}
+			sessionID, _ := ctx.Value("session_id").(string)
+			return GlobalSessionManager.GetSession(sessionID).LoadCookies(params.CookiesJSON)
+		},
+	}
+}
+

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
@@ -57,6 +58,68 @@ func (b *BrowserSession) Close() {
 		b.allocCancel()
 		b.allocCancel = nil
 	}
+}
+
+// ensureContextLocked initializes or self-heals the stealth chromedp session.
+func (b *BrowserSession) ensureContextLocked() {
+	if b.Ctx != nil && b.Ctx.Err() == nil {
+		return
+	}
+	isHeadless := true
+	if os.Getenv("HEADED") == "true" || os.Getenv("HEADLESS") == "false" || os.Getenv("BROWSER_HEADED") == "true" {
+		isHeadless = false
+	}
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.NoSandbox,
+		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("headless", isHeadless),
+		chromedp.Flag("disable-blink-features", "AutomationControlled"),
+		chromedp.UserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+		chromedp.WindowSize(1440, 900),
+		chromedp.Flag("accept-lang", "en-US,en;q=0.9"),
+	)
+
+	if proxy := os.Getenv("BROWSER_PROXY"); proxy != "" {
+		opts = append(opts, chromedp.Flag("proxy-server", proxy))
+	} else if proxy := os.Getenv("HTTP_PROXY"); proxy != "" {
+		opts = append(opts, chromedp.Flag("proxy-server", proxy))
+	}
+
+	if userDataDir := os.Getenv("BROWSER_USER_DATA_DIR"); userDataDir != "" {
+		opts = append(opts, chromedp.UserDataDir(userDataDir))
+	}
+
+	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	ctx, cancel := chromedp.NewContext(allocCtx)
+	b.Ctx = ctx
+	b.Cancel = cancelFuncWrapper(cancel)
+	b.allocCancel = allocCancel
+
+	const stealthScript = `(function() {
+		Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+		window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
+		Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+		Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+		const getParameter = WebGLRenderingContext.prototype.getParameter;
+		WebGLRenderingContext.prototype.getParameter = function(parameter) {
+			if (parameter === 37445) return 'Intel Inc.';
+			if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+			return getParameter.apply(this, arguments);
+		};
+		if (window.navigator.permissions) {
+			const origQuery = window.navigator.permissions.query;
+			window.navigator.permissions.query = (params) => (
+				params && params.name === 'notifications' ?
+					Promise.resolve({ state: Notification.permission }) :
+					origQuery(params)
+			);
+		}
+	})();`
+
+	_ = chromedp.Run(b.Ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		_, err := page.AddScriptToEvaluateOnNewDocument(stealthScript).Do(ctx)
+		return err
+	}))
 }
 
 // BrowserSessionManager stores thread-safe browser sessions isolated by session ID.
@@ -115,66 +178,7 @@ func (b *BrowserSession) Navigate(urlStr string) (string, error) {
 		parsed.Scheme = "http"
 	}
 
-	// Initialize stealth chromedp session if not exists
-	if b.Ctx == nil {
-		isHeadless := true
-		if os.Getenv("HEADED") == "true" || os.Getenv("HEADLESS") == "false" || os.Getenv("BROWSER_HEADED") == "true" {
-			isHeadless = false
-		}
-		opts := append(chromedp.DefaultExecAllocatorOptions[:],
-			chromedp.NoSandbox,
-			chromedp.Flag("disable-gpu", true),
-			chromedp.Flag("headless", isHeadless),
-			// Stealth flags: mask automation flags & set realistic viewport/User-Agent
-			chromedp.Flag("disable-blink-features", "AutomationControlled"),
-			chromedp.UserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
-			chromedp.WindowSize(1440, 900),
-			chromedp.Flag("accept-lang", "en-US,en;q=0.9"),
-		)
-
-		if proxy := os.Getenv("BROWSER_PROXY"); proxy != "" {
-			opts = append(opts, chromedp.Flag("proxy-server", proxy))
-		} else if proxy := os.Getenv("HTTP_PROXY"); proxy != "" {
-			opts = append(opts, chromedp.Flag("proxy-server", proxy))
-		}
-
-		if userDataDir := os.Getenv("BROWSER_USER_DATA_DIR"); userDataDir != "" {
-			opts = append(opts, chromedp.UserDataDir(userDataDir))
-		}
-
-		allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
-		ctx, cancel := chromedp.NewContext(allocCtx)
-		b.Ctx = ctx
-		b.Cancel = cancelFuncWrapper(cancel)
-		b.allocCancel = allocCancel // Security (L-4): stored so Close() can release allocator
-
-		// Inject CDP stealth overrides before page load to hide automated browser signatures
-		const stealthScript = `(function() {
-			Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-			window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
-			Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-			Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-			const getParameter = WebGLRenderingContext.prototype.getParameter;
-			WebGLRenderingContext.prototype.getParameter = function(parameter) {
-				if (parameter === 37445) return 'Intel Inc.';
-				if (parameter === 37446) return 'Intel Iris OpenGL Engine';
-				return getParameter.apply(this, arguments);
-			};
-			if (window.navigator.permissions) {
-				const origQuery = window.navigator.permissions.query;
-				window.navigator.permissions.query = (params) => (
-					params && params.name === 'notifications' ?
-						Promise.resolve({ state: Notification.permission }) :
-						origQuery(params)
-				);
-			}
-		})();`
-
-		_ = chromedp.Run(b.Ctx, chromedp.ActionFunc(func(ctx context.Context) error {
-			_, err := page.AddScriptToEvaluateOnNewDocument(stealthScript).Do(ctx)
-			return err
-		}))
-	}
+	b.ensureContextLocked()
 
 	err = chromedp.Run(b.Ctx,
 		chromedp.Navigate(parsed.String()),
@@ -391,6 +395,83 @@ func (b *BrowserSession) Screenshot(outPath string) (string, error) {
 		return "", fmt.Errorf("screenshot write: %w", err)
 	}
 	return fmt.Sprintf("Screenshot saved: %s (%d bytes)", outPath, len(buf)), nil
+}
+
+// Back navigates backwards in browser history.
+func (b *BrowserSession) Back() (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.ensureContextLocked()
+
+	err := chromedp.Run(b.Ctx,
+		chromedp.NavigateBack(),
+		chromedp.Sleep(400*time.Millisecond),
+	)
+	if err != nil {
+		return "", fmt.Errorf("chromedp back: %w", err)
+	}
+	b.updateStateLocked()
+	return b.renderViewLocked(), nil
+}
+
+// Reload refreshes the active webpage.
+func (b *BrowserSession) Reload() (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.ensureContextLocked()
+
+	err := chromedp.Run(b.Ctx,
+		chromedp.Reload(),
+		chromedp.Sleep(400*time.Millisecond),
+	)
+	if err != nil {
+		return "", fmt.Errorf("chromedp reload: %w", err)
+	}
+	b.updateStateLocked()
+	return b.renderViewLocked(), nil
+}
+
+// SaveCookies exports the active browser session cookies as JSON.
+func (b *BrowserSession) SaveCookies() (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.ensureContextLocked()
+
+	var cookies []*network.Cookie
+	err := chromedp.Run(b.Ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		var err error
+		cookies, err = network.GetCookies().Do(ctx)
+		return err
+	}))
+	if err != nil {
+		return "", fmt.Errorf("chromedp get cookies: %w", err)
+	}
+
+	outBytes, err := json.MarshalIndent(cookies, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("marshal cookies: %w", err)
+	}
+	return string(outBytes), nil
+}
+
+// LoadCookies imports cookie JSON data into the active browser session.
+func (b *BrowserSession) LoadCookies(cookiesJSON string) (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.ensureContextLocked()
+
+	var cookies []*network.CookieParam
+	if err := json.Unmarshal([]byte(cookiesJSON), &cookies); err != nil {
+		return "", fmt.Errorf("failed to parse cookie JSON array: %w", err)
+	}
+
+	err := chromedp.Run(b.Ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		return network.SetCookies(cookies).Do(ctx)
+	}))
+	if err != nil {
+		return "", fmt.Errorf("chromedp set cookies: %w", err)
+	}
+	return fmt.Sprintf("Successfully imported %d cookies into browser session.", len(cookies)), nil
 }
 
 // updateStateLocked parses elements and page visible text using Javascript inside Chrome.

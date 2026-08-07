@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/fabith10/synapse-go/adk"
@@ -108,7 +107,7 @@ func GetExecutePythonDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID 
 			code = strings.TrimSpace(strings.Join(cleaned, "\n"))
 
 			if RequiresHumanReview(code) {
-				uniqueCorrID := fmt.Sprintf("%s-python-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
+				uniqueCorrID := fmt.Sprintf("%s-python-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",
@@ -155,7 +154,7 @@ func GetExecutePythonDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID 
 
 			var allowNetwork bool
 			if RequiresNetworkApproval(code, params) {
-				uniqueCorrID := fmt.Sprintf("%s-net-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
+				uniqueCorrID := fmt.Sprintf("%s-net-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",
@@ -273,7 +272,7 @@ func GetExecuteBashDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID st
 			}
 
 			if RequiresHumanReviewBash(script) {
-				uniqueCorrID := fmt.Sprintf("%s-bash-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
+				uniqueCorrID := fmt.Sprintf("%s-bash-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",
@@ -303,7 +302,7 @@ func GetExecuteBashDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID st
 
 			var allowNetwork bool
 			if RequiresNetworkApproval(script, params) {
-				uniqueCorrID := fmt.Sprintf("%s-bash-net-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
+				uniqueCorrID := fmt.Sprintf("%s-bash-net-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",

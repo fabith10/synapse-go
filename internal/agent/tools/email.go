@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/fabith10/synapse-go/adk"
@@ -56,7 +55,7 @@ func GetWriteEmailTool(orch *adk.Orchestrator, agentID string, mailbox chan adk.
 				}
 			}
 			if isExternal && orch != nil && mailbox != nil {
-				uniqueCorrID := fmt.Sprintf("%s-email-%d-%d", agentID, time.Now().UnixNano(), atomic.AddUint64(&hitlCorrCounter, 1))
+				uniqueCorrID := fmt.Sprintf("%s-email-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
 				orch.Send(adk.Message{
 					Sender:    agentID,
 					Recipient: "USER",

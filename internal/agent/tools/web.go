@@ -316,6 +316,172 @@ func fetchDuckDuckGoSearchResults(ctx context.Context, query string) (string, er
 	return string(jsonBytes), nil
 }
 
+// GetExtractWebTablesTool returns a native tool to extract structured data from HTML tables.
+func GetExtractWebTablesTool() adk.Tool {
+	return adk.Tool{
+		Name:        "extract_web_tables",
+		Description: "Parses HTML text or webpage URL and extracts all <table> data into structured JSON arrays of headers and rows.",
+		Parameters: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"url": map[string]interface{}{
+					"type":        "string",
+					"description": "Optional HTTP/HTTPS URL of web page containing tables",
+				},
+				"html_content": map[string]interface{}{
+					"type":        "string",
+					"description": "Optional raw HTML text containing <table> elements",
+				},
+			},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			var params struct {
+				URL         string `json:"url"`
+				HTMLContent string `json:"html_content"`
+			}
+			if len(args) > 0 {
+				_ = json.Unmarshal(args, &params)
+			}
+
+			htmlStr := params.HTMLContent
+			if htmlStr == "" && params.URL != "" {
+				urlStr := params.URL
+				if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
+					urlStr = "https://" + urlStr
+				}
+				req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
+				if err == nil {
+					req.Header.Set("User-Agent", "SynapseGo-Agent/1.0")
+					client := &http.Client{Timeout: 10 * time.Second}
+					resp, err := client.Do(req)
+					if err == nil {
+						defer resp.Body.Close()
+						b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
+						htmlStr = string(b)
+					}
+				}
+			}
+
+			if htmlStr == "" {
+				return "", fmt.Errorf("either 'url' or 'html_content' parameter must be provided")
+			}
+
+			tables := parseHTMLTables(htmlStr)
+			outBytes, _ := json.MarshalIndent(map[string]interface{}{
+				"table_count": len(tables),
+				"tables":      tables,
+			}, "", "  ")
+			return string(outBytes), nil
+		},
+	}
+}
+
+func parseHTMLTables(html string) []map[string]interface{} {
+	var tables []map[string]interface{}
+	temp := html
+
+	for tableIdx := 1; tableIdx <= 10; tableIdx++ {
+		start := strings.Index(strings.ToLower(temp), "<table")
+		if start == -1 {
+			break
+		}
+		temp = temp[start:]
+		end := strings.Index(strings.ToLower(temp), "</table>")
+		if end == -1 {
+			break
+		}
+
+		tableHTML := temp[:end+8]
+		temp = temp[end+8:]
+
+		// Parse <tr> rows
+		var rows [][]string
+		rowTemp := tableHTML
+
+		for {
+			rStart := strings.Index(strings.ToLower(rowTemp), "<tr")
+			if rStart == -1 {
+				break
+			}
+			rowTemp = rowTemp[rStart:]
+			rEnd := strings.Index(strings.ToLower(rowTemp), "</tr>")
+			if rEnd == -1 {
+				break
+			}
+
+			trHTML := rowTemp[:rEnd+5]
+			rowTemp = rowTemp[rEnd+5:]
+
+			// Parse <th> or <td> cells
+			var cells []string
+			cTemp := trHTML
+			for {
+				cellStart := strings.Index(strings.ToLower(cTemp), "<td")
+				isTH := false
+				thStart := strings.Index(strings.ToLower(cTemp), "<th")
+				if (thStart != -1 && cellStart == -1) || (thStart != -1 && thStart < cellStart) {
+					cellStart = thStart
+					isTH = true
+				}
+				if cellStart == -1 {
+					break
+				}
+				cTemp = cTemp[cellStart:]
+				closeTag := "</td>"
+				if isTH {
+					closeTag = "</th>"
+				}
+				cellEnd := strings.Index(strings.ToLower(cTemp), closeTag)
+				if cellEnd == -1 {
+					break
+				}
+				cellContent := cTemp[:cellEnd]
+				cTemp = cTemp[cellEnd+len(closeTag):]
+
+				// Extract inner text
+				gtIdx := strings.Index(cellContent, ">")
+				if gtIdx != -1 {
+					cellContent = cellContent[gtIdx+1:]
+				}
+				cells = append(cells, stripHTMLTags(cellContent))
+			}
+
+			if len(cells) > 0 {
+				rows = append(rows, cells)
+			}
+		}
+
+		if len(rows) > 0 {
+			headers := rows[0]
+			var dataRows []map[string]string
+
+			if len(rows) > 1 {
+				for _, r := range rows[1:] {
+					rowMap := make(map[string]string)
+					for i, cell := range r {
+						headerName := fmt.Sprintf("col_%d", i+1)
+						if i < len(headers) && headers[i] != "" {
+							headerName = headers[i]
+						}
+						rowMap[headerName] = cell
+					}
+					dataRows = append(dataRows, rowMap)
+				}
+			}
+
+			tables = append(tables, map[string]interface{}{
+				"table_index": tableIdx,
+				"headers":     headers,
+				"row_count":   len(dataRows),
+				"rows":        dataRows,
+			})
+		}
+	}
+
+	return tables
+}
+
 // stripHTMLTags removes HTML tags from a string.
 func stripHTMLTags(src string) string {
 	var builder strings.Builder

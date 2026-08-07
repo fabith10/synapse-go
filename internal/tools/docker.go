@@ -285,13 +285,6 @@ func detectPythonImports(code string) []string {
 	return detected
 }
 
-func formatPythonStringList(items []string) string {
-	quoted := make([]string, len(items))
-	for i, item := range items {
-		quoted[i] = fmt.Sprintf("%q", item)
-	}
-	return strings.Join(quoted, ", ")
-}
 
 // resolveImageAndCmd maps the Language field in an ExecutionRequest to a
 // Docker image name and the command slice that runs the raw code.

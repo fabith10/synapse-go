@@ -490,4 +490,73 @@ func TestE2E_DynamicSubagentDelegation(t *testing.T) {
 	}
 }
 
+// Test 15: Git Repo Operations, CSV/JSON Transformation & Zip Archive Packaging
+func TestE2E_GitAndArchivePipeline(t *testing.T) {
+	jsonPath := filepath.Join("testdata", "reports", "users.json")
+	zipPath := filepath.Join("testdata", "reports", "user_data.zip")
+	_ = os.Remove(jsonPath)
+	_ = os.Remove(zipPath)
+
+	prompt := "Call native tool git_operations with operation 'status'. Call native tool csv_json_transformer with operation 'csv_to_json', csv_data 'name,role\\nAlice,Admin\\nBob,Dev\\n', and output_path 'reports/users.json'. Call native tool archive_manager with operation 'zip', source_path 'reports/users.json', and zip_path 'reports/user_data.zip'."
+
+	_, logStr := runE2ETestCase(t, prompt, "e2e_git_archive_pipeline.log", "60", "DISABLE_DOCKER_TOOLS=true")
+
+	// 1. Audit log check
+	if !strings.Contains(logStr, "USER ➔ triage-agent") {
+		t.Errorf("expected audit log to record USER -> triage-agent transition")
+	}
+
+	// 2. Physical File Verifications
+	jsonBytes, err := os.ReadFile(jsonPath)
+	if err != nil || len(jsonBytes) == 0 {
+		t.Errorf("expected generated JSON %s to exist on disk, err: %v", jsonPath, err)
+	}
+
+	zipBytes, err := os.ReadFile(zipPath)
+	if err != nil || len(zipBytes) == 0 {
+		t.Errorf("expected generated zip archive %s to exist on disk, err: %v", zipPath, err)
+	}
+}
+
+// Test 16: SQLite Database Querying & System Process Inspection
+func TestE2E_SQLiteAndProcessInspection(t *testing.T) {
+	prompt := "Step 1: Call query_sqlite_db with db_path 'agent_framework.db' and operation 'list_tables'. Step 2: Call inspect_system_processes with action 'list'."
+
+	outStr, logStr := runE2ETestCase(t, prompt, "e2e_sqlite_process.log", "60", "DISABLE_DOCKER_TOOLS=true")
+
+	// 1. Audit log check
+	if !strings.Contains(logStr, "USER ➔ triage-agent") {
+		t.Errorf("expected audit log to record USER -> triage-agent transition")
+	}
+
+	// 2. Log or output verification for tool execution
+	if !strings.Contains(logStr, "query_sqlite_db") && !strings.Contains(outStr, "query_sqlite_db") {
+		t.Errorf("expected query_sqlite_db execution in log, got log:\n%s", logStr)
+	}
+	if !strings.Contains(logStr, "inspect_system_processes") && !strings.Contains(outStr, "inspect_system_processes") {
+		t.Errorf("expected inspect_system_processes execution in log, got log:\n%s", logStr)
+	}
+}
+
+// Test 17: HTTP API REST Client & JSON Schema Validation
+func TestE2E_HTTPAndJSONSchemaValidation(t *testing.T) {
+	prompt := "Step 1: Call http_api_request with method 'GET' and url 'https://httpbin.org/get'. Step 2: Call validate_json_schema with json_string '{\"headers\": {}}' and required_keys ['headers']."
+
+	outStr, logStr := runE2ETestCase(t, prompt, "e2e_http_json_schema.log", "60", "DISABLE_DOCKER_TOOLS=true")
+
+	// 1. Audit log check
+	if !strings.Contains(logStr, "USER ➔ triage-agent") {
+		t.Errorf("expected audit log to record USER -> triage-agent transition")
+	}
+
+	// 2. Log or output verification for tool execution
+	if !strings.Contains(logStr, "http_api_request") && !strings.Contains(outStr, "http_api_request") {
+		t.Errorf("expected http_api_request execution in log, got log:\n%s", logStr)
+	}
+	if !strings.Contains(logStr, "validate_json_schema") && !strings.Contains(outStr, "validate_json_schema") {
+		t.Errorf("expected validate_json_schema execution in log, got log:\n%s", logStr)
+	}
+}
+
+
 

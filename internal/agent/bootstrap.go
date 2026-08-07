@@ -112,8 +112,16 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 			toolNames = defaults
 		}
 
+		dockerTools := map[string]bool{
+			"execute_python_docker": true,
+			"execute_bash_docker":   true,
+		}
+
 		var agentTools []adk.Tool
 		for _, name := range toolNames {
+			if dockerTools[name] && !IsDockerToolsEnabled() {
+				continue
+			}
 			if builder, ok := agentSpecificBuilders[name]; ok {
 				agentTools = append(agentTools, builder(id, mb))
 			} else if t, ok := sharedTools[name]; ok {
@@ -246,6 +254,20 @@ func GetAvailableToolsList() []ToolDescriptor {
 		{Name: "execute_bash_docker", Description: "Execute shell script pipeline inside Docker container", Category: "Docker (Tier 3)", IsGated: true},
 		{Name: "delegate_subtask", Description: "Delegate a subtask to another registered specialist agent", Category: "Native Go (Tier 1)", IsGated: false},
 		{Name: "send_ntfy_notification", Description: "Publish push notifications and status updates via ntfy", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "git_operations", Description: "Execute git status, diff, log, commit, branch, checkout, or add operations", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "http_api_request", Description: "Execute arbitrary REST API calls (GET, POST, PUT, DELETE, PATCH)", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "query_sqlite_db", Description: "Inspect schema, list tables, or run read-only queries on SQLite databases", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "csv_json_transformer", Description: "Transform, filter, and aggregate data between CSV and JSON formats", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "archive_manager", Description: "Create, extract, or list contents of .zip and .tar.gz archives", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "inspect_system_processes", Description: "Inspect running system processes, CPU/RAM, or signal/kill processes", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "fetch_rss_feed", Description: "Fetch and parse RSS/Atom XML feeds into structured JSON", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "browser_back", Description: "Navigate backwards in browser history", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "browser_reload", Description: "Refresh/reload active browser webpage", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "browser_save_cookies", Description: "Export active browser session cookies as JSON", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "browser_load_cookies", Description: "Import cookie JSON array to restore authenticated state", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "extract_web_tables", Description: "Parse HTML tables into structured JSON arrays of headers and rows", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "inspect_env_vars", Description: "Inspect environment variables and runtime settings with credential masking", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "validate_json_schema", Description: "Validate JSON syntax and required structural keys", Category: "Native Go (Tier 1)", IsGated: false},
 	}
 }
 
@@ -350,5 +372,19 @@ func getSharedToolsMap(sandbox *MultiTierSandbox, orch *adk.Orchestrator, store 
 		"wait_seconds":            agenttools.GetWaitSecondsTool(),
 		"wait":                    agenttools.GetWaitSecondsTool(),
 		"send_ntfy_notification":  agenttools.GetSendNtfyNotificationTool(),
+		"git_operations":          agenttools.GetGitOperationsTool(),
+		"http_api_request":        agenttools.GetHTTPAPIRequestTool(),
+		"query_sqlite_db":         agenttools.GetQuerySQLiteDBTool(),
+		"csv_json_transformer":    agenttools.GetCSVJSONTransformerTool(),
+		"archive_manager":         agenttools.GetArchiveManagerTool(),
+		"inspect_system_processes": agenttools.GetInspectSystemProcessesTool(),
+		"fetch_rss_feed":          agenttools.GetFetchRSSFeedTool(),
+		"browser_back":            agenttools.GetBrowserBackTool(),
+		"browser_reload":          agenttools.GetBrowserReloadTool(),
+		"browser_save_cookies":    agenttools.GetBrowserSaveCookiesTool(),
+		"browser_load_cookies":    agenttools.GetBrowserLoadCookiesTool(),
+		"extract_web_tables":      agenttools.GetExtractWebTablesTool(),
+		"inspect_env_vars":        agenttools.GetInspectEnvVarsTool(),
+		"validate_json_schema":    agenttools.GetValidateJSONSchemaTool(),
 	}
 }

@@ -17,8 +17,8 @@ import (
 // hitlCorrCounter is an atomic counter used to generate unique HITL correlation IDs.
 var hitlCorrCounter uint64
 
-// nextHITLCorrID returns a unique correlation ID for human-in-the-loop approval requests.
-func nextHITLCorrID() uint64 {
+// NextHITLCorrID returns a unique correlation ID for human-in-the-loop approval requests.
+func NextHITLCorrID() uint64 {
 	return atomic.AddUint64(&hitlCorrCounter, 1)
 }
 

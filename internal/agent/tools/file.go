@@ -226,13 +226,37 @@ func GetWriteFileTool() adk.Tool {
 			if err != nil {
 				return "", fmt.Errorf("write_file: %w", err)
 			}
-			if err := os.MkdirAll(filepath.Dir(cleanPath), 0755); err != nil {
+			dir := filepath.Dir(cleanPath)
+			if err := os.MkdirAll(dir, 0755); err != nil {
 				return "", fmt.Errorf("write_file: failed to create parent directories: %w", err)
 			}
-			if err := os.WriteFile(cleanPath, []byte(content), 0644); err != nil {
-				return "", fmt.Errorf("write_file: failed to write file: %w", err)
+
+			// Atomic write pattern: write to temp file then rename
+			tmpFile, err := os.CreateTemp(dir, ".tmp-write-*")
+			if err != nil {
+				// Fallback to direct write if temp file creation fails
+				if err := os.WriteFile(cleanPath, []byte(content), 0644); err != nil {
+					return "", fmt.Errorf("write_file: failed to write file: %w", err)
+				}
+				return fmt.Sprintf("Successfully wrote %d bytes to file '%s'.", len(content), targetPath), nil
 			}
-			return fmt.Sprintf("Successfully wrote %d bytes to file '%s'.", len(content), targetPath), nil
+			tmpName := tmpFile.Name()
+
+			if _, err := tmpFile.Write([]byte(content)); err != nil {
+				tmpFile.Close()
+				_ = os.Remove(tmpName)
+				return "", fmt.Errorf("write_file: failed writing to temp file: %w", err)
+			}
+			tmpFile.Close()
+
+			if err := os.Rename(tmpName, cleanPath); err != nil {
+				_ = os.Remove(tmpName)
+				// Fallback write
+				if err := os.WriteFile(cleanPath, []byte(content), 0644); err != nil {
+					return "", fmt.Errorf("write_file: failed to replace target file: %w", err)
+				}
+			}
+			return fmt.Sprintf("Successfully wrote %d bytes atomically to file '%s'.", len(content), targetPath), nil
 		},
 	}
 }
@@ -294,15 +318,28 @@ func GetReplaceFileContentTool() adk.Tool {
 
 			origStr := string(fileBytes)
 			if !strings.Contains(origStr, targetContent) {
-				newStr := origStr + "\n" + replacementContent
-				if err := os.WriteFile(cleanPath, []byte(newStr), 0644); err != nil {
-					return "", fmt.Errorf("replace_file_content: failed to write updated content: %w", err)
+				lines := strings.Split(origStr, "\n")
+				firstFew := lines
+				if len(firstFew) > 5 {
+					firstFew = firstFew[:5]
 				}
-				return fmt.Sprintf("Target content not found exact match; appended content to %s", filepath.Base(cleanPath)), nil
+				preview := strings.Join(firstFew, "\n")
+				return fmt.Sprintf("Error: target_content not found in file %q (%d lines total).\nPlease inspect file with 'read_file' to copy exact lines. First few lines:\n%s", filepath.Base(cleanPath), len(lines), preview), nil
 			}
 
 			newStr := strings.ReplaceAll(origStr, targetContent, replacementContent)
 			replaced := strings.Count(origStr, targetContent)
+			dir := filepath.Dir(cleanPath)
+			tmpFile, err := os.CreateTemp(dir, ".tmp-replace-*")
+			if err == nil {
+				tmpName := tmpFile.Name()
+				_, _ = tmpFile.Write([]byte(newStr))
+				tmpFile.Close()
+				if os.Rename(tmpName, cleanPath) == nil {
+					return fmt.Sprintf("Successfully replaced %d occurrence(s) in %s", replaced, filepath.Base(cleanPath)), nil
+				}
+				_ = os.Remove(tmpName)
+			}
 			if err := os.WriteFile(cleanPath, []byte(newStr), 0644); err != nil {
 				return "", fmt.Errorf("replace_file_content: failed to write updated content: %w", err)
 			}

@@ -315,6 +315,10 @@ func main() {
 	logger.InitFromEnv()
 	logger.Info("--- Starting Agent Framework Control Center ---")
 
+	if os.Getenv("DISABLE_DOCKER_TOOLS") == "true" || os.Getenv("ENABLE_DOCKER_TOOLS") == "false" {
+		agent.SetDockerToolsEnabled(false)
+	}
+
 	// 1. Config loading from models.json if present
 	llmNodes, err := loadModelsConfig(agent.FindConfigPath("models.json"))
 	if err != nil {

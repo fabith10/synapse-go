@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/fabith10/synapse-go/adk"
 )
@@ -61,6 +62,68 @@ func GetInspectHostHardwareTool() adk.Tool {
 			}
 			data, _ := json.MarshalIndent(result, "", "  ")
 			return string(data), nil
+		},
+	}
+}
+
+// GetInspectEnvVarsTool returns a native tool to inspect environment variables and runtime settings safely.
+func GetInspectEnvVarsTool() adk.Tool {
+	return adk.Tool{
+		Name:        "inspect_env_vars",
+		Description: "Inspects system environment variables and framework runtime settings with automatic credential masking.",
+		Parameters: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"filter": map[string]interface{}{
+					"type":        "string",
+					"description": "Optional search term to filter environment variable names.",
+				},
+			},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			var params struct {
+				Filter string `json:"filter"`
+			}
+			if len(args) > 0 {
+				_ = json.Unmarshal(args, &params)
+			}
+
+			filterLower := strings.ToLower(params.Filter)
+			envMap := make(map[string]string)
+
+			for _, env := range os.Environ() {
+				parts := strings.SplitN(env, "=", 2)
+				if len(parts) == 2 {
+					key := parts[0]
+					val := parts[1]
+
+					if filterLower != "" && !strings.Contains(strings.ToLower(key), filterLower) {
+						continue
+					}
+
+					keyUpper := strings.ToUpper(key)
+					// Mask sensitive API keys, secrets, passwords
+					if strings.Contains(keyUpper, "KEY") ||
+						strings.Contains(keyUpper, "SECRET") ||
+						strings.Contains(keyUpper, "PASSWORD") ||
+						strings.Contains(keyUpper, "TOKEN") ||
+						strings.Contains(keyUpper, "AUTH") {
+						if len(val) > 8 {
+							val = val[:4] + "...[MASKED]..." + val[len(val)-4:]
+						} else if val != "" {
+							val = "[MASKED]"
+						}
+					}
+					envMap[key] = val
+				}
+			}
+
+			outBytes, _ := json.MarshalIndent(map[string]interface{}{
+				"env_count": len(envMap),
+				"env_vars":  envMap,
+			}, "", "  ")
+			return string(outBytes), nil
 		},
 	}
 }
