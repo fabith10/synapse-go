@@ -7,7 +7,12 @@ capabilities:
   - data cleaning
 tools:
   - fetch_html
+  - fetch_rss_feed
+  - extract_web_tables
   - wasm_json_mapper
+  - csv_json_transformer
+  - read_file
+  - write_file
   - submit_mock_task
   - check_mock_task
 hardware_tier: tier0

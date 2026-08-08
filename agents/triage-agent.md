@@ -5,6 +5,12 @@ capabilities:
   - classification
   - routing
   - pricing lookup
+tools:
+  - query_pricing_oracle
+  - schedule_task
+  - list_schedules
+  - cancel_schedule
+  - wait_seconds
 hardware_tier: tier1
 max_willing_to_pay: 0.10
 ---

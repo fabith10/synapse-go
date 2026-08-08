@@ -15,6 +15,11 @@ tools:
   - browser_wait
   - browser_extract_js
   - browser_screenshot
+  - browser_back
+  - browser_reload
+  - browser_save_cookies
+  - browser_load_cookies
+  - extract_web_tables
 hardware_tier: tier0
 max_willing_to_pay: 0.15
 ---

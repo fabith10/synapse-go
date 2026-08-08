@@ -54,7 +54,7 @@ func GetWriteEmailTool(orch *adk.Orchestrator, agentID string, mailbox chan adk.
 					break
 				}
 			}
-			if isExternal && orch != nil && mailbox != nil {
+			if isExternal && orch != nil && !CriticalActions.AutoApproveAll {
 				uniqueCorrID := fmt.Sprintf("%s-email-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
 				orch.Send(adk.Message{
 					Sender:    agentID,

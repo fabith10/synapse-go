@@ -8,6 +8,9 @@ capabilities:
   - formula injection
 tools:
   - modify_excel_workbook
+  - read_file
+  - write_file
+  - csv_json_transformer
 hardware_tier: tier0
 max_willing_to_pay: 0.05
 ---

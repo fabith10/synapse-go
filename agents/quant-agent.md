@@ -17,6 +17,7 @@ tools:
   - read_file
   - write_file
   - replace_file_content
+  - list_directory
   - query_pricing_oracle
   - query_compute_prices
   - query_forward_curves
@@ -26,6 +27,8 @@ tools:
   - read_state_variable
   - write_state_variable
   - inspect_host_hardware
+  - csv_json_transformer
+  - query_sqlite_db
 hardware_tier: tier0
 max_willing_to_pay: 0.10
 ---

@@ -20,6 +20,14 @@ tools:
   - grep_documents
   - execute_python_docker
   - execute_bash_docker
+  - git_operations
+  - inspect_system_processes
+  - http_api_request
+  - query_sqlite_db
+  - csv_json_transformer
+  - archive_manager
+  - inspect_env_vars
+  - validate_json_schema
   - schedule_task
   - list_schedules
   - cancel_schedule

@@ -100,6 +100,9 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 		"delegate_subtask": func(id string, mb chan adk.Message) adk.Tool {
 			return agenttools.GetDelegateSubtaskTool(rt.Orchestrator(), id, mb)
 		},
+		"request_human_signature": func(id string, mb chan adk.Message) adk.Tool {
+			return agenttools.GetRequestHumanSignatureTool(rt.Orchestrator(), id, mb)
+		},
 	}
 
 	// Helper to resolve dynamic or default tools list for an agent
@@ -268,6 +271,9 @@ func GetAvailableToolsList() []ToolDescriptor {
 		{Name: "extract_web_tables", Description: "Parse HTML tables into structured JSON arrays of headers and rows", Category: "Native Go (Tier 1)", IsGated: false},
 		{Name: "inspect_env_vars", Description: "Inspect environment variables and runtime settings with credential masking", Category: "Native Go (Tier 1)", IsGated: false},
 		{Name: "validate_json_schema", Description: "Validate JSON syntax and required structural keys", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "manage_long_term_goals", Description: "Create, update, or list active long-term goals and milestones", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "evaluate_goal_progress", Description: "Evaluate active long-term goals and milestone progress", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "evaluate_security_guardrails", Description: "Evaluate proposed actions against workspace security policies", Category: "Native Go (Tier 1)", IsGated: false},
 	}
 }
 
@@ -383,8 +389,11 @@ func getSharedToolsMap(sandbox *MultiTierSandbox, orch *adk.Orchestrator, store 
 		"browser_reload":          agenttools.GetBrowserReloadTool(),
 		"browser_save_cookies":    agenttools.GetBrowserSaveCookiesTool(),
 		"browser_load_cookies":    agenttools.GetBrowserLoadCookiesTool(),
-		"extract_web_tables":      agenttools.GetExtractWebTablesTool(),
-		"inspect_env_vars":        agenttools.GetInspectEnvVarsTool(),
-		"validate_json_schema":    agenttools.GetValidateJSONSchemaTool(),
+		"extract_web_tables":            agenttools.GetExtractWebTablesTool(),
+		"inspect_env_vars":              agenttools.GetInspectEnvVarsTool(),
+		"validate_json_schema":          agenttools.GetValidateJSONSchemaTool(),
+		"manage_long_term_goals":        agenttools.GetManageLongTermGoalsTool(store),
+		"evaluate_goal_progress":        agenttools.GetEvaluateGoalProgressTool(store),
+		"evaluate_security_guardrails":  agenttools.GetEvaluateSecurityGuardrailsTool(),
 	}
 }

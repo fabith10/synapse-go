@@ -83,11 +83,33 @@ CREATE TABLE IF NOT EXISTS audit_records (
     total_cost_usd        REAL      NOT NULL DEFAULT 0.0,
     execution_duration_ms INTEGER   NOT NULL DEFAULT 0,
     tool_calls_count      INTEGER   NOT NULL DEFAULT 0,
-    status                TEXT      NOT NULL,
+    status                TEXT      NOT NULL DEFAULT 'SUCCESS',
     created_at            DATETIME  NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_audit_agent ON audit_records (agent_id);
-CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_records (created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_correlation ON audit_records (correlation_id);
+CREATE INDEX IF NOT EXISTS idx_audit_agent       ON audit_records (agent_id);
+
+CREATE TABLE IF NOT EXISTS goals (
+    id          TEXT      PRIMARY KEY,
+    title       TEXT      NOT NULL,
+    description TEXT      NOT NULL DEFAULT '',
+    status      TEXT      NOT NULL DEFAULT 'ACTIVE',
+    target_json TEXT      NOT NULL DEFAULT '{}',
+    created_at  DATETIME  NOT NULL,
+    updated_at  DATETIME  NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_goals_status ON goals (status);
+
+CREATE TABLE IF NOT EXISTS goal_milestones (
+    id          TEXT      PRIMARY KEY,
+    goal_id     TEXT      NOT NULL,
+    title       TEXT      NOT NULL,
+    status      TEXT      NOT NULL DEFAULT 'PENDING',
+    agent_id    TEXT      NOT NULL DEFAULT '',
+    updated_at  DATETIME  NOT NULL,
+    FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_milestones_goal ON goal_milestones (goal_id);
 
 `
 
@@ -818,5 +840,121 @@ func (s *sqliteStore) PruneAuditRecords(ctx context.Context, maxAgeDays int) (in
 	}
 	n, _ := res.RowsAffected()
 	return n, nil
+}
+
+// ---------------------------------------------------------------------------
+// Autonomous Long-Term Goals & Milestones
+// ---------------------------------------------------------------------------
+
+type GoalRecord struct {
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Status      string            `json:"status"` // "ACTIVE", "COMPLETED", "PAUSED"
+	TargetJSON  string            `json:"target_json"`
+	Milestones  []MilestoneRecord `json:"milestones,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+}
+
+type MilestoneRecord struct {
+	ID        string    `json:"id"`
+	GoalID    string    `json:"goal_id"`
+	Title     string    `json:"title"`
+	Status    string    `json:"status"` // "PENDING", "IN_PROGRESS", "DONE"
+	AgentID   string    `json:"agent_id"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (s *sqliteStore) CreateGoal(ctx context.Context, title, description, targetJSON string) (*GoalRecord, error) {
+	now := time.Now()
+	rec := &GoalRecord{
+		ID:          uuid.New().String(),
+		Title:       title,
+		Description: description,
+		Status:      "ACTIVE",
+		TargetJSON:  targetJSON,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	q := `INSERT INTO goals (id, title, description, status, target_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+	_, err := s.db.ExecContext(ctx, q, rec.ID, rec.Title, rec.Description, rec.Status, rec.TargetJSON, rec.CreatedAt.Format(time.RFC3339Nano), rec.UpdatedAt.Format(time.RFC3339Nano))
+	if err != nil {
+		return nil, fmt.Errorf("memory: CreateGoal: %w", err)
+	}
+	return rec, nil
+}
+
+func (s *sqliteStore) ListActiveGoals(ctx context.Context) ([]GoalRecord, error) {
+	q := `SELECT id, title, description, status, target_json, created_at, updated_at FROM goals WHERE status = 'ACTIVE' ORDER BY created_at DESC`
+	rows, err := s.db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("memory: ListActiveGoals query: %w", err)
+	}
+	defer rows.Close()
+
+	var goals []GoalRecord
+	for rows.Next() {
+		var g GoalRecord
+		var cAt, uAt string
+		if err := rows.Scan(&g.ID, &g.Title, &g.Description, &g.Status, &g.TargetJSON, &cAt, &uAt); err != nil {
+			return nil, fmt.Errorf("memory: ListActiveGoals scan: %w", err)
+		}
+		g.CreatedAt, _ = time.Parse(time.RFC3339Nano, cAt)
+		g.UpdatedAt, _ = time.Parse(time.RFC3339Nano, uAt)
+
+		// Fetch milestones
+		mRows, err := s.db.QueryContext(ctx, `SELECT id, goal_id, title, status, agent_id, updated_at FROM goal_milestones WHERE goal_id = ? ORDER BY updated_at ASC`, g.ID)
+		if err == nil {
+			defer mRows.Close()
+			for mRows.Next() {
+				var m MilestoneRecord
+				var mUat string
+				if err := mRows.Scan(&m.ID, &m.GoalID, &m.Title, &m.Status, &m.AgentID, &mUat); err == nil {
+					m.UpdatedAt, _ = time.Parse(time.RFC3339Nano, mUat)
+					g.Milestones = append(g.Milestones, m)
+				}
+			}
+		}
+
+		goals = append(goals, g)
+	}
+	return goals, rows.Err()
+}
+
+func (s *sqliteStore) UpdateGoalStatus(ctx context.Context, goalID, status string) error {
+	nowStr := time.Now().Format(time.RFC3339Nano)
+	_, err := s.db.ExecContext(ctx, `UPDATE goals SET status = ?, updated_at = ? WHERE id = ?`, status, nowStr, goalID)
+	if err != nil {
+		return fmt.Errorf("memory: UpdateGoalStatus: %w", err)
+	}
+	return nil
+}
+
+func (s *sqliteStore) AddGoalMilestone(ctx context.Context, goalID, title, agentID string) (*MilestoneRecord, error) {
+	now := time.Now()
+	m := &MilestoneRecord{
+		ID:        uuid.New().String(),
+		GoalID:    goalID,
+		Title:     title,
+		Status:    "PENDING",
+		AgentID:   agentID,
+		UpdatedAt: now,
+	}
+	q := `INSERT INTO goal_milestones (id, goal_id, title, status, agent_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)`
+	_, err := s.db.ExecContext(ctx, q, m.ID, m.GoalID, m.Title, m.Status, m.AgentID, m.UpdatedAt.Format(time.RFC3339Nano))
+	if err != nil {
+		return nil, fmt.Errorf("memory: AddGoalMilestone: %w", err)
+	}
+	return m, nil
+}
+
+func (s *sqliteStore) UpdateMilestoneStatus(ctx context.Context, milestoneID, status string) error {
+	nowStr := time.Now().Format(time.RFC3339Nano)
+	_, err := s.db.ExecContext(ctx, `UPDATE goal_milestones SET status = ?, updated_at = ? WHERE id = ?`, status, nowStr, milestoneID)
+	if err != nil {
+		return fmt.Errorf("memory: UpdateMilestoneStatus: %w", err)
+	}
+	return nil
 }
 

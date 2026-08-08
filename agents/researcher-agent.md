@@ -14,7 +14,11 @@ tools:
   - web_search_and_extract
   - generate_pdf_report
   - fetch_html
+  - fetch_rss_feed
+  - extract_web_tables
   - grep_documents
+  - read_file
+  - list_directory
   - semantic_search_context
   - execute_bash_docker
   - read_state_variable

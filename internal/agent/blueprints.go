@@ -415,7 +415,7 @@ func LoadAgentsConfig(path string) error {
 }
 
 var (
-	dockerToolsAllowed   bool
+	dockerToolsAllowed   bool = true
 	dockerToolsAllowedMu sync.RWMutex
 )
 

@@ -7,12 +7,16 @@ capabilities:
   - general execution
 tools:
   - fetch_html
+  - fetch_rss_feed
+  - extract_web_tables
   - wasm_json_mapper
   - execute_python_docker
+  - execute_bash_docker
   - modify_excel_workbook
   - web_search_and_extract
   - generate_pdf_report
   - write_email
+  - send_ntfy_notification
   - schedule_task
   - list_schedules
   - cancel_schedule
@@ -21,14 +25,37 @@ tools:
   - browser_navigate
   - browser_input
   - browser_click
+  - browser_scroll
+  - browser_wait
+  - browser_extract_js
+  - browser_screenshot
+  - browser_back
+  - browser_reload
+  - browser_save_cookies
+  - browser_load_cookies
+  - read_file
+  - write_file
+  - replace_file_content
+  - list_directory
   - grep_documents
+  - git_operations
+  - http_api_request
+  - query_sqlite_db
+  - csv_json_transformer
+  - archive_manager
+  - inspect_system_processes
+  - inspect_env_vars
+  - validate_json_schema
+  - inspect_host_hardware
   - semantic_search_context
-  - execute_bash_docker
   - read_state_variable
   - write_state_variable
   - extract_pdf_text
   - save_long_term_memory
   - search_long_term_memories
+  - manage_long_term_goals
+  - evaluate_goal_progress
+  - evaluate_security_guardrails
   - query_compute_prices
   - query_forward_curves
   - query_options_chain

@@ -9,6 +9,9 @@ capabilities:
   - blog posts
 tools:
   - grep_documents
+  - read_file
+  - write_file
+  - replace_file_content
   - read_state_variable
   - write_state_variable
 hardware_tier: tier0

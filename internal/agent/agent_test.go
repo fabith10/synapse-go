@@ -631,7 +631,7 @@ func TestEmailAgent(t *testing.T) {
 		// Verify email draft file exists on disk
 		parts := strings.Split(msg.Content, "Draft: ")
 		if len(parts) > 1 {
-			filePath := strings.Fields(parts[1])[0]
+			filePath := strings.Trim(strings.Fields(parts[1])[0], `"'}\`)
 			if _, err := os.Stat(filePath); err != nil {
 				t.Errorf("expected email draft file to exist at %s, got error: %v", filePath, err)
 			}
@@ -644,18 +644,9 @@ func TestEmailAgent(t *testing.T) {
 }
 
 func TestEmailAgent_HITL(t *testing.T) {
-	oldBypass := os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL")
-	oldTesting := os.Getenv("AGENT_FRAMEWORK_TESTING")
-	os.Unsetenv("AGENT_FRAMEWORK_BYPASS_HITL")
-	os.Unsetenv("AGENT_FRAMEWORK_TESTING")
-	defer func() {
-		if oldBypass != "" {
-			os.Setenv("AGENT_FRAMEWORK_BYPASS_HITL", oldBypass)
-		}
-		if oldTesting != "" {
-			os.Setenv("AGENT_FRAMEWORK_TESTING", oldTesting)
-		}
-	}()
+	origAutoApprove := agenttools.CriticalActions.AutoApproveAll
+	agenttools.CriticalActions.AutoApproveAll = false
+	defer func() { agenttools.CriticalActions.AutoApproveAll = origAutoApprove }()
 	cfg := adk.Config{
 		SQLiteDSN: "file:test_email_hitl.db?mode=memory&cache=shared",
 		LLMProviders: []adk.LLMNode{
@@ -725,7 +716,7 @@ func TestEmailAgent_HITL(t *testing.T) {
 		}
 		parts := strings.Split(msg.Content, "Draft: ")
 		if len(parts) > 1 {
-			filePath := strings.Fields(parts[1])[0]
+			filePath := strings.Trim(strings.Fields(parts[1])[0], `"'}\`)
 			_ = os.Remove(filePath)
 		}
 	case <-time.After(10 * time.Second):

@@ -229,6 +229,23 @@ type CheckpointStore interface {
 	// Returns ErrNotFound if no record exists.
 	GetTask(ctx context.Context, taskID string) (ActiveTask, error)
 
+	// ---- Long-Term Autonomous Goals -----------------------------------------
+
+	// CreateGoal creates a new active long-term goal.
+	CreateGoal(ctx context.Context, title, description, targetJSON string) (*GoalRecord, error)
+
+	// ListActiveGoals returns all goals currently in ACTIVE status.
+	ListActiveGoals(ctx context.Context) ([]GoalRecord, error)
+
+	// UpdateGoalStatus updates the status of a goal (ACTIVE, COMPLETED, PAUSED).
+	UpdateGoalStatus(ctx context.Context, goalID, status string) error
+
+	// AddGoalMilestone appends a sub-milestone to a long-term goal.
+	AddGoalMilestone(ctx context.Context, goalID, title, agentID string) (*MilestoneRecord, error)
+
+	// UpdateMilestoneStatus updates milestone status (PENDING, IN_PROGRESS, DONE).
+	UpdateMilestoneStatus(ctx context.Context, milestoneID, status string) error
+
 	// ---- Lifecycle ----------------------------------------------------------
 
 	// Close releases all held resources (DB connections, file handles, etc.).

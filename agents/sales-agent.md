@@ -7,6 +7,10 @@ capabilities:
   - sales pipelining
 tools:
   - check_lead_score
+  - write_email
+  - web_search_and_extract
+  - read_state_variable
+  - write_state_variable
 hardware_tier: tier0
 max_willing_to_pay: 0.05
 ---
