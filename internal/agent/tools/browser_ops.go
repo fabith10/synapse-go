@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/fabith10/synapse-go/adk"
 )
@@ -25,14 +26,19 @@ func GetBrowserNavigateTool() adk.Tool {
 		},
 		Tier: adk.TierNative,
 		Execute: func(ctx context.Context, args []byte) (string, error) {
-			var params struct {
-				URL string `json:"url"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
+			var raw map[string]interface{}
+			if err := json.Unmarshal(args, &raw); err != nil {
 				return "", fmt.Errorf("failed to parse navigation URL: %w", err)
 			}
+			targetURL := extractStringAlias(raw, "url", "target_url", "link", "address", "uri")
+			if targetURL == "" {
+				return "", fmt.Errorf("missing required parameter 'url'")
+			}
+			if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") {
+				targetURL = "https://" + targetURL
+			}
 			sessionID, _ := ctx.Value("session_id").(string)
-			return GlobalSessionManager.GetSession(sessionID).Navigate(params.URL)
+			return GlobalSessionManager.GetSession(sessionID).Navigate(targetURL)
 		},
 	}
 }

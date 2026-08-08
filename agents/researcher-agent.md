@@ -26,9 +26,6 @@ tools:
   - extract_pdf_text
   - save_long_term_memory
   - search_long_term_memories
-  - query_compute_prices
-  - query_forward_curves
-  - query_options_chain
 hardware_tier: tier0
 max_willing_to_pay: 0.15
 ---

@@ -61,18 +61,21 @@ func isSystemMetadataPath(path string) bool {
 	if isFrameworkSourcePath(path) {
 		return true
 	}
-	if sanitizer.IsGitIgnoredPath(path) {
-		return true
-	}
 	cleaned := strings.ToLower(filepath.Clean(path))
 	parts := strings.Split(cleaned, string(filepath.Separator))
 	for _, part := range parts {
+		if part == "uploads" || part == "emails" || part == "reports" || part == "scratch" || part == "scripts" || part == "jobs_list.json" {
+			return false
+		}
 		if part == ".agents" || part == ".gemini" || part == ".git" || part == ".aws" || part == ".ssh" || part == ".kube" || part == ".docker" ||
 			part == "agents.md" || part == "gemini.md" || part == "agent.md" ||
 			part == ".env" || strings.HasPrefix(part, ".env.") ||
 			part == "id_rsa" || part == "id_ed25519" || strings.HasSuffix(part, ".pem") || strings.HasSuffix(part, ".key") {
 			return true
 		}
+	}
+	if sanitizer.IsGitIgnoredPath(path) {
+		return true
 	}
 	return false
 }
@@ -91,14 +94,31 @@ func resolveSafeWorkspacePathWithCtx(ctx context.Context, targetPath string) (st
 	isTest := os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" || strings.HasSuffix(os.Args[0], ".test") || flag.Lookup("test.v") != nil
 	cleaned := filepath.Clean(targetPath)
 
+	tempDir := os.TempDir()
+	if realTemp, err := filepath.EvalSymlinks(tempDir); err == nil {
+		tempDir = realTemp
+	}
+
 	var resolved string
 	if filepath.IsAbs(targetPath) {
-		resolved = cleaned
+		rel := strings.TrimLeft(targetPath, "/\\")
+		joined := filepath.Clean(filepath.Join(activeRoot, rel))
+
+		if strings.HasPrefix(cleaned, activeRoot) || strings.HasPrefix(cleaned, cwd) ||
+			strings.HasPrefix(cleaned, tempDir) || strings.HasPrefix(cleaned, "/tmp") || strings.HasPrefix(cleaned, "/private/tmp") ||
+			strings.HasPrefix(cleaned, "/var") || strings.HasPrefix(cleaned, "/private/var") {
+			resolved = cleaned
+		} else if _, err := os.Stat(joined); err == nil {
+			resolved = joined
+		} else if _, err := os.Stat(cleaned); err == nil {
+			resolved = cleaned
+		} else {
+			resolved = joined
+		}
 	} else {
 		rel := strings.TrimLeft(targetPath, "/\\")
 		resolved = filepath.Clean(filepath.Join(activeRoot, rel))
 	}
-
 	if realRoot, err := filepath.EvalSymlinks(activeRoot); err == nil {
 		activeRoot = realRoot
 	}
@@ -117,10 +137,6 @@ func resolveSafeWorkspacePathWithCtx(ctx context.Context, targetPath string) (st
 		}
 	}
 
-	tempDir := os.TempDir()
-	if realTemp, err := filepath.EvalSymlinks(tempDir); err == nil {
-		tempDir = realTemp
-	}
 	isTemp := strings.HasPrefix(resolved, os.TempDir()) || strings.HasPrefix(resolved, tempDir)
 
 	isSafe := isInsideActiveRoot || isInsideCwd || isDevWorkspace || (isTest && isTemp)

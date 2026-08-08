@@ -128,23 +128,21 @@ func GetWebSearchAndExtractTool() adk.Tool {
 		},
 		Tier: adk.TierNative,
 		Execute: func(ctx context.Context, args []byte) (string, error) {
-			var params struct {
-				Query string `json:"query"`
-				Depth string `json:"depth"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
+			var raw map[string]interface{}
+			if err := json.Unmarshal(args, &raw); err != nil {
 				return "", fmt.Errorf("failed to parse search arguments: %w", err)
+			}
+			query := extractStringAlias(raw, "query", "search", "term")
+			depthStr := extractStringAlias(raw, "depth", "search_depth")
+			if depthStr == "" {
+				depthStr = "basic"
 			}
 
 			apiKey := os.Getenv("TAVILY_API_KEY")
 			if apiKey != "" {
-				depth := "basic"
-				if params.Depth != "" {
-					depth = params.Depth
-				}
 				payload := map[string]interface{}{
-					"query":        params.Query,
-					"search_depth": depth,
+					"query":        query,
+					"search_depth": depthStr,
 				}
 				jsonPayload, _ := json.Marshal(payload)
 				req, err := http.NewRequestWithContext(ctx, "POST", "https://api.tavily.com/search", bytes.NewBuffer(jsonPayload))
@@ -187,12 +185,12 @@ func GetWebSearchAndExtractTool() adk.Tool {
 			// Mock fallback strictly limited to testing context
 			if os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" {
 				mockResults := map[string]interface{}{
-					"query": params.Query,
+					"query": query,
 					"results": []map[string]string{
 						{
-							"title":   "Decentralized Compute Price Trends (Mock)",
-							"url":     "https://example.com/compute-trends",
-							"content": "GPU spot instance pricing is highly volatile. Currently, H100 GPU leases on spot markets range from $1.80 to $2.20 per hour. Option contract premiums represent a 1.8% baseline commodity reservation rate.",
+							"title":   fmt.Sprintf("Search Results for %s", query),
+							"url":     "https://example.com/search",
+							"content": fmt.Sprintf("Top relevant web results for query: %s. Details and facts related to %s.", query, query),
 						},
 					},
 				}
@@ -201,7 +199,7 @@ func GetWebSearchAndExtractTool() adk.Tool {
 			}
 
 			// Live key-less DuckDuckGo search in non-testing environment
-			ddgResults, err := fetchDuckDuckGoSearchResults(ctx, params.Query)
+			ddgResults, err := fetchDuckDuckGoSearchResults(ctx, query)
 			if err != nil {
 				return "", fmt.Errorf("web search failed: Tavily API key is not configured and live DuckDuckGo crawler failed: %w", err)
 			}
