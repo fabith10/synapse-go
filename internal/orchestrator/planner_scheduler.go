@@ -334,10 +334,12 @@ func (ps *PlannerScheduler) Middleware() MiddlewareFunc {
 			logger.WithComponent("planner_scheduler").Warn("Parsing error, falling back to direct delivery", "error", err)
 		}
 
-		// 2. Intercept completed subtasks (only if they have bypassed the supervisor)
+		// 2. Intercept completed subtasks
 		if msg.Recipient == "USER" && msg.Metadata != nil && msg.Metadata["is_subtask"] == "true" {
-			if msg.Metadata["supervisor_bypass"] == "true" {
-				ps.HandleSubTaskResponse(ctx, msg.Metadata["subtask_id"], msg.Content, msg.Metadata["correlation_id"])
+			subtaskID := msg.Metadata["subtask_id"]
+			corrID := msg.Metadata["correlation_id"]
+			if subtaskID != "" && corrID != "" {
+				ps.HandleSubTaskResponse(ctx, subtaskID, msg.Content, corrID)
 				return // Suppress sending raw sub-task output to user HITL
 			}
 		}

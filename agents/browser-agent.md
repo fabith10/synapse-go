@@ -34,7 +34,7 @@ Click a link or button: {"action":"click","element_index":5}
 Scroll vertically: {"action":"scroll","dy":500} (positive = down, negative = up)
 Wait for selector: {"action":"wait","selector":".data-table","timeout_sec":10}
 Execute JavaScript to extract data: {"action":"extract_js","expression":"document.querySelector('.price').innerText"}
-Take screenshot: {"action":"screenshot","out_path":"/tmp/view.png"}
+Take screenshot: {"action":"screenshot","out_path":"reports/view.png"}
 Signal completion: {"action":"done","summary":"Brief description of what was accomplished"}
 
 Rules:
