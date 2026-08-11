@@ -537,6 +537,10 @@
                     <div class="flex items-center justify-between border-b border-zinc-800 pb-3 flex-wrap gap-2">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                <!-- Parallel Execution Swimlane Matrix -->
+                <section class="glass-card rounded-2xl p-6 shadow-2xl">
+                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3 flex-wrap gap-2">
+                        <div>
                             <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
                                 <span>⚡</span> Multi-Agent Parallel Execution Matrix
                             </h2>
@@ -548,137 +552,43 @@
                     </div>
 
                     <div id="parallelism-matrix" class="space-y-2.5 font-mono text-[11px]">
-                        <div id="swimlane-triage-agent" class="swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 transition-all">
-                            <div class="w-36 shrink-0 flex items-center justify-between pr-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-                                    <span class="font-bold text-zinc-200 truncate">triage-agent</span>
-                                </div>
-                                <span id="swimlane-count-triage-agent" class="text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded hidden">×1</span>
-                            </div>
-                            <div class="flex-1 bg-zinc-900/90 rounded-lg h-7 p-1 relative overflow-hidden flex items-center border border-zinc-800">
-                                <div id="swimlane-bar-triage-agent" class="h-full rounded bg-indigo-500/20 border border-indigo-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-indigo-300 font-semibold truncate"></div>
-                                <span id="swimlane-status-triage-agent" class="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono">IDLE</span>
-                            </div>
-                            <span id="swimlane-timer-triage-agent" class="w-16 text-right text-[10px] text-zinc-500 font-mono">0.0s</span>
-                        </div>
-
-                        <div id="swimlane-planner-agent" class="swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 transition-all">
-                            <div class="w-36 shrink-0 flex items-center justify-between pr-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-                                    <span class="font-bold text-zinc-200 truncate">planner-agent</span>
-                                </div>
-                                <span id="swimlane-count-planner-agent" class="text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded hidden">×1</span>
-                            </div>
-                            <div class="flex-1 bg-zinc-900/90 rounded-lg h-7 p-1 relative overflow-hidden flex items-center border border-zinc-800">
-                                <div id="swimlane-bar-planner-agent" class="h-full rounded bg-purple-500/20 border border-purple-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-purple-300 font-semibold truncate"></div>
-                                <span id="swimlane-status-planner-agent" class="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono">IDLE</span>
-                            </div>
-                            <span id="swimlane-timer-planner-agent" class="w-16 text-right text-[10px] text-zinc-500 font-mono">0.0s</span>
-                        </div>
-
-                        <div id="swimlane-developer-agent" class="swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 transition-all">
-                            <div class="w-36 shrink-0 flex items-center justify-between pr-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <span class="font-bold text-zinc-200 truncate">developer-agent</span>
-                                </div>
-                                <span id="swimlane-count-developer-agent" class="text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded hidden">×1</span>
-                            </div>
-                            <div class="flex-1 bg-zinc-900/90 rounded-lg h-7 p-1 relative overflow-hidden flex items-center border border-zinc-800">
-                                <div id="swimlane-bar-developer-agent" class="h-full rounded bg-emerald-500/20 border border-emerald-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-emerald-300 font-semibold truncate"></div>
-                                <span id="swimlane-status-developer-agent" class="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono">IDLE</span>
-                            </div>
-                            <span id="swimlane-timer-developer-agent" class="w-16 text-right text-[10px] text-zinc-500 font-mono">0.0s</span>
-                        </div>
-
-                        <div id="swimlane-researcher-agent" class="swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 transition-all">
-                            <div class="w-36 shrink-0 flex items-center justify-between pr-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
-                                    <span class="font-bold text-zinc-200 truncate">researcher-agent</span>
-                                </div>
-                                <span id="swimlane-count-researcher-agent" class="text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded hidden">×1</span>
-                            </div>
-                            <div class="flex-1 bg-zinc-900/90 rounded-lg h-7 p-1 relative overflow-hidden flex items-center border border-zinc-800">
-                                <div id="swimlane-bar-researcher-agent" class="h-full rounded bg-cyan-500/20 border border-cyan-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-cyan-300 font-semibold truncate"></div>
-                                <span id="swimlane-status-researcher-agent" class="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono">IDLE</span>
-                            </div>
-                            <span id="swimlane-timer-researcher-agent" class="w-16 text-right text-[10px] text-zinc-500 font-mono">0.0s</span>
-                        </div>
-
-                        <div id="swimlane-quant-agent" class="swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 transition-all">
-                            <div class="w-36 shrink-0 flex items-center justify-between pr-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                    <span class="font-bold text-zinc-200 truncate">quant-agent</span>
-                                </div>
-                                <span id="swimlane-count-quant-agent" class="text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded hidden">×1</span>
-                            </div>
-                            <div class="flex-1 bg-zinc-900/90 rounded-lg h-7 p-1 relative overflow-hidden flex items-center border border-zinc-800">
-                                <div id="swimlane-bar-quant-agent" class="h-full rounded bg-amber-500/20 border border-amber-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-amber-300 font-semibold truncate"></div>
-                                <span id="swimlane-status-quant-agent" class="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono">IDLE</span>
-                            </div>
-                            <span id="swimlane-timer-quant-agent" class="w-16 text-right text-[10px] text-zinc-500 font-mono">0.0s</span>
-                        </div>
-
-                        <div id="swimlane-etl-agent" class="swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 transition-all">
-                            <div class="w-36 shrink-0 flex items-center justify-between pr-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                                    <span class="font-bold text-zinc-200 truncate">etl-agent</span>
-                                </div>
-                                <span id="swimlane-count-etl-agent" class="text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded hidden">×1</span>
-                            </div>
-                            <div class="flex-1 bg-zinc-900/90 rounded-lg h-7 p-1 relative overflow-hidden flex items-center border border-zinc-800">
-                                <div id="swimlane-bar-etl-agent" class="h-full rounded bg-blue-500/20 border border-blue-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-blue-300 font-semibold truncate"></div>
-                                <span id="swimlane-status-etl-agent" class="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono">IDLE</span>
-                            </div>
-                            <span id="swimlane-timer-etl-agent" class="w-16 text-right text-[10px] text-zinc-500 font-mono">0.0s</span>
-                        </div>
-
-                        <div id="swimlane-browser-agent" class="swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 transition-all">
-                            <div class="w-36 shrink-0 flex items-center justify-between pr-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-pink-500"></span>
-                                    <span class="font-bold text-zinc-200 truncate">browser-agent</span>
-                                </div>
-                                <span id="swimlane-count-browser-agent" class="text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded hidden">×1</span>
-                            </div>
-                            <div class="flex-1 bg-zinc-900/90 rounded-lg h-7 p-1 relative overflow-hidden flex items-center border border-zinc-800">
-                                <div id="swimlane-bar-browser-agent" class="h-full rounded bg-pink-500/20 border border-pink-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-pink-300 font-semibold truncate"></div>
-                                <span id="swimlane-status-browser-agent" class="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono">IDLE</span>
-                            </div>
-                            <span id="swimlane-timer-browser-agent" class="w-16 text-right text-[10px] text-zinc-500 font-mono">0.0s</span>
-                        </div>
+                        <!-- Dynamic agent swimlanes generated & managed by AgentStateMachine -->
                     </div>
                 </section>
 
                 <!-- Real-time Console Log Stream -->
-                <section class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col h-[520px]">
+                <section class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col h-[560px]">
                     <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3 flex-wrap gap-2">
                         <div class="flex items-center gap-2 flex-wrap" id="log-filter-bar">
                             <span class="text-xs font-semibold uppercase tracking-widest text-zinc-200 flex items-center gap-2 mr-2">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                 Event Stream
                             </span>
-                            <button onclick="setLogFilter('all')" id="filter-btn-all" class="px-3 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm">All</button>
-                            <button onclick="setLogFilter('user')" id="filter-btn-user" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">User Chat</button>
-                            <button onclick="setLogFilter('orchestration')" id="filter-btn-orchestration" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Orchestration</button>
-                            <button onclick="setLogFilter('specialists')" id="filter-btn-specialists" class="px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Specialists</button>
+                            <!-- Category Filter Buttons -->
+                            <button onclick="setLogCategoryFilter('all')" id="filter-btn-all" class="px-2.5 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm">All</button>
+                            <button onclick="setLogCategoryFilter('tool_call')" id="filter-btn-tool_call" class="px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Tool Calls ⚡</button>
+                            <button onclick="setLogCategoryFilter('supervisor')" id="filter-btn-supervisor" class="px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Supervisor QA 🔍</button>
+                            <button onclick="setLogCategoryFilter('dispatch')" id="filter-btn-dispatch" class="px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Dispatches ➔</button>
+
+                            <!-- Agent Filter Select -->
+                            <select id="agent-filter-select" onchange="applyLogFilters()" class="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] font-mono rounded px-2.5 py-1 focus:outline-none focus:border-zinc-700 cursor-pointer">
+                                <option value="all">All Agents</option>
+                            </select>
+
+                            <!-- Search Bar -->
+                            <input type="text" id="log-search-input" onkeyup="applyLogFilters()" placeholder="Filter logs..." class="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] font-mono rounded px-2.5 py-1 w-36 focus:outline-none focus:border-zinc-700">
                         </div>
                         <div class="flex items-center gap-2">
                             <button hx-post="/api/session/new" hx-target="#console-logs" hx-swap="innerHTML" hx-confirm="Start a new session? This will clear active conversation history and event log." class="px-2.5 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-md cursor-pointer transition-all active:scale-95 shadow-sm inline-flex items-center gap-1">
                                 <span>✨ New Session</span>
                             </button>
-                            <span class="text-[9px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded">SSE Live Feed</span>
+                            <span class="text-[9px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded select-none">SSE Live Feed</span>
                         </div>
                     </div>
 
                     <div id="console-logs" sse-swap="log-message" hx-swap="beforeend"
                          hx-on::after-settle="this.scrollTop = this.scrollHeight"
-                         class="flex-1 font-mono text-[11px] overflow-y-auto bg-zinc-950 text-zinc-200 p-4 rounded-xl border border-zinc-800/90 space-y-3 scroll-smooth shadow-inner">
+                         class="flex-1 font-mono text-[11px] overflow-y-auto bg-zinc-950 text-zinc-200 p-4 rounded-xl border border-zinc-800/90 space-y-2 scroll-smooth shadow-inner">
                         <div class="text-zinc-500 italic font-mono text-xs text-center py-8">[Ready to process autonomous agent telemetry...]</div>
                     </div>
                 </section>

@@ -23,6 +23,8 @@ import (
 	"github.com/fabith10/synapse-go/adk"
 	"github.com/fabith10/synapse-go/internal/agent"
 	agenttools "github.com/fabith10/synapse-go/internal/agent/tools"
+	"github.com/fabith10/synapse-go/internal/broker"
+	"github.com/fabith10/synapse-go/internal/hitl"
 	"github.com/fabith10/synapse-go/internal/memory"
 	"github.com/fabith10/synapse-go/pkg/logger"
 )
@@ -202,6 +204,10 @@ func NewServer(rt *adk.Runtime) *Server {
 		approvals:     make(map[string]adk.Message),
 		mockTaskStore: NewMockTaskStore(),
 	}
+
+	// Initialize NATS distributed broker (falls back cleanly if server not running)
+	broker.InitGlobalNATSBroker()
+
 	if agenttools.GlobalScheduler != nil {
 		agenttools.GlobalScheduler.SetLogger(func(sender, recipient, content string) {
 			s.LogEvent(sender, recipient, content)
@@ -224,23 +230,65 @@ func NewServer(rt *adk.Runtime) *Server {
 func (s *Server) LogEvent(sender, recipient, content string) {
 	logger.WithComponent("web").Info("LogEvent", "sender", sender, "recipient", recipient, "content", content)
 
-	// RawJSON is a JSON-encoded string literal so it can be safely assigned
-	// to a JS variable inside an inline <script> without HTML/newline issues.
+	eventType := "INFO"
+	category := "general"
+	activeTool := ""
+
+	cleanContent := strings.TrimSpace(content)
+	if strings.Contains(cleanContent, "[Supervisor Check]") || strings.Contains(cleanContent, "[Supervisor Escalation]") {
+		eventType = "QA_EVAL"
+		category = "supervisor"
+	} else if strings.Contains(cleanContent, "[Plan Execution]") || strings.Contains(cleanContent, "Triggering new task:") {
+		eventType = "TASK_DISPATCH"
+		category = "dispatch"
+	} else if strings.Contains(cleanContent, "[Final Outcome]") || strings.Contains(cleanContent, "Verdict: DONE") || strings.Contains(cleanContent, "action\":\"done") {
+		eventType = "TASK_COMPLETE"
+		category = "outcome"
+	} else if strings.Contains(cleanContent, "Action Result:") || strings.Contains(cleanContent, "\"action\":") || strings.Contains(cleanContent, "Step ") {
+		eventType = "TOOL_CALL"
+		category = "tool_call"
+
+		if idx := strings.Index(cleanContent, "\"action\":"); idx != -1 {
+			sub := cleanContent[idx+9:]
+			sub = strings.TrimSpace(sub)
+			sub = strings.Trim(sub, "\"'")
+			if endIdx := strings.IndexAny(sub, "\"'},\n"); endIdx != -1 {
+				activeTool = sub[:endIdx]
+			}
+		}
+	}
+
 	rawJSONBytes, _ := json.Marshal(content)
 
 	var buf bytes.Buffer
 	LogSnippetTemplate.Execute(&buf, map[string]interface{}{
-		"Time":      time.Now().Format("15:04:05"),
-		"Sender":    sender,
-		"Recipient": recipient,
-		"Content":   content,
-		"RawJSON":   template.JS(rawJSONBytes), // safe JS literal
+		"Time":       time.Now().Format("15:04:05"),
+		"Sender":     sender,
+		"Recipient":  recipient,
+		"Content":    content,
+		"EventType":  eventType,
+		"Category":   category,
+		"ActiveTool": activeTool,
+		"RawJSON":    template.JS(rawJSONBytes),
 	})
 	cleanHTML := strings.ReplaceAll(buf.String(), "\n", " ")
 	cleanHTML = strings.ReplaceAll(cleanHTML, "\r", " ")
 	sseMsg := fmt.Sprintf("event: log-message\ndata: %s\n\n", cleanHTML)
 	logger.WithComponent("web").Debug("SSE Broadcast payload", "payload", sseMsg)
 	s.logBroker.Broadcast(sseMsg)
+
+	// Publish to NATS telemetry subject if NATS broker is connected
+	if nats := broker.GetGlobalNATSBroker(); nats != nil {
+		_ = nats.Publish("agents.telemetry", map[string]interface{}{
+			"sender":     sender,
+			"recipient":  recipient,
+			"event_type": eventType,
+			"category":   category,
+			"active_tool": activeTool,
+			"content":    content,
+			"timestamp":  time.Now().Format(time.RFC3339),
+		})
+	}
 }
 
 // addToHistory appends a turn to the rolling conversation window (capped at maxHistoryTurns).
@@ -305,6 +353,15 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 					}
 					s.approvals[corrID] = msg
 					s.approvalsMu.Unlock()
+
+					// Persist pending approval into SQLite HITLGateway
+					if gw := hitl.GetGlobalHITLGateway(); gw != nil {
+						actionName := ""
+						if msg.Metadata != nil {
+							actionName = msg.Metadata["action"]
+						}
+						_, _ = gw.CreateApproval(corrID, msg.Sender, actionName, msg.Content, msg.Metadata)
+					}
 
 					// Broadcast approval alert to front-end SSE channel
 					jsonContent, _ := json.Marshal(msg.Content)
@@ -432,6 +489,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux.HandleFunc("/stream/logs", s.handleSSE)
 	mux.HandleFunc("/api/task", s.handleTaskDispatch)
 	mux.HandleFunc("/api/hitl/respond", s.handleHITLResponse)
+	mux.HandleFunc("/api/hitl/pending", s.handleHITLPending)
 	mux.HandleFunc("/api/config/save", s.handleConfigSave)
 	mux.HandleFunc("/api/config/pricing-provider", s.handlePricingProviderConfig)
 	mux.HandleFunc("/api/artifact", s.handleArtifact)
@@ -880,6 +938,10 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if gw := hitl.GetGlobalHITLGateway(); gw != nil {
+		_, _ = gw.SubmitDecision(corrID, decision, "Operator response submitted via web API")
+	}
+
 	replyTo := originalMsg.Metadata["reply_to"]
 	if replyTo == "" {
 		replyTo = originalMsg.Sender
@@ -904,6 +966,29 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 	ActionTakenTemplate.Execute(w, map[string]string{
 		"Decision": decision,
 	})
+}
+
+func (s *Server) handleHITLPending(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	gw := hitl.GetGlobalHITLGateway()
+	if gw == nil {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]hitl.PendingApproval{})
+		return
+	}
+
+	pending, err := gw.ListPendingApprovals()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list pending approvals: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(pending)
 }
 
 func (s *Server) handleConfigSave(w http.ResponseWriter, r *http.Request) {

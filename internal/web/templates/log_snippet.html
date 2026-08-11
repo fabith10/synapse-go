@@ -1,34 +1,33 @@
-<div class="log-entry py-2.5 px-3 rounded-lg border border-zinc-900 hover:border-zinc-800 hover:bg-zinc-900/40 flex gap-3 items-start text-zinc-300 transition-all group" data-sender="{{.Sender}}" data-recipient="{{.Recipient}}">
-    <span class="text-zinc-500 shrink-0 select-none font-mono text-[9px] pt-0.5 whitespace-nowrap">[{{.Time}}]</span>
-    <div class="flex items-center gap-1.5 shrink-0 text-[10px] font-mono">
-        <span class="sender-badge px-2 py-0.5 rounded font-bold uppercase shadow-sm bg-zinc-800 text-zinc-200 border border-zinc-700" data-sender="{{.Sender}}">{{.Sender}}</span>
-        <span class="text-zinc-400">➔</span>
-        <span class="recipient-badge px-2 py-0.5 rounded font-bold uppercase shadow-sm bg-zinc-900 text-zinc-400 border border-zinc-800" data-recipient="{{.Recipient}}">{{.Recipient}}</span>
+<div class="log-entry py-2.5 px-3 rounded-xl border border-zinc-800/80 bg-zinc-950/70 hover:border-zinc-700/80 hover:bg-zinc-900/50 flex flex-col gap-2 text-zinc-300 transition-all group shadow-sm mb-2"
+     data-sender="{{.Sender}}"
+     data-recipient="{{.Recipient}}"
+     data-event-type="{{.EventType}}"
+     data-category="{{.Category}}"
+     data-tool="{{.ActiveTool}}">
+    
+    <div class="flex items-center justify-between gap-2 border-b border-zinc-900 pb-1.5 text-[10px] font-mono select-none">
+        <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-zinc-500 font-mono text-[9px]">[{{.Time}}]</span>
+            <span class="sender-badge px-2 py-0.5 rounded font-bold uppercase shadow-sm bg-zinc-800 text-zinc-200 border border-zinc-700" data-sender="{{.Sender}}">{{.Sender}}</span>
+            <span class="text-zinc-500">➔</span>
+            <span class="recipient-badge px-2 py-0.5 rounded font-bold uppercase shadow-sm bg-zinc-900 text-zinc-400 border border-zinc-800" data-recipient="{{.Recipient}}">{{.Recipient}}</span>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+            {{if .ActiveTool}}
+            <span class="tool-badge px-2 py-0.5 rounded-full font-mono text-[9px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800/60 flex items-center gap-1">
+                <span>⚡</span> {{.ActiveTool}}
+            </span>
+            {{end}}
+            <span class="event-badge px-2 py-0.5 rounded font-mono text-[9px] font-semibold uppercase 
+                {{if eq .EventType "TOOL_CALL"}}bg-indigo-950/60 text-indigo-300 border border-indigo-800/50
+                {{else if eq .EventType "QA_EVAL"}}bg-amber-950/60 text-amber-300 border border-amber-800/50
+                {{else if eq .EventType "TASK_DISPATCH"}}bg-purple-950/60 text-purple-300 border border-purple-800/50
+                {{else if eq .EventType "TASK_COMPLETE"}}bg-emerald-950/60 text-emerald-300 border border-emerald-800/50
+                {{else}}bg-zinc-900 text-zinc-400 border border-zinc-800{{end}}">
+                {{.EventType}}
+            </span>
+        </div>
     </div>
-    <div id="md-{{.Time}}-{{.Sender}}" class="md-content text-zinc-200 flex-1 min-w-0 text-[11px] leading-relaxed" data-raw="{{.Content}}"></div>
+
+    <div class="md-content text-zinc-200 text-[11px] leading-relaxed break-words" data-raw="{{.Content}}"></div>
 </div>
-<script>(function(){
-  var el = document.getElementById("md-{{.Time}}-{{.Sender}}");
-  if (!el) return;
-  var raw = el.getAttribute("data-raw") || "";
-  if (typeof marked !== "undefined") {
-    el.innerHTML = marked.parse(raw, { breaks: true, gfm: true });
-  } else {
-    el.textContent = raw;
-  }
-
-  var entry = el.closest(".log-entry");
-  if (entry && typeof window.applyFilterToElement === "function") {
-    window.applyFilterToElement(entry);
-  }
-
-  if (typeof window.emitLiveNetworkPulse === "function") {
-    window.emitLiveNetworkPulse("{{.Sender}}", "{{.Recipient}}");
-  }
-  if (typeof window.updateParallelismSwimlane === "function") {
-    window.updateParallelismSwimlane("{{.Sender}}", "{{.Recipient}}", raw);
-  }
-
-  var log = document.getElementById("console-logs");
-  if (log) log.scrollTop = log.scrollHeight;
-})();</script>

@@ -65,21 +65,82 @@ function toggleTheme() {
             }, 50);
         });
 
+        window.currentLogCategory = 'all';
+        window.knownAgents = new Set(['triage-agent', 'planner-agent', 'supervisor-agent', 'developer-agent', 'researcher-agent', 'browser-agent', 'quant-agent', 'etl-agent', 'writer-agent', 'sales-agent', 'email-agent', 'excel-agent', 'generalist-agent']);
+
         document.addEventListener('htmx:afterSwap', function(e) {
             if (e.target && (e.target.id === 'console-logs' || (e.target.classList && e.target.classList.contains('log-entry')))) {
                 const logs = e.target.querySelectorAll ? e.target.querySelectorAll('.log-entry') : [e.target];
-                if (logs.length > 0) {
-                    const lastLog = logs[logs.length - 1];
-                    const sender = lastLog.getAttribute('data-sender') || '';
-                    const recipient = lastLog.getAttribute('data-recipient') || '';
-                    const content = lastLog.textContent || '';
+                logs.forEach(log => {
+                    if (log.dataset.rendered === 'true') return;
+                    log.dataset.rendered = 'true';
+
+                    const sender = log.getAttribute('data-sender') || '';
+                    const recipient = log.getAttribute('data-recipient') || '';
+                    const eventType = log.getAttribute('data-event-type') || 'INFO';
+                    const tool = log.getAttribute('data-tool') || '';
+
+                    // Add sender and recipient to agent filter select dropdown
+                    [sender, recipient].forEach(a => {
+                        if (a && a !== 'USER' && a !== 'SYSTEM' && a !== 'WEB' && a !== 'WARNING' && !window.knownAgents.has(a)) {
+                            window.knownAgents.add(a);
+                            const select = document.getElementById('agent-filter-select');
+                            if (select) {
+                                const opt = document.createElement('option');
+                                opt.value = a;
+                                opt.textContent = a;
+                                select.appendChild(opt);
+                            }
+                        }
+                    });
+
+                    // Render markdown content
+                    const mdContainer = log.querySelector('.md-content');
+                    if (mdContainer) {
+                        const raw = mdContainer.getAttribute('data-raw') || '';
+                        let renderedHTML = '';
+                        if (typeof marked !== 'undefined') {
+                            renderedHTML = marked.parse(raw, { breaks: true, gfm: true });
+                        } else {
+                            renderedHTML = raw;
+                        }
+
+                        // If it's a tool call or has tool metadata, wrap in expandable interactive card
+                        if (tool || eventType === 'TOOL_CALL') {
+                            const toolName = tool || 'tool_call';
+                            mdContainer.innerHTML = `
+                                <details class="my-1 rounded-lg border border-purple-900/60 bg-purple-950/20 overflow-hidden shadow-inner group/details">
+                                    <summary class="px-3 py-1.5 text-[10px] font-mono font-bold text-purple-300 cursor-pointer bg-purple-950/40 hover:bg-purple-950/60 flex items-center justify-between select-none">
+                                        <span class="flex items-center gap-1.5">
+                                            <span class="text-purple-400">⚡ Tool Call:</span>
+                                            <span class="px-1.5 py-0.5 rounded bg-purple-900/70 border border-purple-700/60 text-purple-200">${toolName}</span>
+                                        </span>
+                                        <span class="text-[9px] text-purple-400 font-normal group-open/details:hidden">Expand Payload ➔</span>
+                                        <span class="text-[9px] text-purple-400 font-normal hidden group-open/details:inline">Collapse ⯅</span>
+                                    </summary>
+                                    <div class="p-3 text-[10px] font-mono text-zinc-300 overflow-x-auto bg-zinc-950/80 border-t border-purple-900/40 leading-relaxed">${renderedHTML}</div>
+                                </details>
+                            `;
+                        } else {
+                            mdContainer.innerHTML = renderedHTML;
+                        }
+                    }
+
+                    // Trigger pulse animation & swimlane update
                     if (typeof emitLiveNetworkPulse === 'function') {
                         emitLiveNetworkPulse(sender, recipient);
                     }
                     if (typeof updateParallelismSwimlane === 'function') {
-                        updateParallelismSwimlane(sender, recipient, content);
+                        const raw = mdContainer ? mdContainer.getAttribute('data-raw') : '';
+                        updateParallelismSwimlane(sender, recipient, raw, eventType, tool);
                     }
-                }
+
+                    // Apply active filters
+                    applyLogFiltersToElement(log);
+                });
+
+                const consoleLogs = document.getElementById('console-logs');
+                if (consoleLogs) consoleLogs.scrollTop = consoleLogs.scrollHeight;
             }
         });
 
@@ -87,10 +148,9 @@ function toggleTheme() {
         window.agentTimers = {};
         window.agentInvocations = {};
 
-        window.updateParallelismSwimlane = function(sender, recipient, content) {
+        window.updateParallelismSwimlane = function(sender, recipient, content, eventType, activeTool) {
             if (!sender && !recipient) return;
 
-            // Ignore warning messages, system alerts, and security-guardrail entries
             if (sender === 'security-guardrail' || sender === 'SYSTEM' || (content && (content.includes('WARNING') || content.includes('System Warnings')))) {
                 return;
             }
@@ -107,25 +167,24 @@ function toggleTheme() {
                         row.id = 'swimlane-' + agentId;
                         row.className = 'swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 transition-all';
                         row.innerHTML = `
-                            <div class="w-36 shrink-0 flex items-center justify-between pr-2">
+                            <div class="w-36 shrink-0 flex items-center justify-between pr-2 select-none">
                                 <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                                     <span class="font-bold text-zinc-200 truncate">${agentId}</span>
                                 </div>
                                 <span id="swimlane-count-${agentId}" class="text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded hidden">×1</span>
                             </div>
                             <div class="flex-1 bg-zinc-900/90 rounded-lg h-7 p-1 relative overflow-hidden flex items-center border border-zinc-800">
-                                <div id="swimlane-bar-${agentId}" class="h-full rounded bg-teal-500/20 border border-teal-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-teal-300 font-semibold truncate"></div>
+                                <div id="swimlane-bar-${agentId}" class="h-full rounded bg-emerald-500/20 border border-emerald-500/40 w-0 transition-all duration-300 flex items-center px-2 text-[10px] text-emerald-300 font-semibold truncate"></div>
                                 <span id="swimlane-status-${agentId}" class="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono">IDLE</span>
                             </div>
-                            <span id="swimlane-timer-${agentId}" class="w-16 text-right text-[10px] text-zinc-500 font-mono">0.0s</span>
+                            <span id="swimlane-timer-${agentId}" class="w-16 text-right text-[10px] text-zinc-500 font-mono select-none">0.0s</span>
                         `;
                         matrixContainer.appendChild(row);
                         swimlane = row;
                     }
                 }
 
-                // Increment and update invocation counter
                 window.agentInvocations[agentId] = (window.agentInvocations[agentId] || 0) + 1;
                 const invCount = window.agentInvocations[agentId];
 
@@ -133,37 +192,46 @@ function toggleTheme() {
                 if (countBadge) {
                     countBadge.textContent = '×' + invCount;
                     countBadge.classList.remove('hidden');
-                    if (invCount > 1) {
-                        countBadge.className = 'text-[9px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700 px-1.5 py-0.5 rounded animate-bounce';
-                        setTimeout(() => countBadge.classList.remove('animate-bounce'), 1000);
-                    }
-                }
-
-                if (swimlane) {
-                    swimlane.className = 'swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900 border border-emerald-500/50 shadow-lg shadow-emerald-500/10 transition-all';
                 }
 
                 const bar = document.getElementById('swimlane-bar-' + agentId);
                 const status = document.getElementById('swimlane-status-' + agentId);
 
-                const isDone = content && (content.includes('done') || content.includes('completed') || content.includes('Verdict: DONE'));
+                const isDone = eventType === 'TASK_COMPLETE' || (content && (content.includes('Verdict: DONE') || content.includes('action":"done')));
 
-                if (!activeParallelAgents[agentId] || !isDone) {
+                if (!isDone) {
                     if (!activeParallelAgents[agentId]) {
                         activeParallelAgents[agentId] = { startTime: now, state: 'RUNNING', invocations: invCount };
-                    } else {
-                        activeParallelAgents[agentId].state = 'RUNNING';
-                        activeParallelAgents[agentId].invocations = invCount;
                     }
 
-                    const runLabel = invCount > 1 ? `RUNNING (Run #${invCount}) ⚡` : 'RUNNING ⚡';
+                    let label = 'RUNNING ⚡';
+                    let barColor = 'bg-emerald-500/30 border-emerald-500/60 text-emerald-300';
+                    let statusColor = 'text-emerald-400 font-mono font-bold animate-pulse';
+                    let width = '70%';
+
+                    if (eventType === 'TOOL_CALL' || activeTool) {
+                        const toolName = activeTool || 'tool';
+                        label = `TOOL: ${toolName} ⚡`;
+                        barColor = 'bg-purple-500/30 border-purple-500/60 text-purple-300';
+                        statusColor = 'text-purple-300 font-mono font-bold animate-pulse';
+                        width = '85%';
+                    } else if (eventType === 'QA_EVAL') {
+                        label = 'QA CHECK 🔍';
+                        barColor = 'bg-amber-500/30 border-amber-500/60 text-amber-300';
+                        statusColor = 'text-amber-300 font-mono font-bold animate-pulse';
+                        width = '90%';
+                    }
+
                     if (status) {
-                        status.textContent = runLabel;
-                        status.className = 'absolute inset-0 flex items-center justify-center text-[10px] text-emerald-400 font-mono font-bold animate-pulse';
+                        status.textContent = label;
+                        status.className = 'absolute inset-0 flex items-center justify-center text-[10px] ' + statusColor;
                     }
                     if (bar) {
-                        bar.style.width = '75%';
-                        bar.className = 'h-full rounded bg-emerald-500/30 border border-emerald-500/60 transition-all duration-300 flex items-center px-2 text-[10px] text-emerald-300 font-semibold truncate animate-pulse';
+                        bar.style.width = width;
+                        bar.className = 'h-full rounded transition-all duration-300 flex items-center px-2 text-[10px] font-semibold truncate animate-pulse ' + barColor;
+                    }
+                    if (swimlane) {
+                        swimlane.className = 'swimlane-row flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900 border border-emerald-500/50 shadow-lg shadow-emerald-500/10 transition-all';
                     }
 
                     if (!agentTimers[agentId]) {
@@ -176,15 +244,12 @@ function toggleTheme() {
                             }
                         }, 100);
                     }
-                }
-
-                if (isDone) {
+                } else {
                     if (activeParallelAgents[agentId]) {
                         activeParallelAgents[agentId].state = 'COMPLETED';
                     }
-                    const doneLabel = invCount > 1 ? `COMPLETED (${invCount}x) ✅` : 'COMPLETED ✅';
                     if (status) {
-                        status.textContent = doneLabel;
+                        status.textContent = `COMPLETED (${invCount}x) ✅`;
                         status.className = 'absolute inset-0 flex items-center justify-center text-[10px] text-cyan-400 font-mono font-bold';
                     }
                     if (bar) {
@@ -201,36 +266,54 @@ function toggleTheme() {
                     setTimeout(function() {
                         delete activeParallelAgents[agentId];
                         updateConcurrencyBadge();
-                    }, 5000);
+                    }, 8000);
                 }
             });
 
             updateConcurrencyBadge();
         };
 
-        window.resetParallelismMatrix = function() {
-            Object.keys(agentTimers).forEach(id => clearInterval(agentTimers[id]));
-            window.agentTimers = {};
-            window.activeParallelAgents = {};
-            window.agentInvocations = {};
-            const statuses = document.querySelectorAll('[id^="swimlane-status-"]');
-            statuses.forEach(s => {
-                s.textContent = 'IDLE';
-                s.className = 'absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500 font-mono';
+        window.setLogCategoryFilter = function(cat) {
+            window.currentLogCategory = cat;
+            ['all', 'tool_call', 'supervisor', 'dispatch'].forEach(c => {
+                const btn = document.getElementById('filter-btn-' + c);
+                if (btn) {
+                    if (c === cat) {
+                        btn.className = "px-2.5 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm";
+                    } else {
+                        btn.className = "px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95";
+                    }
+                }
             });
-            const bars = document.querySelectorAll('[id^="swimlane-bar-"]');
-            bars.forEach(b => b.style.width = '0%');
-            const timers = document.querySelectorAll('[id^="swimlane-timer-"]');
-            timers.forEach(t => {
-                t.textContent = '0.0s';
-                t.className = 'w-16 text-right text-[10px] text-zinc-500 font-mono';
-            });
-            const countBadges = document.querySelectorAll('[id^="swimlane-count-"]');
-            countBadges.forEach(cb => {
-                cb.textContent = '×1';
-                cb.classList.add('hidden');
-            });
-            updateConcurrencyBadge();
+            applyLogFilters();
+        };
+
+        window.applyLogFilters = function() {
+            const entries = document.querySelectorAll('.log-entry');
+            entries.forEach(entry => applyLogFiltersToElement(entry));
+        };
+
+        window.applyLogFiltersToElement = function(el) {
+            const sender = (el.getAttribute('data-sender') || '').toLowerCase();
+            const recipient = (el.getAttribute('data-recipient') || '').toLowerCase();
+            const category = el.getAttribute('data-category') || 'general';
+            const eventType = el.getAttribute('data-event-type') || 'INFO';
+
+            const agentSelect = document.getElementById('agent-filter-select');
+            const targetAgent = agentSelect ? agentSelect.value.toLowerCase() : 'all';
+
+            const searchInput = document.getElementById('log-search-input');
+            const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            let matchesAgent = targetAgent === 'all' || sender === targetAgent || recipient === targetAgent;
+            let matchesCategory = window.currentLogCategory === 'all' || category === window.currentLogCategory || eventType.toLowerCase().includes(window.currentLogCategory);
+            let matchesSearch = !searchQuery || el.textContent.toLowerCase().includes(searchQuery);
+
+            if (matchesAgent && matchesCategory && matchesSearch) {
+                el.style.display = 'flex';
+            } else {
+                el.style.display = 'none';
+            }
         };
 
         function updateConcurrencyBadge() {

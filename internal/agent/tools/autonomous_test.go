@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/fabith10/synapse-go/internal/memory"
 )
@@ -145,8 +144,4 @@ func findSubstr(s, sub string) bool {
 		}
 	}
 	return false
-}
-
-func timeDurationSeconds(sec int) time.Duration {
-	return time.Duration(sec) * time.Second
 }
