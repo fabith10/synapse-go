@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fabith10/synapse-go/adk"
 )
@@ -232,6 +234,16 @@ func GetBrowserScreenshotTool() adk.Tool {
 			}
 			if len(args) > 0 {
 				_ = json.Unmarshal(args, &params)
+			}
+			// Default to working directory instead of /tmp
+			if params.OutPath == "" {
+				if rootVal, ok := ctx.Value(WorkspaceRootKey).(string); ok && rootVal != "" {
+					params.OutPath = filepath.Join(rootVal, fmt.Sprintf("browser_screenshot_%d.png", time.Now().UnixMilli()))
+				}
+			} else if !filepath.IsAbs(params.OutPath) {
+				if rootVal, ok := ctx.Value(WorkspaceRootKey).(string); ok && rootVal != "" {
+					params.OutPath = filepath.Join(rootVal, params.OutPath)
+				}
 			}
 			sessionID, _ := ctx.Value("session_id").(string)
 			return GlobalSessionManager.GetSession(sessionID).Screenshot(params.OutPath)

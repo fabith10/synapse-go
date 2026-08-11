@@ -251,6 +251,9 @@ func GetGeneratePDFReportTool() adk.Tool {
 				totalObjs+1, xrefOffset))
 
 			reportsDir := "reports"
+			if rootVal, ok := ctx.Value(WorkspaceRootKey).(string); ok && rootVal != "" {
+				reportsDir = rootVal
+			}
 			if err := os.MkdirAll(reportsDir, 0755); err != nil {
 				return "", fmt.Errorf("failed to create reports directory: %w", err)
 			}

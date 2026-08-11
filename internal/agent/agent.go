@@ -196,6 +196,23 @@ func findTool(tools []adk.Tool, actionName string) (adk.Tool, bool) {
 func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orchestrator, agentID string, systemPrompt string, tools []adk.Tool, msg adk.Message, estimatedTokens int, willingnessToPay float64) (ReActResult, error) {
 	if targetDir := ExtractTargetDir(msg); targetDir != "" {
 		ctx = context.WithValue(ctx, agenttools.WorkspaceRootKey, targetDir)
+	} else {
+		// Resolve per-agent working directory from config or convention
+		cwd, _ := os.Getwd()
+		workDir := ""
+		if cfgs := GetLoadedAgentConfigs(); len(cfgs) > 0 {
+			if cfg, ok := cfgs[agentID]; ok && cfg.WorkDir != "" {
+				workDir = cfg.WorkDir
+			}
+		}
+		if workDir == "" {
+			workDir = filepath.Join("workspace", agentID)
+		}
+		if !filepath.IsAbs(workDir) {
+			workDir = filepath.Join(cwd, workDir)
+		}
+		_ = os.MkdirAll(workDir, 0755)
+		ctx = context.WithValue(ctx, agenttools.WorkspaceRootKey, workDir)
 	}
 
 	// Strip conversation_history from content for the task description,
@@ -239,6 +256,13 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 		conversationMsgs = append(conversationMsgs, adk.Message{
 			Sender:  "SYSTEM",
 			Content: toolDirective,
+		})
+	}
+	// Inject working directory directive so the agent knows where to save artifacts
+	if rootVal, ok := ctx.Value(agenttools.WorkspaceRootKey).(string); ok && rootVal != "" {
+		conversationMsgs = append(conversationMsgs, adk.Message{
+			Sender:  "SYSTEM",
+			Content: fmt.Sprintf("WORKING DIRECTORY: %s\nSave all output files (reports, screenshots, data, artifacts) here. Use relative paths from this directory or absolute paths within it. Do NOT write to /tmp.", rootVal),
 		})
 	}
 	if historyBlock != "" {

@@ -27,6 +27,7 @@ tools:
   - save_long_term_memory
   - search_long_term_memories
 hardware_tier: tier0
+work_dir: reports
 max_willing_to_pay: 0.15
 ---
 You are the Deep Researcher. Your job is to gather deep, accurate, up-to-date facts by searching the web, reading page contents, searching context logs, and using available tools.

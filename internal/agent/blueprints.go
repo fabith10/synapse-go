@@ -97,6 +97,7 @@ type AgentJSONConfig struct {
 	Tools           []string `json:"tools,omitempty"`
 	HardwareTier    string   `json:"hardware_tier,omitempty"`
 	MaxWillingToPay float64  `json:"max_willing_to_pay,omitempty"`
+	WorkDir         string   `json:"work_dir,omitempty"`
 }
 
 var (
@@ -283,6 +284,8 @@ func parseMarkdownAgent(data []byte) (AgentJSONConfig, error) {
 		case "max_willing_to_pay":
 			f, _ := strconv.ParseFloat(val, 64)
 			config.MaxWillingToPay = f
+		case "work_dir":
+			config.WorkDir = val
 		}
 	}
 
