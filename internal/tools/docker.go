@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -108,7 +109,9 @@ func (s *DockerSandbox) Execute(ctx context.Context, req ExecutionRequest) Execu
 			"mcp_config.json",
 		}
 		for _, maskFile := range sensitiveMasks {
-			hostCfg.Binds = append(hostCfg.Binds, fmt.Sprintf("/dev/null:/workspace/%s:ro", maskFile))
+			if _, err := os.Stat(filepath.Join(cwd, maskFile)); err == nil {
+				hostCfg.Binds = append(hostCfg.Binds, fmt.Sprintf("/dev/null:/workspace/%s:ro", maskFile))
+			}
 		}
 	}
 
