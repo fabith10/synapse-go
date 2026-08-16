@@ -61,19 +61,22 @@
     ]
   },
   "providers": {
+    "free_live": {
+      "type": "free_live",
+      "description": "Dynamic provider free_live",
+      "mappings": {}
+    },
     "mock": {
       "type": "mock",
       "description": "Internal mock compute pricing and task execution endpoints",
-      "base_url": "http://localhost:8080"
-    },
-    "mock_fallback": {
-      "type": "mock_fallback",
-      "description": "Dynamic provider mock_fallback"
+      "base_url": "http://localhost:8080",
+      "mappings": {}
     },
     "static_json": {
       "type": "static_json",
       "description": "Local workspace static JSON pricing matrix",
-      "file_path": "pricing_matrix.json"
+      "file_path": "pricing_matrix.json",
+      "mappings": {}
     }
   }
 }

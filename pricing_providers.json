@@ -26,6 +26,58 @@
       "description": "Open-weight LLM spot and token rate sheet",
       "file_path": "open_weight_rates.json"
     },
+    "free_live": {
+      "type": "free_live",
+      "description": "Composite free-tier live real-world pricing feed (OpenRouter + Vast.ai + Deribit)"
+    },
+    "openrouter": {
+      "type": "openrouter",
+      "description": "OpenRouter free public models pricing API"
+    },
+    "vastai": {
+      "type": "vastai",
+      "description": "Vast.ai free public GPU spot offers feed"
+    },
+    "deribit": {
+      "type": "deribit",
+      "description": "Deribit free public forward curve and volatility structure"
+    },
+    "coingecko_declarative": {
+      "type": "declarative_http",
+      "description": "Declarative zero-code CoinGecko live pricing feed",
+      "base_url": "https://api.coingecko.com/api/v3",
+      "endpoints": {
+        "spot": {
+          "path": "/simple/price",
+          "query_params": {
+            "ids": "ethereum",
+            "vs_currencies": "usd"
+          }
+        }
+      },
+      "mappings": {
+        "spot_rate_path": "ethereum.usd"
+      }
+    },
+    "declarative_live": {
+      "type": "declarative_http",
+      "description": "100% Declarative Zero-Code Live Pricing Provider",
+      "base_url": "https://vast.ai/api/v0",
+      "endpoints": {
+        "spot": {
+          "path": "/bundles/"
+        }
+      },
+      "mappings": {
+        "spot_rate_path": "offers.dph_total",
+        "array_match_key": "gpu_name",
+        "static_matrix": {
+          "H100_SXM": 2.49,
+          "RTX_4090": 0.45,
+          "A100_80GB": 1.29
+        }
+      }
+    },
     "mock": {
       "type": "mock",
       "description": "Simulated dynamic spot market provider"

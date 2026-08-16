@@ -227,7 +227,52 @@ To configure the available local and commercial LLM models in a user-friendly wa
 
 At startup, the launcher automatically parses `models.json` to configure the `LLMProviders` list, dynamically linking specified driver handlers (e.g. `"mock"`, `"ollama"`, or commercial `"openai"` bridges). If `models.json` is not present, it falls back to the default demo mock LLM setup.
 
-### 4. Agent System Prompt Configuration File
+### 4. Pricing Oracle & Providers Configuration (`pricing_providers.json`)
+
+To configure the market pricing feeds and off-peak deferral policies without modifying Go source code, place a `pricing_providers.json` file in the workspace root. SynapseGo supports both **Built-in Native Adapters** and **Declarative Zero-Code Adapters**:
+
+```json
+{
+  "active_provider": "free_live",
+  "deferral_policy": {
+    "enabled": true,
+    "cost_threshold_usd": 0.50,
+    "token_threshold": 50000,
+    "peak_start_hour_utc": 8,
+    "peak_end_hour_utc": 18
+  },
+  "providers": {
+    "free_live": {
+      "type": "free_live",
+      "description": "Turnkey composite free feed: OpenRouter (tokens) + Vast.ai (spot) + Deribit (forwards & IV)"
+    },
+    "custom_cloud_declarative": {
+      "type": "declarative_http",
+      "description": "Zero-code arbitrary REST API configuration",
+      "base_url": "https://api.mycloud.com/v1",
+      "headers": {
+        "Authorization": "Bearer ${MYCLOUD_API_KEY}"
+      },
+      "endpoints": {
+        "spot": { "path": "/quotes", "query_params": { "currency": "USD" } }
+      },
+      "mappings": {
+        "spot_rate_path": "quotes.{{asset}}.hourly_rate",
+        "input_token_rate_path": "models.{{asset}}.prompt_rate",
+        "output_token_rate_path": "models.{{asset}}.completion_rate",
+        "forward_rate_path": "futures.30d_mark_price",
+        "implied_vol_path": "volatility.atm_vol",
+        "token_rate_multiplier": 1000000.0,
+        "array_match_key": "id"
+      }
+    }
+  }
+}
+```
+
+See [`docs/Compute_Derivatives_Pricing.md`](docs/Compute_Derivatives_Pricing.md) for the complete specification on sliding-window optimization, Black-Scholes inversion, and options volatility surfaces.
+
+### 5. Agent System Prompt Configuration File
 To dynamically update or override agent system prompts without recompiling Go code, place an `agents.json` file in the workspace root directory:
 
 ```json
