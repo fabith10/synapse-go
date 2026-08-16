@@ -116,4 +116,105 @@ Where:
 
 If options pricing models expect a demand spike during specific off-peak hours (e.g. night-time batch runs), the implied volatility will spike, raising the risk-adjusted rate. The optimizer will automatically shift the optimal start $T^*$ to lower-risk windows (e.g., shoulder hours) despite higher raw spot rates.
 
+---
+
+## 6. Provider Architecture: Native Adapters vs. Declarative Zero-Code
+
+SynapseGo supports a two-tier pricing provider architecture that balances out-of-the-box convenience with complete runtime extensibility:
+
+```
+                               ┌──────────────────────────────────────────────┐
+                               │             PricingOracleManager             │
+                               └──────────────────────┬───────────────────────┘
+                                                      │
+                       +------------------------------+------------------------------+
+                       │                                                             │
+                       v                                                             v
+        ┌──────────────────────────────┐                              ┌──────────────────────────────┐
+        │   1. Built-in Native Go      │                              │  2. Declarative Zero-Code    │
+        │      (Out-of-the-Box)        │                              │    (Runtime JSON Config)     │
+        ├──────────────────────────────┤                              ├──────────────────────────────┤
+        │ • free_live (Composite)      │                              │ • declarative_http           │
+        │ • openrouter (Token rates)   │                              │ • custom_http                │
+        │ • vastai (GPU spot bundles)  │                              │ • Arbitrary 3rd-party REST   │
+        │ • deribit (Forwards & IV)    │                              │ • JSONPath / Dot-Notation    │
+        │ • static_json / mock / null  │                              │ • Header ${ENV_VAR} expand   │
+        └──────────────────────────────┘                              └──────────────────────────────┘
+```
+
+### Tier 1: Built-in Native Adapters (Out-of-the-Box)
+
+Built-in Go adapters provide turnkey zero-configuration integration for major free public feeds:
+
+| Provider | Type | Capabilities & Description |
+| :--- | :--- | :--- |
+| **`free_live`** | `free_live` | Composite turnkey provider aggregating OpenRouter (LLM token costs), Vast.ai (GPU spot rates), and Deribit (forward curves & IV). |
+| **`openrouter`** | `openrouter` | Direct feed querying `https://openrouter.ai/api/v1/models` (free, unauthenticated) for 200+ models. |
+| **`vastai`** | `vastai` | Direct feed querying `https://vast.ai/api/v0/bundles/` (free, unauthenticated) for real-time GPU spot asking prices. |
+| **`deribit`** | `deribit` | Direct feed querying Deribit public futures & volatility endpoints for real-time term structures. |
+| **`static_json`** | `static_json` | Reads local rate sheets (e.g. `open_weight_rates.json` or `pricing_matrix.json`) for air-gapped environments. |
+| **`mock`** | `mock` | Internal mock simulation server for unit tests and offline benchmarking. |
+
+---
+
+### Tier 2: Declarative Zero-Code Adapters (`declarative_http` / `custom_http`)
+
+Declarative adapters allow operators and agents to integrate **any arbitrary third-party REST API** without writing Go code or recompiling the binary. All URL endpoints, headers, and JSON extraction rules are declared in `pricing_providers.json`:
+
+```json
+{
+  "active_provider": "my_cloud_provider",
+  "providers": {
+    "my_cloud_provider": {
+      "type": "declarative_http",
+      "description": "Arbitrary third-party GPU spot or token pricing API",
+      "base_url": "https://api.mycloud.com/v1",
+      "headers": {
+        "Authorization": "Bearer ${MYCLOUD_API_KEY}"
+      },
+      "endpoints": {
+        "spot": {
+          "path": "/quotes",
+          "query_params": { "currency": "USD" }
+        }
+      },
+      "mappings": {
+        "spot_rate_path": "quotes.{{asset}}.hourly_rate",
+        "input_token_rate_path": "models.{{asset}}.prompt_rate",
+        "output_token_rate_path": "models.{{asset}}.completion_rate",
+        "forward_rate_path": "futures.30d_mark_price",
+        "implied_vol_path": "volatility.atm_vol",
+        "token_rate_multiplier": 1000000.0,
+        "array_match_key": "id",
+        "static_matrix": {
+          "H100_SXM": 2.49,
+          "RTX_4090": 0.45
+        }
+      }
+    }
+  }
+}
+```
+
+#### Declarative Extraction Features
+* **Dot & Bracket Traversal:** Extract deeply nested properties (e.g., `rates.gpu.price` or `offers[0].dph_total`).
+* **Dynamic `{{asset}}` Substitution:** The queried asset name (e.g., `H100_SXM`, `deepseek-r1`) is dynamically injected into paths and query params.
+* **Array Search Matching:** Setting `array_match_key: "id"` automatically filters JSON arrays for elements matching the requested asset.
+* **Environment Variable Expansion:** Headers automatically expand `${ENV_VAR_NAME}` from the host environment.
+* **Resilient Fallbacks:** If a live endpoint is temporarily unreachable, the adapter gracefully falls back to `static_matrix` without interrupting agent workflows.
+
+---
+
+### Comparison: When to Use Which
+
+| Feature | Built-in Native Adapters | Declarative Zero-Code Adapters |
+| :--- | :--- | :--- |
+| **Setup Effort** | 0 setup (select name) | 1 JSON block in `pricing_providers.json` |
+| **Go Code Required** | Yes (pre-compiled) | **Zero Go code** |
+| **Recompilation Needed** | Yes (to add new ones) | **No (hot-reloads instantly)** |
+| **Custom Auth / Headers** | Fixed | Dynamic (`${ENV_VAR}` expansion) |
+| **Arbitrary REST Schema Support** | Hardcoded per struct | Flexible JSONPath / Dot-notation mapping |
+| **Best For** | Standard out-of-the-box free feeds | Proprietary in-house APIs, new cloud vendors |
+
+
 

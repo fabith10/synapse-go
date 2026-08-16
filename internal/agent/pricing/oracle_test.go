@@ -289,3 +289,44 @@ func (a *mockFallbackAdapter) Query(ctx context.Context, q PricingQuery) (*Prici
 	raw := `{"status":"success","price":2.49}`
 	return buildResult("mock_fallback", q.Asset, q.MarketType, raw), nil
 }
+
+func TestPricingOracle_FreeLiveIntegration(t *testing.T) {
+	mgr := NewPricingOracleManager("")
+	_ = mgr.SetActiveProvider("free_live")
+	defer mgr.SetActiveProvider("mock")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// 1. LLM Prompt cost with free_live
+	promptRes, err := mgr.ExecutePromptCostQuery(ctx, "deepseek-r1", "", map[string]string{
+		"input_tokens":  "10000",
+		"output_tokens": "2000",
+	})
+	if err != nil {
+		t.Fatalf("ExecutePromptCostQuery failed on free_live: %v", err)
+	}
+	var promptMap map[string]interface{}
+	if err := json.Unmarshal([]byte(promptRes), &promptMap); err != nil {
+		t.Fatalf("unmarshal prompt response failed: %v", err)
+	}
+	if promptMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", promptMap["status"])
+	}
+
+	// 2. Execution window with hedged_spot on free_live
+	windowRes, err := mgr.ExecuteExecutionWindowQuery(ctx, "H100_SXM", "", map[string]string{
+		"cost_mode": "hedged_spot",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteExecutionWindowQuery failed on free_live: %v", err)
+	}
+	var windowMap map[string]interface{}
+	if err := json.Unmarshal([]byte(windowRes), &windowMap); err != nil {
+		t.Fatalf("unmarshal window response failed: %v", err)
+	}
+	if windowMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", windowMap["status"])
+	}
+}
+

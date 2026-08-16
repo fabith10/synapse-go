@@ -29,8 +29,14 @@ type ProviderProfile struct {
 	// FilePath is the local file path for static_json providers.
 	FilePath string `json:"file_path,omitempty"`
 
+	// Headers maps custom HTTP headers with environment variable expansion (e.g. "Authorization": "Bearer ${KEY}").
+	Headers map[string]string `json:"headers,omitempty"`
+
 	// Endpoints maps market type strings to per-market HTTP endpoint templates.
 	Endpoints map[string]adapter.HTTPEndpointTemplate `json:"endpoints,omitempty"`
+
+	// Mappings specifies declarative JSONPath/dot-notation extraction rules.
+	Mappings adapter.DeclarativeMapping `json:"mappings,omitempty"`
 }
 
 // DeferralPolicyConfig configures when and how non-urgent high-compute tasks
@@ -135,6 +141,10 @@ func NewPricingOracleManager(configPath string) *PricingOracleManager {
 	m.adapters["null"] = &adapter.NullPricingAdapter{}
 	m.adapters["mock"] = adapter.NewMockPricingAdapter("")
 	m.adapters["static_json"] = adapter.NewStaticJSONAdapter("static_json", "pricing_matrix.json")
+	m.adapters["openrouter"] = adapter.NewOpenRouterPricingAdapter("")
+	m.adapters["vastai"] = adapter.NewVastAIPricingAdapter("")
+	m.adapters["deribit"] = adapter.NewDeribitPricingAdapter("", "")
+	m.adapters["free_live"] = adapter.NewFreeCompositePricingAdapter()
 
 	// Load persisted config (may add custom_http providers).
 	_ = m.LoadConfig()
@@ -150,7 +160,15 @@ func (m *PricingOracleManager) registerConfigAdapters() {
 			continue // built-in adapters are never overwritten by config
 		}
 		switch strings.ToLower(profile.Type) {
-		case "custom_http", "http":
+		case "openrouter":
+			m.adapters[name] = adapter.NewOpenRouterPricingAdapter(profile.BaseURL)
+		case "vastai":
+			m.adapters[name] = adapter.NewVastAIPricingAdapter(profile.BaseURL)
+		case "deribit":
+			m.adapters[name] = adapter.NewDeribitPricingAdapter(profile.BaseURL, "")
+		case "free_live", "composite":
+			m.adapters[name] = adapter.NewFreeCompositePricingAdapter()
+		case "custom_http", "http", "declarative_http":
 			m.adapters[name] = newCustomHTTPAdapterFromProfile(name, profile)
 		case "static_json", "file":
 			m.adapters[name] = adapter.NewStaticJSONAdapter(name, profile.FilePath)
@@ -176,7 +194,9 @@ func newCustomHTTPAdapterFromProfile(name string, profile ProviderProfile) *adap
 		Name:      name,
 		BaseURL:   baseURL,
 		Endpoints: endpoints,
+		Headers:   profile.Headers,
 		APIKeyEnv: profile.APIKeyEnv,
+		Mappings:  profile.Mappings,
 	})
 }
 

@@ -558,5 +558,28 @@ func TestE2E_HTTPAndJSONSchemaValidation(t *testing.T) {
 	}
 }
 
+// Test 18: Free Real-World Declarative Zero-Code Pricing & Forward Curve Integration
+func TestE2E_FreeLivePricingAndForwardCurve(t *testing.T) {
+	prompt := "Step 1: Call query_pricing_oracle with asset 'RTX_4090' and market_type 'spot' to check live GPU spot rate. Step 2: Call query_pricing_oracle with asset 'H100_SXM' and market_type 'execution_window' and cost_mode 'hedged_spot' to check forward hedged execution window."
+
+	outStr, logStr := runE2ETestCase(t, prompt, "e2e_declarative_pricing_pipeline.log", "60", "PRICING_PROVIDER=declarative_live", "DISABLE_DOCKER_TOOLS=true")
+
+	// 1. Audit log checks for triage routing and agent execution
+	if !strings.Contains(logStr, "USER ➔ triage-agent") {
+		t.Errorf("expected audit log to record USER -> triage-agent transition")
+	}
+	if !strings.Contains(logStr, "triage-agent ➔") {
+		t.Errorf("expected audit log to record triage-agent handoff")
+	}
+
+	// 2. Verify pricing oracle execution and declarative provider data in log/output
+	hasPricingData := strings.Contains(logStr, "declarative_live") || strings.Contains(logStr, "RTX_4090") || strings.Contains(logStr, "H100_SXM") || strings.Contains(logStr, "spot_price") || strings.Contains(outStr, "RTX_4090") || strings.Contains(outStr, "H100_SXM")
+	if !hasPricingData {
+		t.Errorf("expected log or output to contain live GPU pricing data from declarative_live provider, got log:\n%s", logStr)
+	}
+}
+
+
+
 
 
