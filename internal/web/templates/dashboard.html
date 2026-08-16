@@ -6,44 +6,165 @@
     <title>Agentic Control Center // Multi-Agent Autonomous Framework</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com" defer></script>
-    <!-- Marked.js for markdown rendering in the event stream -->
+    <!-- Marked.js for markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-        
-        body { 
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; 
-            background-color: #09090b; 
-            color: #f4f4f5;
+
+        /* ----------------------------------------------------------------- */
+        /* Semantic colour tokens — toggle the entire theme by flipping       */
+        /* one class on <html>. No !important cascade wars needed.            */
+        /* ----------------------------------------------------------------- */
+        :root {
+            --c-bg:          #09090b;
+            --c-surface:     #121215;
+            --c-surface-2:   #18181b;
+            --c-border:      #27272a;
+            --c-border-muted:rgba(39,39,42,0.8);
+            --c-text:        #f4f4f5;
+            --c-text-muted:  #a1a1aa;
+            --c-text-dim:    #71717a;
         }
-        
+
+        html.light-theme {
+            --c-bg:          #f8fafc;
+            --c-surface:     #ffffff;
+            --c-surface-2:   #f1f5f9;
+            --c-border:      #cbd5e1;
+            --c-border-muted:rgba(203,213,225,0.8);
+            --c-text:        #0f172a;
+            --c-text-muted:  #334155;
+            --c-text-dim:    #64748b;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--c-bg);
+            color: var(--c-text);
+        }
+
         .font-mono { font-family: 'JetBrains Mono', monospace; }
-        
+
         /* Custom Scrollbar Styling */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: #09090b; }
-        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 9999px; }
+        ::-webkit-scrollbar-track { background: var(--c-bg); }
+        ::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 9999px; }
         ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
 
-        /* Minimal Card & Elevation Utility */
+        /* Card surface — uses tokens so light/dark just works */
         .glass-card {
-            background: #121215;
-            border: 1px solid #27272a;
+            background: var(--c-surface);
+            border: 1px solid var(--c-border);
+            color: var(--c-text);
         }
-        
-        .glass-card-hover {
-            transition: all 0.15s ease-out;
-        }
+
+        .glass-card-hover { transition: all 0.15s ease-out; }
         .glass-card-hover:hover {
             border-color: #3f3f46;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
+        html.light-theme .glass-card-hover:hover {
+            border-color: #6366f1;
+            box-shadow: 0 10px 30px -5px rgba(99,102,241,0.15);
+        }
+
+        /* Broad light-theme surface sweep — covers Tailwind bg-zinc-* panels */
+        html.light-theme body,
+        html.light-theme header,
+        html.light-theme footer,
+        html.light-theme nav,
+        html.light-theme main,
+        html.light-theme section,
+        html.light-theme .log-entry,
+        html.light-theme [id^="approval-"],
+        html.light-theme #console-logs,
+        html.light-theme #artifact-viewer-modal > div,
+        html.light-theme #artifact-modal-content-wrapper {
+            background-color: var(--c-surface) !important;
+            border-color: var(--c-border) !important;
+            color: var(--c-text) !important;
+        }
+
+        /* Tailwind zinc-background utility overrides (dark panels → light) */
+        html.light-theme .bg-zinc-950, html.light-theme .bg-zinc-900,
+        html.light-theme .bg-zinc-850, html.light-theme .bg-zinc-800,
+        html.light-theme .bg-slate-950, html.light-theme .bg-slate-900,
+        html.light-theme .bg-black,
+        html.light-theme .bg-black\/80,
+        html.light-theme .bg-zinc-950\/80, html.light-theme .bg-zinc-950\/60,
+        html.light-theme .bg-zinc-950\/40,
+        html.light-theme .bg-zinc-900\/90, html.light-theme .bg-zinc-900\/80,
+        html.light-theme .bg-zinc-900\/60, html.light-theme .bg-zinc-900\/50,
+        html.light-theme .bg-zinc-900\/40 {
+            background-color: var(--c-surface-2) !important;
+            color: var(--c-text) !important;
+        }
+
+        html.light-theme .border-zinc-800, html.light-theme .border-zinc-800\/90,
+        html.light-theme .border-zinc-800\/80, html.light-theme .border-zinc-800\/60,
+        html.light-theme .border-zinc-800\/40,
+        html.light-theme .border-zinc-700, html.light-theme .border-zinc-900 {
+            border-color: var(--c-border) !important;
+        }
+
+        /* Text utility overrides */
+        html.light-theme .text-zinc-100, html.light-theme .text-zinc-200,
+        html.light-theme .text-zinc-300, html.light-theme .text-white { color: var(--c-text) !important; }
+        html.light-theme .text-zinc-400 { color: var(--c-text-muted) !important; }
+        html.light-theme .text-zinc-500 { color: var(--c-text-dim) !important; }
+
+        /* Form controls */
+        html.light-theme input[type="text"], html.light-theme textarea, html.light-theme select {
+            background-color: var(--c-surface) !important;
+            color: var(--c-text) !important;
+            border-color: var(--c-border) !important;
+        }
+        html.light-theme input::placeholder, html.light-theme textarea::placeholder { color: #94a3b8 !important; }
+
+        /* Preserve white text on solid action buttons */
+        html.light-theme .bg-indigo-600, html.light-theme .bg-indigo-700,
+        html.light-theme .bg-emerald-600, html.light-theme .bg-rose-600 { color: #ffffff !important; }
+
+        /* ---- Semantic badge overrides (amber/emerald/indigo/rose) ---- */
+        html.light-theme .warning-banner  { background-color:#fffbeb !important; border-color:#fcd34d !important; color:#78350f !important; }
+        html.light-theme .warning-title-badge { background-color:#b45309 !important; color:#ffffff !important; }
+        html.light-theme .warning-subtitle { color:#92400e !important; font-weight:700 !important; }
+        html.light-theme .warning-list li  { color:#78350f !important; font-weight:600 !important; }
+
+        html.light-theme .text-amber-400, html.light-theme .text-amber-300,
+        html.light-theme .text-yellow-400, html.light-theme .text-yellow-300 { color:#92400e !important; font-weight:700 !important; }
+        html.light-theme .bg-amber-500\/10, html.light-theme .bg-amber-950\/60 { background-color:#fef3c7 !important; color:#92400e !important; }
+
+        html.light-theme .text-emerald-400, html.light-theme .text-emerald-300 { color:#047857 !important; font-weight:700 !important; }
+        html.light-theme .bg-emerald-500\/10, html.light-theme .bg-emerald-950\/60 { background-color:#d1fae5 !important; color:#065f46 !important; }
+
+        html.light-theme .text-indigo-400, html.light-theme .text-indigo-300 { color:#4338ca !important; font-weight:700 !important; }
+        html.light-theme .bg-indigo-500\/10, html.light-theme .bg-indigo-950\/60 { background-color:#e0e7ff !important; color:#3730a3 !important; }
+
+        html.light-theme .text-rose-400, html.light-theme .text-rose-300 { color:#be123c !important; font-weight:700 !important; }
+        html.light-theme .bg-rose-500\/10, html.light-theme .bg-rose-950\/60 { background-color:#ffe4e6 !important; color:#9f1239 !important; }
+
+        /* Sender/recipient badges */
+        html.light-theme .sender-badge  { background-color:#e2e8f0 !important; color:#1e293b !important; border-color:var(--c-border) !important; }
+        html.light-theme .recipient-badge { background-color:#f1f5f9 !important; color:#475569 !important; border-color:var(--c-border) !important; }
+
+        /* Preset task buttons */
+        html.light-theme .bg-indigo-950\/60 { background-color:#e0e7ff !important; color:#3730a3 !important; border-color:#c7d2fe !important; }
+        html.light-theme .bg-emerald-950\/60 { background-color:#d1fae5 !important; color:#065f46 !important; border-color:#a7f3d0 !important; }
+        html.light-theme .bg-cyan-950\/60 { background-color:#cffaff !important; color:#164e63 !important; border-color:#a5f3fc !important; }
+
+        /* Markdown content */
+        html.light-theme .md-content h1, html.light-theme .md-content h2,
+        html.light-theme .md-content h3, html.light-theme .md-content strong { color:var(--c-text) !important; }
+        html.light-theme .md-content p, html.light-theme .md-content li { color:#1e293b !important; }
+        html.light-theme .md-content code { background:#e2e8f0 !important; border-color:var(--c-border) !important; color:#0369a1 !important; }
+        html.light-theme .md-content pre  { background:#0f172a !important; color:#f8fafc !important; border-color:#334155 !important; }
 
         /* Markdown rendered inside log entries */
         .md-content h1, .md-content h2, .md-content h3, .md-content h4 {
             font-weight: 600; margin-top: 0.5em; margin-bottom: 0.25em; color: #ffffff;
         }
-        .md-content h1 { font-size: 1.02em; border-bottom: 1px solid #27272a; padding-bottom: 0.2em; }
+        .md-content h1 { font-size: 1.02em; border-bottom: 1px solid var(--c-border); padding-bottom: 0.2em; }
         .md-content h2 { font-size: 0.95em; }
         .md-content h3, .md-content h4 { font-size: 0.9em; }
         .md-content p { margin: 0.25em 0; line-height: 1.55; }
@@ -51,307 +172,36 @@
         .md-content em { font-style: italic; color: #a1a1aa; }
         .md-content code {
             font-family: 'JetBrains Mono', monospace;
-            background: #18181b; 
-            border: 1px solid #27272a;
-            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #f4f4f5;
+            background: var(--c-surface-2);
+            border: 1px solid var(--c-border);
+            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: var(--c-text);
         }
-        .md-content pre code { background: none; border: none; padding: 0; color: #f4f4f5; }
+        .md-content pre code { background: none; border: none; padding: 0; color: var(--c-text); }
         .approval-content code {
             font-family: 'JetBrains Mono', monospace;
-            background: #18181b; 
-            border: 1px solid #27272a;
-            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: #f4f4f5;
+            background: var(--c-surface-2);
+            border: 1px solid var(--c-border);
+            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: var(--c-text);
         }
         .approval-content pre {
-            background: #09090b; border: 1px solid #27272a;
+            background: var(--c-bg); border: 1px solid var(--c-border);
             border-radius: 8px; padding: 12px 16px; overflow-x: auto;
             margin: 0.5em 0; font-size: 0.86em; line-height: 1.55;
         }
-        .approval-content pre code { background: none; border: none; padding: 0; color: #f4f4f5; }
+        .approval-content pre code { background: none; border: none; padding: 0; color: var(--c-text); }
         .md-content ul { list-style: disc; padding-left: 1.3em; margin: 0.3em 0; }
         .md-content ol { list-style: decimal; padding-left: 1.3em; margin: 0.3em 0; }
         .md-content li { margin: 0.15em 0; }
-        .md-content a { color: #f4f4f5; text-decoration: underline; text-underline-offset: 2px; }
+        .md-content a { color: var(--c-text); text-decoration: underline; text-underline-offset: 2px; }
         .md-content blockquote {
             border-left: 2px solid #52525b; padding-left: 10px;
-            color: #a1a1aa; margin: 0.4em 0; font-style: italic; background: #18181b;
+            color: #a1a1aa; margin: 0.4em 0; font-style: italic; background: var(--c-surface-2);
             border-radius: 0 4px 4px 0; padding-top: 4px; padding-bottom: 4px;
         }
-        .md-content hr { border-color: #27272a; margin: 0.6em 0; }
+        .md-content hr { border-color: var(--c-border); margin: 0.6em 0; }
         .md-content table { border-collapse: collapse; width: 100%; font-size: 0.86em; margin: 0.4em 0; }
-        .md-content th { background: #18181b; font-weight: 600; color: #ffffff; }
-        .md-content th, .md-content td { border: 1px solid #27272a; padding: 5px 8px; text-align: left; }
-
-        /* ----------------------------------------------------------------- */
-        /* Complete Premium Light Theme Overrides                            */
-        /* ----------------------------------------------------------------- */
-        html.light-theme,
-        body.light-theme,
-        html.light-theme body {
-            background-color: #f8fafc !important;
-            color: #0f172a !important;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.04) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.03) 0px, transparent 50%),
-                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%) !important;
-        }
-
-        body.light-theme header,
-        body.light-theme footer,
-        body.light-theme nav,
-        body.light-theme section,
-        body.light-theme .backdrop-blur-md,
-        body.light-theme .backdrop-blur-xl {
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-        }
-
-        body.light-theme .glass-card,
-        body.light-theme .log-entry,
-        body.light-theme [id^="approval-"],
-        body.light-theme #artifact-viewer-modal > div,
-        body.light-theme #console-logs {
-            background-color: #ffffff !important;
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-            box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05) !important;
-        }
-
-        body.light-theme .glass-card-hover:hover {
-            border-color: #6366f1 !important;
-            box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.15) !important;
-        }
-
-        /* High Contrast Typography */
-        body.light-theme .text-zinc-100,
-        body.light-theme .text-zinc-200,
-        body.light-theme .text-zinc-300,
-        body.light-theme .text-white { color: #0f172a !important; }
-        body.light-theme .text-zinc-400 { color: #334155 !important; }
-        body.light-theme .text-zinc-500 { color: #64748b !important; }
-
-        /* Sender & Recipient Badges in Light Theme */
-        body.light-theme .sender-badge[data-sender="SYSTEM"],
-        body.light-theme [data-sender="SYSTEM"] .sender-badge {
-            background-color: #fef3c7 !important;
-            color: #92400e !important;
-            border-color: #fcd34d !important;
-        }
-        body.light-theme .sender-badge[data-sender="USER"],
-        body.light-theme [data-sender="USER"] .sender-badge {
-            background-color: #e0e7ff !important;
-            color: #3730a3 !important;
-            border-color: #c7d2fe !important;
-        }
-        body.light-theme .sender-badge[data-sender="ADMIN"],
-        body.light-theme [data-sender="ADMIN"] .sender-badge {
-            background-color: #ffe4e6 !important;
-            color: #9f1239 !important;
-            border-color: #fecdd3 !important;
-        }
-        body.light-theme .sender-badge {
-            background-color: #e2e8f0 !important;
-            color: #1e293b !important;
-            border-color: #cbd5e1 !important;
-        }
-        body.light-theme .recipient-badge {
-            background-color: #f1f5f9 !important;
-            color: #475569 !important;
-            border-color: #cbd5e1 !important;
-        }
-
-        /* Solid Action Buttons: Preserve White Text */
-        body.light-theme .bg-indigo-600,
-        body.light-theme .bg-indigo-700,
-        body.light-theme .bg-emerald-600,
-        body.light-theme .bg-rose-600,
-        body.light-theme button.bg-indigo-600,
-        body.light-theme button.bg-emerald-600,
-        body.light-theme a.bg-indigo-600 {
-            color: #ffffff !important;
-        }
-
-        /* Universal Light Background & Border Overrides */
-        body.light-theme .bg-zinc-950,
-        body.light-theme .bg-zinc-900,
-        body.light-theme .bg-zinc-850,
-        body.light-theme .bg-zinc-800,
-        body.light-theme .bg-zinc-700,
-        body.light-theme .bg-slate-950,
-        body.light-theme .bg-slate-900,
-        body.light-theme .bg-slate-800,
-        body.light-theme .bg-black,
-        body.light-theme .bg-black\/80,
-        body.light-theme .bg-zinc-950\/80,
-        body.light-theme .bg-zinc-950\/60,
-        body.light-theme .bg-zinc-950\/40,
-        body.light-theme .bg-zinc-900\/90,
-        body.light-theme .bg-zinc-900\/80,
-        body.light-theme .bg-zinc-900\/60,
-        body.light-theme .bg-zinc-900\/50,
-        body.light-theme .bg-zinc-900\/40,
-        body.light-theme #artifact-modal-content-wrapper {
-            background-color: #ffffff !important;
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-        }
-
-        body.light-theme .border-zinc-800,
-        body.light-theme .border-zinc-800\/90,
-        body.light-theme .border-zinc-800\/80,
-        body.light-theme .border-zinc-800\/60,
-        body.light-theme .border-zinc-800\/40,
-        body.light-theme .border-zinc-700,
-        body.light-theme .border-zinc-900 {
-            border-color: #cbd5e1 !important;
-        }
-
-        /* Form Controls & Inputs */
-        body.light-theme input[type="text"],
-        body.light-theme textarea,
-        body.light-theme select {
-            background-color: #ffffff !important;
-            color: #0f172a !important;
-            border-color: #cbd5e1 !important;
-        }
-        body.light-theme input::placeholder,
-        body.light-theme textarea::placeholder {
-            color: #94a3b8 !important;
-        }
-
-        /* Preset Task Buttons in Light Theme */
-        body.light-theme .bg-indigo-950\/60 {
-            background-color: #e0e7ff !important;
-            color: #3730a3 !important;
-            border-color: #c7d2fe !important;
-        }
-        body.light-theme .bg-emerald-950\/60 {
-            background-color: #d1fae5 !important;
-            color: #065f46 !important;
-            border-color: #a7f3d0 !important;
-        }
-        body.light-theme .bg-cyan-950\/60 {
-            background-color: #cffaff !important;
-            color: #164e63 !important;
-            border-color: #a5f3fc !important;
-        }
-
-        /* High Visibility Warning & Amber Styling in Light Theme */
-        body.light-theme .warning-banner,
-        html.light-theme .warning-banner {
-            background-color: #fffbeb !important; /* Soft warm amber-50 background */
-            border-color: #fcd34d !important; /* Gold border */
-            color: #78350f !important;
-        }
-
-        body.light-theme .warning-title-badge,
-        html.light-theme .warning-title-badge {
-            background-color: #b45309 !important; /* Rich dark amber badge fill */
-            color: #ffffff !important; /* CRISP WHITE TEXT */
-        }
-
-        body.light-theme .warning-subtitle,
-        html.light-theme .warning-subtitle {
-            color: #92400e !important; /* Deep amber-800 text */
-            font-weight: 700 !important;
-        }
-
-        body.light-theme .warning-list,
-        body.light-theme .warning-list li,
-        html.light-theme .warning-list li {
-            color: #78350f !important; /* Deep amber-900 text */
-            font-weight: 600 !important;
-        }
-
-        body.light-theme .text-amber-400,
-        body.light-theme .text-amber-300,
-        body.light-theme .text-amber-200,
-        body.light-theme .text-yellow-400,
-        body.light-theme .text-yellow-300,
-        body.light-theme .text-yellow-500 {
-            color: #92400e !important; /* Dark amber-800 for high readability */
-            font-weight: 700 !important;
-        }
-
-        body.light-theme .bg-amber-500\/10,
-        body.light-theme .bg-amber-500\/20,
-        body.light-theme .bg-amber-950\/60,
-        body.light-theme .bg-amber-900\/40,
-        body.light-theme .bg-amber-950\/40 {
-            background-color: #fef3c7 !important; /* Rich amber-100 tint */
-            color: #92400e !important;
-        }
-
-        body.light-theme .border-amber-500\/20,
-        body.light-theme .border-amber-500\/30,
-        body.light-theme .border-amber-800,
-        body.light-theme .border-l-amber-500 {
-            border-color: #d97706 !important;
-        }
-
-        /* Emerald / Success Overrides */
-        body.light-theme .text-emerald-400,
-        body.light-theme .text-emerald-300 {
-            color: #047857 !important;
-            font-weight: 700 !important;
-        }
-        body.light-theme .bg-emerald-500\/10,
-        body.light-theme .bg-emerald-500\/20,
-        body.light-theme .bg-emerald-950\/60 {
-            background-color: #d1fae5 !important;
-            color: #065f46 !important;
-        }
-
-        /* Indigo / Primary Overrides */
-        body.light-theme .text-indigo-400,
-        body.light-theme .text-indigo-300 {
-            color: #4338ca !important;
-            font-weight: 700 !important;
-        }
-        body.light-theme .bg-indigo-500\/10,
-        body.light-theme .bg-indigo-500\/20,
-        body.light-theme .bg-indigo-950\/60 {
-            background-color: #e0e7ff !important;
-            color: #3730a3 !important;
-        }
-
-        /* Rose / Danger Overrides */
-        body.light-theme .text-rose-400,
-        body.light-theme .text-rose-300 {
-            color: #be123c !important;
-            font-weight: 700 !important;
-        }
-        body.light-theme .bg-rose-500\/10,
-        body.light-theme .bg-rose-500\/20,
-        body.light-theme .bg-rose-950\/60 {
-            background-color: #ffe4e6 !important;
-            color: #9f1239 !important;
-        }
-
-        /* Markdown Overrides */
-        body.light-theme .md-content h1,
-        body.light-theme .md-content h2,
-        body.light-theme .md-content h3,
-        body.light-theme .md-content strong {
-            color: #0f172a !important;
-        }
-        body.light-theme .md-content p,
-        body.light-theme .md-content li {
-            color: #1e293b !important;
-        }
-        body.light-theme .md-content code {
-            background: #e2e8f0 !important;
-            border-color: #cbd5e1 !important;
-            color: #0369a1 !important;
-        }
-        body.light-theme .md-content pre {
-            background: #0f172a !important;
-            color: #f8fafc !important;
-            border-color: #334155 !important;
-        }
+        .md-content th { background: var(--c-surface-2); font-weight: 600; color: var(--c-text); }
+        .md-content th, .md-content td { border: 1px solid var(--c-border); padding: 5px 8px; text-align: left; }
     </style>
 </head>
 <body hx-ext="sse" sse-connect="/stream/logs" class="h-full flex flex-col selection:bg-indigo-500 selection:text-white">
@@ -532,11 +382,6 @@
                     </div>
                 </section>
 
-                <!-- Live Multi-Agent Parallelism Swimlane Matrix -->
-                <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
-                    <div class="flex items-center justify-between border-b border-zinc-800 pb-3 flex-wrap gap-2">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
                 <!-- Parallel Execution Swimlane Matrix -->
                 <section class="glass-card rounded-2xl p-6 shadow-2xl">
                     <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3 flex-wrap gap-2">

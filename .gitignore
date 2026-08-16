@@ -21,6 +21,8 @@ uploads/
 emails/
 scratch/
 reports/
+workspace/
+scripts/
 
 # Spreadsheets & analysis dumps
 *.xlsx

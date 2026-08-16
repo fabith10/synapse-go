@@ -30,13 +30,56 @@ function toggleTheme() {
             if (textEl) textEl.textContent = isLight ? 'Dark Mode' : 'Light Mode';
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            // Restore theme preference
             const saved = localStorage.getItem('theme_preference');
             if (saved === 'light') {
                 document.body.classList.add('light-theme');
                 document.documentElement.classList.remove('dark');
                 document.documentElement.classList.add('light-theme');
                 updateThemeUI(true);
+            }
+
+            // Seed known agents from the live registry so custom Studio agents
+            // appear in the filter dropdown immediately, not only after telemetry.
+            fetch('/api/agents')
+                .then(r => r.json())
+                .then(data => {
+                    const select = document.getElementById('agent-filter-select');
+                    Object.keys(data.agents || {}).forEach(id => {
+                        if (!window.knownAgents.has(id)) {
+                            window.knownAgents.add(id);
+                            if (select) {
+                                const opt = document.createElement('option');
+                                opt.value = id;
+                                opt.textContent = id;
+                                select.appendChild(opt);
+                            }
+                        }
+                    });
+                })
+                .catch(() => {}); // non-critical; live telemetry will still populate the list
+
+            // Process any log entries present in the DOM on initial page load / refresh
+            processNewLogEntries();
+
+            // Set up MutationObserver on #console-logs to instantly catch any new elements
+            const consoleLogsEl = document.getElementById('console-logs');
+            if (consoleLogsEl) {
+                const observer = new MutationObserver(function() {
+                    processNewLogEntries();
+                });
+                observer.observe(consoleLogsEl, { childList: true, subtree: true });
             }
         });
 
@@ -56,6 +99,19 @@ function toggleTheme() {
                 }
             }
         });
+
+
+        // Bug fix: clear orphaned setInterval timers, but ONLY on the "New Session" button swap
+        // (htmx:afterSwap fires on #console-logs for every SSE log message too — don't reset on those)
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.target && evt.target.id === 'console-logs') {
+                const cfg = evt.detail && evt.detail.requestConfig;
+                if (cfg && cfg.path === '/api/session/new' && typeof resetParallelismMatrix === 'function') {
+                    resetParallelismMatrix();
+                }
+            }
+        });
+
         document.addEventListener('htmx:sseBeforeMessage', function(e) {
             setTimeout(function() {
                 var consoleDiv = document.getElementById('console-logs');
@@ -68,81 +124,102 @@ function toggleTheme() {
         window.currentLogCategory = 'all';
         window.knownAgents = new Set(['triage-agent', 'planner-agent', 'supervisor-agent', 'developer-agent', 'researcher-agent', 'browser-agent', 'quant-agent', 'etl-agent', 'writer-agent', 'sales-agent', 'email-agent', 'excel-agent', 'generalist-agent']);
 
-        document.addEventListener('htmx:afterSwap', function(e) {
-            if (e.target && (e.target.id === 'console-logs' || (e.target.classList && e.target.classList.contains('log-entry')))) {
-                const logs = e.target.querySelectorAll ? e.target.querySelectorAll('.log-entry') : [e.target];
-                logs.forEach(log => {
-                    if (log.dataset.rendered === 'true') return;
-                    log.dataset.rendered = 'true';
+        function processNewLogEntries() {
+            const logs = document.querySelectorAll('#console-logs .log-entry');
+            logs.forEach(log => {
+                if (log.dataset.rendered === 'true') return;
+                log.dataset.rendered = 'true';
 
-                    const sender = log.getAttribute('data-sender') || '';
-                    const recipient = log.getAttribute('data-recipient') || '';
-                    const eventType = log.getAttribute('data-event-type') || 'INFO';
-                    const tool = log.getAttribute('data-tool') || '';
+                const sender = log.getAttribute('data-sender') || '';
+                const recipient = log.getAttribute('data-recipient') || '';
+                const eventType = log.getAttribute('data-event-type') || 'INFO';
+                const tool = log.getAttribute('data-tool') || '';
 
-                    // Add sender and recipient to agent filter select dropdown
-                    [sender, recipient].forEach(a => {
-                        if (a && a !== 'USER' && a !== 'SYSTEM' && a !== 'WEB' && a !== 'WARNING' && !window.knownAgents.has(a)) {
-                            window.knownAgents.add(a);
-                            const select = document.getElementById('agent-filter-select');
-                            if (select) {
-                                const opt = document.createElement('option');
-                                opt.value = a;
-                                opt.textContent = a;
-                                select.appendChild(opt);
-                            }
-                        }
-                    });
-
-                    // Render markdown content
-                    const mdContainer = log.querySelector('.md-content');
-                    if (mdContainer) {
-                        const raw = mdContainer.getAttribute('data-raw') || '';
-                        let renderedHTML = '';
-                        if (typeof marked !== 'undefined') {
-                            renderedHTML = marked.parse(raw, { breaks: true, gfm: true });
-                        } else {
-                            renderedHTML = raw;
-                        }
-
-                        // If it's a tool call or has tool metadata, wrap in expandable interactive card
-                        if (tool || eventType === 'TOOL_CALL') {
-                            const toolName = tool || 'tool_call';
-                            mdContainer.innerHTML = `
-                                <details class="my-1 rounded-lg border border-purple-900/60 bg-purple-950/20 overflow-hidden shadow-inner group/details">
-                                    <summary class="px-3 py-1.5 text-[10px] font-mono font-bold text-purple-300 cursor-pointer bg-purple-950/40 hover:bg-purple-950/60 flex items-center justify-between select-none">
-                                        <span class="flex items-center gap-1.5">
-                                            <span class="text-purple-400">⚡ Tool Call:</span>
-                                            <span class="px-1.5 py-0.5 rounded bg-purple-900/70 border border-purple-700/60 text-purple-200">${toolName}</span>
-                                        </span>
-                                        <span class="text-[9px] text-purple-400 font-normal group-open/details:hidden">Expand Payload ➔</span>
-                                        <span class="text-[9px] text-purple-400 font-normal hidden group-open/details:inline">Collapse ⯅</span>
-                                    </summary>
-                                    <div class="p-3 text-[10px] font-mono text-zinc-300 overflow-x-auto bg-zinc-950/80 border-t border-purple-900/40 leading-relaxed">${renderedHTML}</div>
-                                </details>
-                            `;
-                        } else {
-                            mdContainer.innerHTML = renderedHTML;
+                // Add sender and recipient to agent filter dropdown
+                [sender, recipient].forEach(a => {
+                    if (a && a !== 'USER' && a !== 'SYSTEM' && a !== 'WEB' && a !== 'WARNING' && !window.knownAgents.has(a)) {
+                        window.knownAgents.add(a);
+                        const select = document.getElementById('agent-filter-select');
+                        if (select) {
+                            const opt = document.createElement('option');
+                            opt.value = a;
+                            opt.textContent = a;
+                            select.appendChild(opt);
                         }
                     }
-
-                    // Trigger pulse animation & swimlane update
-                    if (typeof emitLiveNetworkPulse === 'function') {
-                        emitLiveNetworkPulse(sender, recipient);
-                    }
-                    if (typeof updateParallelismSwimlane === 'function') {
-                        const raw = mdContainer ? mdContainer.getAttribute('data-raw') : '';
-                        updateParallelismSwimlane(sender, recipient, raw, eventType, tool);
-                    }
-
-                    // Apply active filters
-                    applyLogFiltersToElement(log);
                 });
 
-                const consoleLogs = document.getElementById('console-logs');
-                if (consoleLogs) consoleLogs.scrollTop = consoleLogs.scrollHeight;
+                processLogEntry(log, tool, eventType);
+                applyLogFiltersToElement(log);
+
+                const mdContainer = log.querySelector('.md-content');
+                const raw = mdContainer ? (mdContainer.getAttribute('data-raw') || '') : '';
+                if (typeof updateParallelismSwimlane === 'function') {
+                    updateParallelismSwimlane(sender, recipient, raw, eventType, tool);
+                }
+            });
+        }
+
+        document.addEventListener('htmx:afterSwap', function(e) {
+            if (e.target && (e.target.id === 'console-logs' || (e.target.classList && e.target.classList.contains('log-entry')))) {
+                processNewLogEntries();
             }
         });
+
+        document.addEventListener('htmx:afterSettle', function(e) {
+            if (e.target && (e.target.id === 'console-logs' || (e.target.classList && e.target.classList.contains('log-entry')))) {
+                processNewLogEntries();
+            }
+        });
+
+        document.addEventListener('htmx:sseMessage', function(e) {
+            processNewLogEntries();
+        });
+
+        function processLogEntry(log, tool, eventType) {
+            const mdContainer = log.querySelector('.md-content');
+            if (!mdContainer) return;
+            const raw = mdContainer.getAttribute('data-raw') || '';
+            let renderedHTML = '';
+            try {
+                if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+                    renderedHTML = marked.parse(raw);
+                } else {
+                    renderedHTML = escapeHtml(raw).replace(/\n/g, '<br>');
+                }
+            } catch (err) {
+                console.warn('Markdown fallback:', err);
+                renderedHTML = escapeHtml(raw).replace(/\n/g, '<br>');
+            }
+            if (!renderedHTML || renderedHTML.trim() === '') {
+                renderedHTML = escapeHtml(raw).replace(/\n/g, '<br>');
+            }
+            if (tool || eventType === 'TOOL_CALL') {
+                const toolName = tool || 'tool_call';
+                mdContainer.innerHTML = `
+                    <details class="my-1 rounded-lg border border-purple-900/60 bg-purple-950/20 overflow-hidden shadow-inner group/details">
+                        <summary class="px-3 py-1.5 text-[10px] font-mono font-bold text-purple-300 cursor-pointer bg-purple-950/40 hover:bg-purple-950/60 flex items-center justify-between select-none">
+                            <span class="flex items-center gap-1.5">
+                                <span class="text-purple-400">⚡ Tool Call:</span>
+                                <span class="px-1.5 py-0.5 rounded bg-purple-900/70 border border-purple-700/60 text-purple-200">${toolName}</span>
+                            </span>
+                            <span class="text-[9px] text-purple-400 font-normal group-open/details:hidden">Expand Payload ➔</span>
+                            <span class="text-[9px] text-purple-400 font-normal hidden group-open/details:inline">Collapse ⯅</span>
+                        </summary>
+                        <div class="p-3 text-[10px] font-mono text-zinc-300 overflow-x-auto bg-zinc-950/80 border-t border-purple-900/40 leading-relaxed">${renderedHTML}</div>
+                    </details>
+                `;
+            } else {
+                mdContainer.innerHTML = renderedHTML;
+            }
+
+            // Network pulse
+            if (typeof emitLiveNetworkPulse === 'function') {
+                const sender = log.getAttribute('data-sender') || '';
+                const recipient = log.getAttribute('data-recipient') || '';
+                emitLiveNetworkPulse(sender, recipient);
+            }
+        }
 
         window.activeParallelAgents = {};
         window.agentTimers = {};
@@ -275,13 +352,18 @@ function toggleTheme() {
 
         window.setLogCategoryFilter = function(cat) {
             window.currentLogCategory = cat;
+            const isLight = document.body.classList.contains('light-theme');
             ['all', 'tool_call', 'supervisor', 'dispatch'].forEach(c => {
                 const btn = document.getElementById('filter-btn-' + c);
                 if (btn) {
                     if (c === cat) {
-                        btn.className = "px-2.5 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm";
+                        btn.className = isLight 
+                            ? "px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-wider bg-indigo-600 text-white rounded-md cursor-pointer transition-all active:scale-95 shadow-sm"
+                            : "px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm";
                     } else {
-                        btn.className = "px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95";
+                        btn.className = isLight
+                            ? "px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-900 rounded-md cursor-pointer transition-all active:scale-95"
+                            : "px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95";
                     }
                 }
             });
@@ -296,8 +378,10 @@ function toggleTheme() {
         window.applyLogFiltersToElement = function(el) {
             const sender = (el.getAttribute('data-sender') || '').toLowerCase();
             const recipient = (el.getAttribute('data-recipient') || '').toLowerCase();
-            const category = el.getAttribute('data-category') || 'general';
-            const eventType = el.getAttribute('data-event-type') || 'INFO';
+            const category = (el.getAttribute('data-category') || 'general').toLowerCase();
+            const eventType = (el.getAttribute('data-event-type') || 'INFO').toLowerCase();
+            const activeTool = (el.getAttribute('data-tool') || '').toLowerCase();
+            const textContent = (el.textContent || '').toLowerCase();
 
             const agentSelect = document.getElementById('agent-filter-select');
             const targetAgent = agentSelect ? agentSelect.value.toLowerCase() : 'all';
@@ -306,8 +390,22 @@ function toggleTheme() {
             const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
             let matchesAgent = targetAgent === 'all' || sender === targetAgent || recipient === targetAgent;
-            let matchesCategory = window.currentLogCategory === 'all' || category === window.currentLogCategory || eventType.toLowerCase().includes(window.currentLogCategory);
-            let matchesSearch = !searchQuery || el.textContent.toLowerCase().includes(searchQuery);
+
+            let matchesCategory = false;
+            const filterCat = window.currentLogCategory;
+            if (!filterCat || filterCat === 'all') {
+                matchesCategory = true;
+            } else if (filterCat === 'tool_call') {
+                matchesCategory = category === 'tool_call' || eventType === 'tool_call' || activeTool !== '' || el.querySelector('.tool-badge') !== null || el.querySelector('details') !== null || textContent.includes('tool call');
+            } else if (filterCat === 'supervisor') {
+                matchesCategory = category === 'supervisor' || eventType === 'qa_eval' || sender.includes('supervisor') || recipient.includes('supervisor') || textContent.includes('supervisor') || textContent.includes('qa check');
+            } else if (filterCat === 'dispatch') {
+                matchesCategory = category === 'dispatch' || eventType === 'task_dispatch' || textContent.includes('dispatch') || textContent.includes('sub-task') || textContent.includes('task:');
+            } else {
+                matchesCategory = category === filterCat || eventType.includes(filterCat);
+            }
+
+            let matchesSearch = !searchQuery || textContent.includes(searchQuery);
 
             if (matchesAgent && matchesCategory && matchesSearch) {
                 el.style.display = 'flex';
@@ -348,58 +446,6 @@ function toggleTheme() {
             updateConcurrencyBadge();
         };
 
-        window.currentLogFilter = 'all';
-
-        window.setLogFilter = function(filter) {
-            window.currentLogFilter = filter;
-
-            const buttons = ['all', 'user', 'orchestration', 'specialists'];
-            buttons.forEach(b => {
-                const btn = document.getElementById('filter-btn-' + b);
-                if (btn) {
-                    if (b === filter) {
-                        btn.className = "px-3 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm";
-                    } else {
-                        btn.className = "px-3 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95";
-                    }
-                }
-            });
-
-            const entries = document.querySelectorAll('.log-entry');
-            entries.forEach(entry => {
-                window.applyFilterToElement(entry);
-            });
-
-            var consoleDiv = document.getElementById('console-logs');
-            if (consoleDiv) {
-                consoleDiv.scrollTop = consoleDiv.scrollHeight;
-            }
-        };
-
-        window.applyFilterToElement = function(el) {
-            const sender = el.getAttribute('data-sender') || '';
-            const recipient = el.getAttribute('data-recipient') || '';
-            const text = el.textContent || '';
-            
-            const isOrchestration = ['triage-agent', 'planner-agent', 'supervisor-agent'].includes(sender) || 
-                                    ['triage-agent', 'planner-agent', 'supervisor-agent'].includes(recipient);
-                                    
-            const isUserDirect = (sender === 'USER' || recipient === 'USER');
-            const isSupervisorProgress = text.includes('[Supervisor Check]') || text.includes('[Supervisor Escalation]');
-
-            let show = false;
-            if (window.currentLogFilter === 'all') {
-                show = true;
-            } else if (window.currentLogFilter === 'user') {
-                show = isUserDirect && !isSupervisorProgress;
-            } else if (window.currentLogFilter === 'orchestration') {
-                show = isOrchestration || isSupervisorProgress;
-            } else if (window.currentLogFilter === 'specialists') {
-                show = !isOrchestration && !isUserDirect && !isSupervisorProgress;
-            }
-
-            el.style.display = show ? 'flex' : 'none';
-        };
 
         function switchTab(tabId) {
             const panes = ['dashboard', 'studio', 'audit', 'network', 'config', 'scheduler'];
@@ -560,7 +606,7 @@ function toggleTheme() {
         window.addEventListener('DOMContentLoaded', function() {
             if (window.location.hash) {
                 const hash = window.location.hash.replace('#', '');
-                if (['dashboard', 'studio', 'audit', 'config', 'scheduler'].includes(hash)) {
+                if (['dashboard', 'studio', 'audit', 'network', 'config', 'scheduler'].includes(hash)) {
                     switchTab(hash);
                 }
             }
