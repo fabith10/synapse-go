@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fabith10/synapse-go/internal/agent/pricing/quant"
 )
 
 // ExecutionWindowSlot represents one candidate execution window in the 24-hour cycle.
@@ -49,7 +51,7 @@ func (m *PricingOracleManager) ExecuteExecutionWindowQuery(ctx context.Context, 
 	}
 
 	costMode := strings.ToLower(options["cost_mode"])
-	if costMode != "hedged_spot" && costMode != "risk_adjusted" {
+	if costMode != "hedged_spot" && costMode != "risk_adjusted" && costMode != "game_theoretic" && costMode != "anti_herding" {
 		costMode = "spot"
 	}
 
@@ -186,6 +188,19 @@ func (m *PricingOracleManager) ExecuteExecutionWindowQuery(ctx context.Context, 
 	optimal := windows[optimalIdx]
 	savingVsWorstAbs := maxCost - minCost
 
+	// Compute Monte Carlo Risk Profile & Real Options Flexibilities
+	riskProfile := quant.ComputeExecutionWindowRisk(baseSpot, optimal.StartHour, durationHours, costMode, forwardRate, 2000)
+	realOptions := quant.EvaluateRealOptions(asset, baseSpot, optimal.AvgHourlyRate, durationHours, atmVol, baseSpot*1.55)
+
+	// Compute Game Theory Profile (Boltzmann Mixed Strategy, Minority Game Crowding, Blotto Allocation)
+	windowCosts := make([]float64, 24)
+	for i, w := range windows {
+		windowCosts[i] = w.TotalCostUSD
+	}
+	boltzmannNash := quant.ComputeBoltzmannNashDistribution(windowCosts, 2.5)
+	minorityGame := quant.EvaluateMinorityGameCrowding(windowCosts, 0.45, 2.0)
+	blottoPortfolio := quant.ComputeBlottoAllocation(asset, float64(durationHours), baseSpot)
+
 	respData := map[string]interface{}{
 		"status":                  "success",
 		"asset":                   asset,
@@ -198,6 +213,13 @@ func (m *PricingOracleManager) ExecuteExecutionWindowQuery(ctx context.Context, 
 		"worst_window":            windows[(optimalIdx+12)%24],
 		"absolute_saving_usd":     roundTo4(savingVsWorstAbs),
 		"saving_pct_vs_worst":     roundTo4(optimal.SavingsVsWorst),
+		"risk_profile":            riskProfile,
+		"real_options":            realOptions,
+		"game_theory_profile": map[string]interface{}{
+			"boltzmann_nash_distribution": boltzmannNash,
+			"minority_game_crowd_penalty": minorityGame,
+			"blotto_cluster_portfolio":    blottoPortfolio,
+		},
 		"all_windows":             windows,
 		"hourly_profile_usd_hr":   hourlyProfile,
 	}
@@ -209,6 +231,8 @@ func (m *PricingOracleManager) ExecuteExecutionWindowQuery(ctx context.Context, 
 	case "risk_adjusted":
 		respData["volatility_profile_pct"] = volMults
 		respData["effective_profile_usd_hr"] = effectiveProfile
+	case "game_theoretic", "anti_herding":
+		respData["minority_game_adjusted_costs"] = minorityGame.CrowdAdjustedCosts
 	}
 
 	b, err := json.Marshal(respData)

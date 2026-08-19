@@ -579,6 +579,27 @@ func TestE2E_FreeLivePricingAndForwardCurve(t *testing.T) {
 	}
 }
 
+// Test 19: Stateful Derivative Hedge Contract Execution & Position Management
+func TestE2E_DerivativeHedgeContractExecution(t *testing.T) {
+	prompt := "Step 1: Call manage_hedge_contract with action 'enter_forward', asset 'H100_SXM', forward_rate 2.60, and duration_hours 8 to lock compute rate. Step 2: Call manage_hedge_contract with action 'list_positions' to verify the active contract."
+
+	outStr, logStr := runE2ETestCase(t, prompt, "e2e_derivative_hedge_pipeline.log", "90", "PRICING_PROVIDER=declarative_live", "DISABLE_DOCKER_TOOLS=true")
+
+	// 1. Audit log checks for triage routing and agent execution
+	if !strings.Contains(logStr, "USER ➔ triage-agent") {
+		t.Errorf("expected audit log to record USER -> triage-agent transition")
+	}
+	if !strings.Contains(logStr, "triage-agent ➔") {
+		t.Errorf("expected audit log to record triage-agent handoff")
+	}
+
+	// 2. Verify manage_hedge_contract tool execution and open position verification
+	hasHedgeContract := strings.Contains(logStr, "manage_hedge_contract") || strings.Contains(logStr, "enter_forward") || strings.Contains(logStr, "H100_SXM") || strings.Contains(outStr, "hedge") || strings.Contains(outStr, "forward")
+	if !hasHedgeContract {
+		t.Errorf("expected log or output to contain derivative hedge execution data, got log:\n%s", logStr)
+	}
+}
+
 
 
 

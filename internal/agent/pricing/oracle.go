@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/fabith10/synapse-go/internal/agent/pricing/adapter"
+	"github.com/fabith10/synapse-go/internal/agent/pricing/backtest"
+	"github.com/fabith10/synapse-go/internal/agent/pricing/quant"
 	"github.com/fabith10/synapse-go/internal/tools"
 )
 
@@ -300,6 +303,30 @@ func (m *PricingOracleManager) ExecuteQuery(ctx context.Context, asset, marketTy
 	if mt == "prompt_cost" || mt == "token_cost" || mt == "llm_cost" {
 		return m.ExecutePromptCostQuery(ctx, asset, providerFilter, options)
 	}
+	if mt == "options" || mt == "derivatives" || mt == "greeks" {
+		return m.ExecuteOptionsQuery(ctx, asset, providerFilter, options)
+	}
+	if mt == "risk_metrics" || mt == "var" || mt == "cvar" {
+		return m.ExecuteRiskMetricsQuery(ctx, asset, providerFilter, options)
+	}
+	if mt == "real_options" || mt == "roa" {
+		return m.ExecuteRealOptionsQuery(ctx, asset, providerFilter, options)
+	}
+	if mt == "lucia_schwartz" || mt == "two_factor" || mt == "hardware_decay" {
+		return m.ExecuteLuciaSchwartzQuery(ctx, asset, providerFilter, options)
+	}
+	if mt == "regime_switching" || mt == "mrs" || mt == "hamilton" {
+		return m.ExecuteRegimeSwitchingQuery(ctx, asset, providerFilter, options)
+	}
+	if mt == "congestion" || mt == "queuing" || mt == "cluster_load" {
+		return m.ExecuteCongestionQuery(ctx, asset, providerFilter, options)
+	}
+	if mt == "game_theory" || mt == "nash" || mt == "minority_game" || mt == "blotto" {
+		return m.ExecuteGameTheoryQuery(ctx, asset, providerFilter, options)
+	}
+	if mt == "backtest" || mt == "backtesting" || mt == "simulation" {
+		return m.ExecuteBacktestQuery(ctx, asset, providerFilter, options)
+	}
 
 	activeName := m.GetActiveProviderName()
 
@@ -321,6 +348,355 @@ func (m *PricingOracleManager) ExecuteQuery(ctx context.Context, asset, marketTy
 		return "", fmt.Errorf("pricing oracle [%s]: %w", activeName, err)
 	}
 	return result.Raw, nil
+}
+
+// ExecuteOptionsQuery evaluates European options and analytical Greeks on compute forwards using Black-76.
+func (m *PricingOracleManager) ExecuteOptionsQuery(ctx context.Context, asset, providerFilter string, options map[string]string) (string, error) {
+	spotRaw, _ := m.ExecuteQuery(ctx, asset, "spot", providerFilter, nil)
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(spotRaw), &parsed)
+	s0 := spotBaseRate(asset)
+	if p, ok := parsed["spot_price"].(float64); ok && p > 0 {
+		s0 = p
+	} else if p, ok := parsed["price"].(float64); ok && p > 0 {
+		s0 = p
+	}
+
+	F := s0 * 1.05
+	if f, ok := parsed["forward_rate_usd"].(float64); ok && f > 0 {
+		F = f
+	}
+
+	K := F
+	if kStr, ok := options["strike"]; ok {
+		if kVal, err := strconv.ParseFloat(kStr, 64); err == nil && kVal > 0 {
+			K = kVal
+		}
+	}
+
+	days := 30.0
+	if dStr, ok := options["days"]; ok {
+		if dVal, err := strconv.ParseFloat(dStr, 64); err == nil && dVal > 0 {
+			days = dVal
+		}
+	}
+	T := days / 365.0
+
+	sigma := 0.35
+	if v, ok := parsed["atm_vol"].(float64); ok && v > 0 {
+		sigma = v
+	}
+	if vStr, ok := options["volatility"]; ok {
+		if vVal, err := strconv.ParseFloat(vStr, 64); err == nil && vVal > 0 {
+			sigma = vVal
+		}
+	}
+
+	r := 0.045
+	if rStr, ok := options["rate"]; ok {
+		if rVal, err := strconv.ParseFloat(rStr, 64); err == nil {
+			r = rVal
+		}
+	}
+
+	callRes, err := quant.Black76Price(F, K, T, sigma, r, quant.OptionCall)
+	if err != nil {
+		return "", err
+	}
+	putRes, err := quant.Black76Price(F, K, T, sigma, r, quant.OptionPut)
+	if err != nil {
+		return "", err
+	}
+
+	resp := map[string]interface{}{
+		"status":          "success",
+		"asset":           asset,
+		"model":           "Black-76 Commodity Option & Greeks Engine",
+		"forward_rate":    F,
+		"strike_price":    K,
+		"expiry_days":     days,
+		"implied_vol":     sigma,
+		"risk_free_rate":  r,
+		"call_option":     callRes,
+		"put_option":      putRes,
+		"put_call_parity": math.Abs((callRes.Price-putRes.Price)-math.Exp(-r*T)*(F-K)) < 1e-4,
+	}
+
+	b, _ := json.Marshal(resp)
+	return string(b), nil
+}
+
+// ExecuteRiskMetricsQuery evaluates Monte Carlo Value-at-Risk (VaR) and Conditional VaR (Expected Shortfall).
+func (m *PricingOracleManager) ExecuteRiskMetricsQuery(ctx context.Context, asset, providerFilter string, options map[string]string) (string, error) {
+	spotRaw, _ := m.ExecuteQuery(ctx, asset, "spot", providerFilter, nil)
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(spotRaw), &parsed)
+	s0 := spotBaseRate(asset)
+	if p, ok := parsed["spot_price"].(float64); ok && p > 0 {
+		s0 = p
+	}
+
+	startHour := 0
+	if shStr, ok := options["start_hour"]; ok {
+		if shVal, err := strconv.Atoi(shStr); err == nil {
+			startHour = shVal % 24
+		}
+	}
+
+	duration := 4
+	if durStr, ok := options["duration"]; ok {
+		if durVal, err := strconv.Atoi(durStr); err == nil && durVal > 0 {
+			duration = durVal
+		}
+	}
+
+	costMode := "spot"
+	if cm, ok := options["cost_mode"]; ok && cm != "" {
+		costMode = cm
+	}
+
+	forwardCap := s0 * 1.05
+	profile := quant.ComputeExecutionWindowRisk(s0, startHour, duration, costMode, forwardCap, 3000)
+
+	resp := map[string]interface{}{
+		"status":       "success",
+		"asset":        asset,
+		"model":        "Ornstein-Uhlenbeck Jump-Diffusion Monte Carlo",
+		"risk_profile": profile,
+	}
+	b, _ := json.Marshal(resp)
+	return string(b), nil
+}
+
+// ExecuteRealOptionsQuery evaluates the economic value of compute deferral and multi-tier switching.
+func (m *PricingOracleManager) ExecuteRealOptionsQuery(ctx context.Context, asset, providerFilter string, options map[string]string) (string, error) {
+	spotRaw, _ := m.ExecuteQuery(ctx, asset, "spot", providerFilter, nil)
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(spotRaw), &parsed)
+	s0 := spotBaseRate(asset)
+	if p, ok := parsed["spot_price"].(float64); ok && p > 0 {
+		s0 = p
+	}
+
+	duration := 4
+	if durStr, ok := options["duration"]; ok {
+		if durVal, err := strconv.Atoi(durStr); err == nil && durVal > 0 {
+			duration = durVal
+		}
+	}
+
+	vol := 0.35
+	if v, ok := parsed["atm_vol"].(float64); ok && v > 0 {
+		vol = v
+	}
+
+	roa := quant.EvaluateRealOptions(asset, s0, s0*0.75, duration, vol, s0*1.55)
+	resp := map[string]interface{}{
+		"status":       "success",
+		"asset":        asset,
+		"model":        "Real Options Analysis (ROA) Flexibilities",
+		"real_options": roa,
+	}
+	b, _ := json.Marshal(resp)
+	return string(b), nil
+}
+
+// ExecuteLuciaSchwartzQuery computes the Two-Factor forward curve incorporating diurnal mean-reversion and Moore's Law deflation.
+func (m *PricingOracleManager) ExecuteLuciaSchwartzQuery(ctx context.Context, asset, providerFilter string, options map[string]string) (string, error) {
+	spotRaw, _ := m.ExecuteQuery(ctx, asset, "spot", providerFilter, nil)
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(spotRaw), &parsed)
+	s0 := spotBaseRate(asset)
+	if p, ok := parsed["spot_price"].(float64); ok && p > 0 {
+		s0 = p
+	}
+
+	curve := quant.ComputeLuciaSchwartzCurve(asset, s0)
+	resp := map[string]interface{}{
+		"status":                  "success",
+		"asset":                   asset,
+		"model":                   "Lucia-Schwartz Two-Factor Model",
+		"two_factor_term_curve":   curve,
+	}
+	b, _ := json.Marshal(resp)
+	return string(b), nil
+}
+
+// ExecuteRegimeSwitchingQuery computes Markov Regime-Switching risk and Bayesian state probabilities.
+func (m *PricingOracleManager) ExecuteRegimeSwitchingQuery(ctx context.Context, asset, providerFilter string, options map[string]string) (string, error) {
+	spotRaw, _ := m.ExecuteQuery(ctx, asset, "spot", providerFilter, nil)
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(spotRaw), &parsed)
+	s0 := spotBaseRate(asset)
+	if p, ok := parsed["spot_price"].(float64); ok && p > 0 {
+		s0 = p
+	}
+
+	duration := 4
+	if durStr, ok := options["duration"]; ok {
+		if durVal, err := strconv.Atoi(durStr); err == nil && durVal > 0 {
+			duration = durVal
+		}
+	}
+
+	mrsProfile := quant.EvaluateRegimeSwitchingRisk(asset, s0, duration, 2000)
+	resp := map[string]interface{}{
+		"status":             "success",
+		"asset":              asset,
+		"model":              "Markov Regime-Switching Model (MRS / Hamilton)",
+		"regime_risk_report": mrsProfile,
+	}
+	b, _ := json.Marshal(resp)
+	return string(b), nil
+}
+
+// ExecuteCongestionQuery computes M/M/c cluster capacity load, congestion surcharges, and queue eviction risk.
+func (m *PricingOracleManager) ExecuteCongestionQuery(ctx context.Context, asset, providerFilter string, options map[string]string) (string, error) {
+	spotRaw, _ := m.ExecuteQuery(ctx, asset, "spot", providerFilter, nil)
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(spotRaw), &parsed)
+	s0 := spotBaseRate(asset)
+	if p, ok := parsed["spot_price"].(float64); ok && p > 0 {
+		s0 = p
+	}
+
+	congestion := quant.ComputeQueuingCongestionAnalytics(asset, s0)
+	resp := map[string]interface{}{
+		"status":             "success",
+		"asset":              asset,
+		"model":              "M/M/c Queuing Capacity Congestion Model",
+		"congestion_report":  congestion,
+	}
+	b, _ := json.Marshal(resp)
+	return string(b), nil
+}
+
+// ExecuteGameTheoryQuery evaluates Boltzmann Nash mixed strategies, Minority Game crowd penalties, and Colonel Blotto allocation.
+func (m *PricingOracleManager) ExecuteGameTheoryQuery(ctx context.Context, asset, providerFilter string, options map[string]string) (string, error) {
+	spotRaw, _ := m.ExecuteQuery(ctx, asset, "spot", providerFilter, nil)
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(spotRaw), &parsed)
+	s0 := spotBaseRate(asset)
+	if p, ok := parsed["spot_price"].(float64); ok && p > 0 {
+		s0 = p
+	}
+
+	duration := 4
+	if durStr, ok := options["duration"]; ok {
+		if durVal, err := strconv.Atoi(durStr); err == nil && durVal > 0 {
+			duration = durVal
+		}
+	}
+
+	// 24-hour tariff profile
+	baseProfile := []float64{
+		s0 * 0.82, s0 * 0.80, s0 * 0.79, s0 * 0.79, s0 * 0.80, s0 * 0.83,
+		s0 * 0.90, s0 * 0.95, s0 * 1.08, s0 * 1.15, s0 * 1.18, s0 * 1.20,
+		s0 * 1.22, s0 * 1.22, s0 * 1.20, s0 * 1.18, s0 * 1.15, s0 * 1.10,
+		s0 * 1.05, s0 * 0.98, s0 * 0.95, s0 * 0.92, s0 * 0.88, s0 * 0.85,
+	}
+
+	windowCosts := make([]float64, 24)
+	for start := 0; start < 24; start++ {
+		tot := 0.0
+		for h := 0; h < duration; h++ {
+			tot += baseProfile[(start+h)%24]
+		}
+		windowCosts[start] = roundTo4(tot)
+	}
+
+	boltzmann := quant.ComputeBoltzmannNashDistribution(windowCosts, 2.5)
+	minority := quant.EvaluateMinorityGameCrowding(windowCosts, 0.45, 2.0)
+	blotto := quant.ComputeBlottoAllocation(asset, float64(duration), s0)
+
+	resp := map[string]interface{}{
+		"status":                      "success",
+		"asset":                       asset,
+		"model":                       "Game-Theoretic Anti-Herding & Multi-Cluster Suite",
+		"boltzmann_nash_distribution": boltzmann,
+		"minority_game_crowd_penalty": minority,
+		"blotto_portfolio_allocation": blotto,
+	}
+	b, _ := json.Marshal(resp)
+	return string(b), nil
+}
+
+// ExecuteBacktestQuery executes a simulation/backtest of pricing oracle models across configurable days and scenarios.
+func (m *PricingOracleManager) ExecuteBacktestQuery(ctx context.Context, asset, providerFilter string, options map[string]string) (string, error) {
+	spotRaw, _ := m.ExecuteQuery(ctx, asset, "spot", providerFilter, nil)
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(spotRaw), &parsed)
+	s0 := spotBaseRate(asset)
+	if p, ok := parsed["spot_price"].(float64); ok && p > 0 {
+		s0 = p
+	}
+
+	days := 30
+	if dStr, ok := options["days"]; ok {
+		if dVal, err := strconv.Atoi(dStr); err == nil && dVal > 0 {
+			days = dVal
+		}
+	} else if dStr, ok := options["duration_days"]; ok {
+		if dVal, err := strconv.Atoi(dStr); err == nil && dVal > 0 {
+			days = dVal
+		}
+	}
+
+	modelType := "ou_jump_diffusion"
+	if mStr, ok := options["model"]; ok && mStr != "" {
+		modelType = mStr
+	} else if mStr, ok := options["model_type"]; ok && mStr != "" {
+		modelType = mStr
+	}
+
+	tasksCount := 100
+	if tStr, ok := options["tasks"]; ok {
+		if tVal, err := strconv.Atoi(tStr); err == nil && tVal > 0 {
+			tasksCount = tVal
+		}
+	}
+
+	strike := 0.0
+	if sStr, ok := options["strike_rate"]; ok {
+		if sVal, err := strconv.ParseFloat(sStr, 64); err == nil && sVal > 0 {
+			strike = sVal
+		}
+	}
+
+	dataset := ""
+	if ds, ok := options["dataset"]; ok && ds != "" {
+		dataset = ds
+	} else if ds, ok := options["dataset_name"]; ok && ds != "" {
+		dataset = ds
+	}
+
+	datasetPath := ""
+	if dp, ok := options["dataset_path"]; ok && dp != "" {
+		datasetPath = dp
+	}
+
+	engine := backtest.NewBacktestEngine()
+	report, err := engine.RunBacktest(backtest.BacktestConfig{
+		Asset:                  asset,
+		DatasetName:            dataset,
+		DatasetPath:            datasetPath,
+		BaseSpotRateUSD:        s0,
+		SimulationDurationDays: days,
+		NumMonteCarloPaths:     1000,
+		ModelType:              modelType,
+		NumWorkloadTasks:       tasksCount,
+		StrikeRateUSD:          strike,
+	})
+	if err != nil {
+		return "", fmt.Errorf("backtest execution failed: %w", err)
+	}
+
+	format := strings.ToLower(options["format"])
+	if format == "json" {
+		return report.ToJSON()
+	}
+
+	return backtest.FormatMarkdownReport(report), nil
 }
 
 // buildResult is a shared helper that constructs a PricingResult from a raw JSON string.

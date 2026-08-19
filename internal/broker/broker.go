@@ -9,10 +9,12 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/fabith10/synapse-go/internal/agent/pricing/hedge"
 	"github.com/fabith10/synapse-go/internal/memory"
 	"github.com/fabith10/synapse-go/internal/orchestrator"
 	toolpkg "github.com/fabith10/synapse-go/internal/tools"
@@ -551,19 +553,29 @@ func (b *Broker) tryComputeNode(
 	outputStr := string(output)
 	_ = b.store.CompleteStep(ctx, req.AgentID, toolID, outputStr)
 
-	// ---- Update active_tasks routing record (PDR-002 §3.C) ----------------
-	_ = b.store.UpsertTask(ctx, memory.ActiveTask{
-		TaskID:          req.AgentID,
-		CurrentAgent:    req.AgentID,
-		Status:          memory.TaskStatusResolved,
-		ComputeTierUsed: memory.TierSpotGPU,
-	})
+	// ---- Apply Active Derivative Hedge Downside Protection ----
+	actualSpotRatePerHour := (candidate.EstCost / math.Max(estSeconds, 1.0)) * 3600.0
+	effRatePerHour, hedgeSavings, contractID := hedge.GetGlobalHedgeLedger().ConsumeHedge(
+		req.HardwareTier,
+		elapsed.Hours(),
+		actualSpotRatePerHour,
+	)
+	billedCostUSD := candidate.EstCost
+	if contractID != "" && hedgeSavings > 0 {
+		billedCostUSD = effRatePerHour * elapsed.Hours()
+		logger.WithComponent("broker").Info("Applied derivative downside protection hedge",
+			"contract_id", contractID,
+			"hardware", req.HardwareTier,
+			"spot_rate_hr", actualSpotRatePerHour,
+			"hedged_rate_hr", effRatePerHour,
+			"savings_usd", hedgeSavings)
+	}
 
 	_ = estSeconds // used for cost estimation above; logged for future audit
 	return RouteResult{
 		Response:         orchestrator.Message{Sender: node.Name, Content: outputStr},
 		ProviderName:     node.Name,
-		EstimatedCostUSD: candidate.EstCost,
+		EstimatedCostUSD: billedCostUSD,
 		TierUsed:         TierSpotGPU,
 	}, nil
 }

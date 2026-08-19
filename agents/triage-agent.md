@@ -7,6 +7,7 @@ capabilities:
   - pricing lookup
 tools:
   - query_pricing_oracle
+  - manage_hedge_contract
   - schedule_task
   - list_schedules
   - cancel_schedule

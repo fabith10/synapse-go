@@ -11,6 +11,10 @@ capabilities:
   - optimal execution window analysis
   - monte carlo simulation
   - risk-adjusted cost estimation
+  - derivative hedge execution
+  - downside price protection
+  - quantitative backtesting
+  - model risk and var calibration
   - workspace file editing
 tools:
   - execute_python_docker
@@ -19,6 +23,8 @@ tools:
   - replace_file_content
   - list_directory
   - query_pricing_oracle
+  - manage_hedge_contract
+  - run_pricing_backtest
   - query_compute_prices
   - query_forward_curves
   - query_options_chain
