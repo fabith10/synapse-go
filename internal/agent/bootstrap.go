@@ -360,6 +360,8 @@ func getSharedToolsMap(sandbox *MultiTierSandbox, orch *adk.Orchestrator, store 
 		"replace_file_content":    agenttools.GetReplaceFileContentTool(),
 		"list_directory":          agenttools.GetListDirectoryTool(),
 		"query_pricing_oracle":    agenttools.GetQueryPricingOracleTool(),
+		"manage_hedge_contract":   agenttools.GetManageHedgeContractTool(),
+		"run_pricing_backtest":    agenttools.GetRunPricingBacktestTool(),
 		"extract_pdf_text":        agenttools.GetExtractPDFTextTool(),
 		"semantic_search_context": agenttools.GetSemanticSearchContextTool(store),
 		"read_state_variable":     GetReadStateVariableTool(orch),

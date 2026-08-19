@@ -330,3 +330,166 @@ func TestPricingOracle_FreeLiveIntegration(t *testing.T) {
 	}
 }
 
+func TestPricingOracle_QuantDerivativesAndRiskMetrics(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "pricing_providers.json")
+	cfgData := `{
+		"active_provider": "mock",
+		"providers": {
+			"mock": { "type": "mock" }
+		}
+	}`
+	if err := os.WriteFile(configPath, []byte(cfgData), 0600); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	mgr := NewPricingOracleManager(configPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// 1. Black-76 Options Query
+	optRaw, err := mgr.ExecuteQuery(ctx, "H100_SXM", "options", "", map[string]string{
+		"strike":     "2.60",
+		"days":       "30",
+		"volatility": "0.35",
+	})
+	if err != nil {
+		t.Fatalf("options query failed: %v", err)
+	}
+	var optMap map[string]interface{}
+	if err := json.Unmarshal([]byte(optRaw), &optMap); err != nil {
+		t.Fatalf("unmarshal options failed: %v", err)
+	}
+	if optMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", optMap["status"])
+	}
+	if optMap["model"] != "Black-76 Commodity Option & Greeks Engine" {
+		t.Errorf("unexpected model name: %v", optMap["model"])
+	}
+	if parity, ok := optMap["put_call_parity"].(bool); !ok || !parity {
+		t.Errorf("expected put_call_parity to be true")
+	}
+
+	// 2. Risk Metrics Query (Monte Carlo VaR & CVaR)
+	riskRaw, err := mgr.ExecuteQuery(ctx, "H100_SXM", "risk_metrics", "", map[string]string{
+		"start_hour": "2",
+		"duration":   "4",
+		"cost_mode":  "spot",
+	})
+	if err != nil {
+		t.Fatalf("risk_metrics query failed: %v", err)
+	}
+	var riskMap map[string]interface{}
+	if err := json.Unmarshal([]byte(riskRaw), &riskMap); err != nil {
+		t.Fatalf("unmarshal risk_metrics failed: %v", err)
+	}
+	if riskMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", riskMap["status"])
+	}
+
+	// 3. Real Options Analysis Query
+	roaRaw, err := mgr.ExecuteQuery(ctx, "H100_SXM", "real_options", "", map[string]string{
+		"duration": "4",
+	})
+	if err != nil {
+		t.Fatalf("real_options query failed: %v", err)
+	}
+	var roaMap map[string]interface{}
+	if err := json.Unmarshal([]byte(roaRaw), &roaMap); err != nil {
+		t.Fatalf("unmarshal real_options failed: %v", err)
+	}
+	if roaMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", roaMap["status"])
+	}
+
+	// 4. Lucia-Schwartz Two-Factor Model Query
+	lsRaw, err := mgr.ExecuteQuery(ctx, "H100_SXM", "lucia_schwartz", "", nil)
+	if err != nil {
+		t.Fatalf("lucia_schwartz query failed: %v", err)
+	}
+	var lsMap map[string]interface{}
+	if err := json.Unmarshal([]byte(lsRaw), &lsMap); err != nil {
+		t.Fatalf("unmarshal lucia_schwartz failed: %v", err)
+	}
+	if lsMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", lsMap["status"])
+	}
+
+	// 5. Markov Regime-Switching Model Query
+	mrsRaw, err := mgr.ExecuteQuery(ctx, "H100_SXM", "regime_switching", "", map[string]string{"duration": "4"})
+	if err != nil {
+		t.Fatalf("regime_switching query failed: %v", err)
+	}
+	var mrsMap map[string]interface{}
+	if err := json.Unmarshal([]byte(mrsRaw), &mrsMap); err != nil {
+		t.Fatalf("unmarshal regime_switching failed: %v", err)
+	}
+	if mrsMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", mrsMap["status"])
+	}
+
+	// 6. Queuing Congestion Model Query
+	congRaw, err := mgr.ExecuteQuery(ctx, "H100_SXM", "congestion", "", nil)
+	if err != nil {
+		t.Fatalf("congestion query failed: %v", err)
+	}
+	var congMap map[string]interface{}
+	if err := json.Unmarshal([]byte(congRaw), &congMap); err != nil {
+		t.Fatalf("unmarshal congestion failed: %v", err)
+	}
+	if congMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", congMap["status"])
+	}
+
+	// 7. Game Theory Multi-Cluster & Anti-Herding Query
+	gtRaw, err := mgr.ExecuteQuery(ctx, "H100_SXM", "game_theory", "", map[string]string{"duration": "4"})
+	if err != nil {
+		t.Fatalf("game_theory query failed: %v", err)
+	}
+	var gtMap map[string]interface{}
+	if err := json.Unmarshal([]byte(gtRaw), &gtMap); err != nil {
+		t.Fatalf("unmarshal game_theory failed: %v", err)
+	}
+	if gtMap["status"] != "success" {
+		t.Errorf("expected status success, got %v", gtMap["status"])
+	}
+	if gtMap["model"] != "Game-Theoretic Anti-Herding & Multi-Cluster Suite" {
+		t.Errorf("unexpected game theory model name: %v", gtMap["model"])
+	}
+
+	// 8. Compute Pricing Oracle Backtest Query (Synthetic)
+	btRaw, err := mgr.ExecuteQuery(ctx, "H100_SXM", "backtest", "", map[string]string{
+		"days":   "14",
+		"format": "json",
+	})
+	if err != nil {
+		t.Fatalf("backtest query failed: %v", err)
+	}
+	var btMap map[string]interface{}
+	if err := json.Unmarshal([]byte(btRaw), &btMap); err != nil {
+		t.Fatalf("unmarshal backtest failed: %v", err)
+	}
+	if btMap["asset"] != "H100_SXM" {
+		t.Errorf("expected asset H100_SXM in backtest, got %v", btMap["asset"])
+	}
+	if btMap["total_hours"] != float64(336) {
+		t.Errorf("expected 336 total hours, got %v", btMap["total_hours"])
+	}
+
+	// 9. Empirical Dataset Backtest Query (Real AWS Spot Dataset)
+	btEmpRaw, err := mgr.ExecuteQuery(ctx, "g5.xlarge", "backtest", "", map[string]string{
+		"dataset": "aws_g5_xlarge",
+		"format":  "json",
+	})
+	if err != nil {
+		t.Fatalf("empirical backtest query failed: %v", err)
+	}
+	var btEmpMap map[string]interface{}
+	if err := json.Unmarshal([]byte(btEmpRaw), &btEmpMap); err != nil {
+		t.Fatalf("unmarshal empirical backtest failed: %v", err)
+	}
+	if btEmpMap["total_hours"] != float64(720) {
+		t.Errorf("expected 720 hours for aws_g5_xlarge empirical backtest, got %v", btEmpMap["total_hours"])
+	}
+}
+

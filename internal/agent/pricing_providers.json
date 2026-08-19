@@ -64,16 +64,19 @@
     "mock": {
       "type": "mock",
       "description": "Internal mock compute pricing and task execution endpoints",
-      "base_url": "http://localhost:8080"
+      "base_url": "http://localhost:8080",
+      "mappings": {}
     },
     "mock_fallback": {
       "type": "mock_fallback",
-      "description": "Dynamic provider mock_fallback"
+      "description": "Dynamic provider mock_fallback",
+      "mappings": {}
     },
     "static_json": {
       "type": "static_json",
       "description": "Local workspace static JSON pricing matrix",
-      "file_path": "pricing_matrix.json"
+      "file_path": "pricing_matrix.json",
+      "mappings": {}
     }
   }
 }
