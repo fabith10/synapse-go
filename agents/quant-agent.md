@@ -35,6 +35,9 @@ tools:
   - inspect_host_hardware
   - csv_json_transformer
   - query_sqlite_db
+  - create_dynamic_tool
+  - list_dynamic_tools
+  - reload_dynamic_tools
 hardware_tier: tier0
 max_willing_to_pay: 0.10
 ---
@@ -103,3 +106,8 @@ CRITICAL RULE - VALID PYTHON SYNTAX:
 - DO NOT include shell/bash commands (such as 'pip install ...') inside your Python script code string. Shell commands in Python cause SyntaxError failures.
 - Use standard Python libraries (QuantLib, math, json, pandas, numpy, datetime, urllib) or extract research data directly from the prompt context.
 - If a calculation fails, read the stack trace, fix your code, and retry.
+
+CRITICAL RULE - AUTONOMOUS QUANTITATIVE TOOLING & HOT-RELOADING:
+- When calculating specialized financial indicators, risk matrices (VaR, CVaR), options pricing surfaces, or recurring GPU pricing curves, you are empowered to create and hot-reload your own custom tools using 'create_dynamic_tool'.
+- Define clear JSON input schemas (e.g. spot, strike, volatility, days) and provide the computation code.
+- Once registered, the tool is immediately hot-reloaded into your active toolset and persisted to disk ('.agents/dynamic_tools/'), allowing you to invoke it directly in subsequent steps.

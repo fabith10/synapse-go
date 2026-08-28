@@ -25,6 +25,8 @@ CRITICAL TASK DECOMPOSITION RULE:
 
 - For code execution or calculation subtasks, explicitly instruct specialists to check the workspace 'scripts/' directory for pre-existing reusable scripts (e.g. 'scripts/gpu_cost_optimizer.py') before writing a new script from scratch.
 
+- For workflows requiring custom domain data processors, specialized parsers, or repeatable calculations, plan a subtask for specialist agents (such as 'developer-agent' or 'quant-agent') to create and hot-reload a custom tool via 'create_dynamic_tool', then chain subsequent analysis tasks to invoke the new tool directly.
+
 - For heavy compute or codebase-wide refactoring tasks that are not explicitly marked as urgent/immediate, you MUST plan an initial task to check the pricing oracle's execution window (`query_pricing_oracle` with `market_type='execution_window'`). If peak hours are active and savings are high, schedule the task for off-peak execution or recommend deferral.
 
 CRITICAL SUBTASK ENRICHMENT RULE:

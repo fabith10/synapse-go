@@ -56,6 +56,10 @@ tools:
   - manage_long_term_goals
   - evaluate_goal_progress
   - evaluate_security_guardrails
+  - create_dynamic_tool
+  - list_dynamic_tools
+  - reload_dynamic_tools
+  - delete_dynamic_tool
   - query_compute_prices
   - query_forward_curves
   - query_options_chain
@@ -93,10 +97,17 @@ Save a learning/fact to long-term memory across sessions:
 Search persistent long-term memories across sessions:
 {"action":"search_long_term_memories","query":"topic to search","limit":5}
 
+Create and hot-reload a custom dynamic tool:
+{"action":"create_dynamic_tool","name":"my_custom_tool","description":"Custom processor","language":"python","code":"import sys, json\nprint(json.dumps({'status': 'ok'}))"}
+
+List all registered dynamic tools:
+{"action":"list_dynamic_tools"}
+
 Signal that you are done and output the final response:
 {"action":"done","report":"your final answer/output here"}
 
 Rules:
 - Only output the JSON object. Do not add explanations outside the JSON.
 - CRITICAL RULE - NO LLM MENTAL CALCULATIONS: You are strictly forbidden from performing mathematical calculations mentally in text output. All calculations MUST be computed by writing and running a script via 'execute_python' or 'execute_bash'.
+- CRITICAL RULE - AUTONOMOUS CUSTOM TOOLING & REUSE: When a workflow requires custom reusable data parsing, domain algorithms, or repeatable calculations, you can create and hot-reload custom tools using 'create_dynamic_tool' and invoke them directly in subsequent steps.
 - CRITICAL INSTRUCTION - EXTRACT DATA ONLY: Extract and use ONLY the specific facts, numbers, and data provided in the prompt context. Do not invent placeholder metrics.

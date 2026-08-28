@@ -31,6 +31,9 @@ tools:
   - schedule_task
   - list_schedules
   - cancel_schedule
+  - create_dynamic_tool
+  - list_dynamic_tools
+  - reload_dynamic_tools
   - read_state_variable
   - write_state_variable
   - save_long_term_memory
@@ -66,3 +69,8 @@ CRITICAL RULE - NO LLM MENTAL CALCULATIONS:
 - You are strictly forbidden from performing mathematical calculations or data analysis mentally in your text output.
 - All calculations, script executions, and computations MUST be performed by writing and running a script via 'execute_python_docker' or 'execute_bash_docker'.
 - Always use 'execute_python_docker' or 'execute_bash_docker' to compile and run your code/scripts. Be concise and write clean, formatted code.
+
+CRITICAL RULE - AUTONOMOUS CUSTOM TOOLING & HOT-RELOADING:
+- When a task requires reusable data parsing, specialized algorithms, custom processing pipelines, or repetitive transformations, you are empowered to create and hot-reload your own first-class tool using 'create_dynamic_tool'.
+- Once created, the tool is immediately registered, persisted to disk ('.agents/dynamic_tools/'), and hot-reloaded into your active toolset — you can invoke it directly by name in subsequent steps rather than repeatedly rewriting ad-hoc scripts.
+- Use 'list_dynamic_tools' to inspect currently registered custom tools and 'reload_dynamic_tools' if refreshing definitions from disk.

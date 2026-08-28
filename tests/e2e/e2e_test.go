@@ -600,6 +600,34 @@ func TestE2E_DerivativeHedgeContractExecution(t *testing.T) {
 	}
 }
 
+// Test 20: Dynamic Self-Authoring Tools, Hot-Reloading & Execution
+func TestE2E_DynamicToolCreationAndHotReload(t *testing.T) {
+	dynSpecPath := filepath.Join("testdata", ".agents", "dynamic_tools", "calculate_custom_metric.json")
+	_ = os.Remove(dynSpecPath)
+	defer os.Remove(dynSpecPath)
+
+	prompt := "Step 1: Call create_dynamic_tool with name 'calculate_custom_metric', description 'Calculates custom weighted index', language 'python', and code 'import sys, json\\nprint(json.dumps({\"custom_metric\": 88.5, \"status\": \"computed\"}))'. Step 2: Call list_dynamic_tools to verify registered tools. Step 3: Call calculate_custom_metric with test input."
+
+	outStr, logStr := runE2ETestCase(t, prompt, "e2e_dynamic_tool_pipeline.log", "90", "DISABLE_DOCKER_TOOLS=true")
+
+	// 1. Audit log checks for triage routing and agent execution
+	if !strings.Contains(logStr, "USER ➔ triage-agent") {
+		t.Errorf("expected audit log to record USER -> triage-agent transition")
+	}
+
+	// 2. Verify dynamic tool creation and hot-reloaded execution
+	hasDynamicToolCreation := strings.Contains(logStr, "create_dynamic_tool") || strings.Contains(outStr, "create_dynamic_tool") || strings.Contains(logStr, "calculate_custom_metric") || strings.Contains(outStr, "calculate_custom_metric")
+	if !hasDynamicToolCreation {
+		t.Errorf("expected log or output to contain dynamic tool creation, got log:\n%s", logStr)
+	}
+
+	hasListOrExec := strings.Contains(logStr, "list_dynamic_tools") || strings.Contains(outStr, "list_dynamic_tools") || strings.Contains(logStr, "calculate_custom_metric") || strings.Contains(outStr, "custom_metric") || strings.Contains(logStr, "88.5")
+	if !hasListOrExec {
+		t.Errorf("expected log or output to contain dynamic tool execution, got log:\n%s", logStr)
+	}
+}
+
+
 
 
 

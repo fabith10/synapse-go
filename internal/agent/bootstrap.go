@@ -69,6 +69,13 @@ func Bootstrap(cfg adk.Config) (*adk.Runtime, error) {
 	scheduler := agenttools.NewCronScheduler(rt.Orchestrator(), "schedules.json")
 	scheduler.Start(context.Background())
 
+	// Initialize DynamicToolManager for self-authoring hot-reloaded tools
+	dynDir := FindConfigPath(".agents/dynamic_tools")
+	if dynDir == "" {
+		dynDir = ".agents/dynamic_tools"
+	}
+	agenttools.InitDynamicToolManager(sandbox, rt.Orchestrator(), dynDir)
+
 	// Load agents directory if present, otherwise fallback to agents.json to override system prompts dynamically
 	if len(GetLoadedAgentConfigs()) == 0 {
 		if err := LoadAgentsConfig(FindConfigPath("agents")); err != nil {
@@ -268,6 +275,10 @@ func GetAvailableToolsList() []ToolDescriptor {
 		{Name: "browser_reload", Description: "Refresh/reload active browser webpage", Category: "Native Go (Tier 1)", IsGated: false},
 		{Name: "browser_save_cookies", Description: "Export active browser session cookies as JSON", Category: "Native Go (Tier 1)", IsGated: false},
 		{Name: "browser_load_cookies", Description: "Import cookie JSON array to restore authenticated state", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "create_dynamic_tool", Description: "Dynamically author and hot-reload new tools in Python, Bash, or WASM", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "list_dynamic_tools", Description: "List all dynamically authored and hot-reloaded tools", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "reload_dynamic_tools", Description: "Scan disk and hot-reload dynamic tool definitions into runtime", Category: "Native Go (Tier 1)", IsGated: false},
+		{Name: "delete_dynamic_tool", Description: "Delete a dynamically authored tool from runtime and disk", Category: "Native Go (Tier 1)", IsGated: false},
 		{Name: "extract_web_tables", Description: "Parse HTML tables into structured JSON arrays of headers and rows", Category: "Native Go (Tier 1)", IsGated: false},
 		{Name: "inspect_env_vars", Description: "Inspect environment variables and runtime settings with credential masking", Category: "Native Go (Tier 1)", IsGated: false},
 		{Name: "validate_json_schema", Description: "Validate JSON syntax and required structural keys", Category: "Native Go (Tier 1)", IsGated: false},
@@ -397,5 +408,9 @@ func getSharedToolsMap(sandbox *MultiTierSandbox, orch *adk.Orchestrator, store 
 		"manage_long_term_goals":        agenttools.GetManageLongTermGoalsTool(store),
 		"evaluate_goal_progress":        agenttools.GetEvaluateGoalProgressTool(store),
 		"evaluate_security_guardrails":  agenttools.GetEvaluateSecurityGuardrailsTool(),
+		"create_dynamic_tool":           agenttools.GetCreateDynamicTool(sandbox, orch, ""),
+		"list_dynamic_tools":            agenttools.GetListDynamicToolsTool(),
+		"reload_dynamic_tools":          agenttools.GetReloadDynamicToolsTool(sandbox, orch),
+		"delete_dynamic_tool":           agenttools.GetDeleteDynamicTool(sandbox, orch),
 	}
 }

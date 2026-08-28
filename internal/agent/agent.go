@@ -167,7 +167,14 @@ func findTool(tools []adk.Tool, actionName string) (adk.Tool, bool) {
 			return t, true
 		}
 	}
-	// 2. Configurable alias lookup
+	// 2. Dynamic tool manager lookup
+	if dt, ok := agenttools.GetGlobalDynamicTool(actionName); ok {
+		return dt, true
+	}
+	if dt, ok := agenttools.GetGlobalDynamicTool(actionLower); ok {
+		return dt, true
+	}
+	// 3. Configurable alias lookup
 	targetAlias := agenttools.ResolveToolAlias(actionLower)
 	if targetAlias != actionLower {
 		for _, t := range tools {
@@ -175,15 +182,18 @@ func findTool(tools []adk.Tool, actionName string) (adk.Tool, bool) {
 				return t, true
 			}
 		}
+		if dt, ok := agenttools.GetGlobalDynamicTool(targetAlias); ok {
+			return dt, true
+		}
 	}
-	// 3. Suffix/prefix match (e.g. "navigate" -> "browser_navigate")
+	// 4. Suffix/prefix match (e.g. "navigate" -> "browser_navigate")
 	for _, t := range tools {
 		tLower := strings.ToLower(t.Name)
 		if strings.HasSuffix(tLower, "_"+actionLower) || strings.HasPrefix(tLower, actionLower+"_") {
 			return t, true
 		}
 	}
-	// 4. Fuzzy/partial match
+	// 5. Fuzzy/partial match
 	for _, t := range tools {
 		tLower := strings.ToLower(t.Name)
 		if strings.Contains(tLower, actionLower) || strings.Contains(actionLower, tLower) {
@@ -215,6 +225,19 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 		ctx = context.WithValue(ctx, agenttools.WorkspaceRootKey, workDir)
 	}
 
+	// Merge static agent tools with active global dynamic tools
+	activeTools := append([]adk.Tool{}, tools...)
+	existingTools := make(map[string]bool)
+	for _, t := range activeTools {
+		existingTools[t.Name] = true
+	}
+	for _, dt := range agenttools.GetGlobalDynamicTools() {
+		if !existingTools[dt.Name] {
+			activeTools = append(activeTools, dt)
+			existingTools[dt.Name] = true
+		}
+	}
+
 	// Strip conversation_history from content for the task description,
 	// but keep the full enriched content as context for the first LLM call.
 	taskContent := msg.Content
@@ -231,9 +254,9 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 	conversationMsgs := []adk.Message{
 		{Sender: "SYSTEM", Content: systemPrompt},
 	}
-	if len(tools) > 0 {
+	if len(activeTools) > 0 {
 		var toolDescs []string
-		for _, t := range tools {
+		for _, t := range activeTools {
 			paramSpec := ""
 			if propsVal, ok := t.Parameters["properties"]; ok {
 				if props, ok := propsVal.(map[string]interface{}); ok {
@@ -252,7 +275,7 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 			}
 			toolDescs = append(toolDescs, fmt.Sprintf("- '%s': %s%s", t.Name, t.Description, paramSpec))
 		}
-		toolDirective := fmt.Sprintf("TASK EXECUTION TOOL SCHEMAS & FORMAT DIRECTIVE:\nYou have access to the following tools with exact parameter names:\n%s\n\nEXACT TOOL CALL JSON FORMAT EXAMPLES:\n- read_file: {\"action\": \"read_file\", \"path\": \"docs/readme.md\"}\n- execute_python_docker: {\"action\": \"execute_python_docker\", \"python_code\": \"print('hello world')\"}\n- web_search_and_extract: {\"action\": \"web_search_and_extract\", \"query\": \"latest market trends\"}\n- write_file: {\"action\": \"write_file\", \"path\": \"reports/summary.txt\", \"content\": \"...\"}\n- write_email: {\"action\": \"write_email\", \"recipient\": \"team@company.com\", \"subject\": \"...\", \"body\": \"...\"}\n\nRULES:\n1. Always specify the exact required parameter name shown in the schema above (e.g. 'python_code' for execute_python_docker, 'path' for read_file/write_file, 'query' for web_search_and_extract).\n2. If your task requires code execution or math calculations, call 'execute_python_docker' or 'execute_bash_docker'.\n3. Respond strictly with raw JSON tool calls.", strings.Join(toolDescs, "\n"))
+		toolDirective := fmt.Sprintf("TASK EXECUTION TOOL SCHEMAS & FORMAT DIRECTIVE:\nYou have access to the following tools with exact parameter names:\n%s\n\nEXACT TOOL CALL JSON FORMAT EXAMPLES:\n- read_file: {\"action\": \"read_file\", \"path\": \"docs/readme.md\"}\n- execute_python_docker: {\"action\": \"execute_python_docker\", \"python_code\": \"print('hello world')\"}\n- create_dynamic_tool: {\"action\": \"create_dynamic_tool\", \"name\": \"my_calc\", \"description\": \"...\", \"language\": \"python\", \"code\": \"...\"}\n- web_search_and_extract: {\"action\": \"web_search_and_extract\", \"query\": \"latest market trends\"}\n- write_file: {\"action\": \"write_file\", \"path\": \"reports/summary.txt\", \"content\": \"...\"}\n- write_email: {\"action\": \"write_email\", \"recipient\": \"team@company.com\", \"subject\": \"...\", \"body\": \"...\"}\n\nRULES:\n1. Always specify the exact required parameter name shown in the schema above (e.g. 'python_code' for execute_python_docker, 'path' for read_file/write_file, 'query' for web_search_and_extract).\n2. If your task requires code execution or math calculations, call 'execute_python_docker' or 'execute_bash_docker'.\n3. Respond strictly with raw JSON tool calls.", strings.Join(toolDescs, "\n"))
 		conversationMsgs = append(conversationMsgs, adk.Message{
 			Sender:  "SYSTEM",
 			Content: toolDirective,
@@ -394,13 +417,13 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 			}
 			if !recovered {
 				// If the agent has tools available and has not executed any tool yet, prompt it to call its tool rather than returning premature prose.
-				if len(tools) > 0 && toolsExecuted == 0 && unrecoveredCount < 2 {
+				if len(activeTools) > 0 && toolsExecuted == 0 && unrecoveredCount < 2 {
 					unrecoveredCount++
 					var toolNames []string
-					for _, t := range tools {
+					for _, t := range activeTools {
 						toolNames = append(toolNames, t.Name)
 					}
-					nudge := fmt.Sprintf("SYSTEM: You have available tools: [%s]. You must respond with a raw JSON tool call to execute your action before completing the task. Example: {\"action\": \"%s\", ...}", strings.Join(toolNames, ", "), tools[0].Name)
+					nudge := fmt.Sprintf("SYSTEM: You have available tools: [%s]. You must respond with a raw JSON tool call to execute your action before completing the task. Example: {\"action\": \"%s\", ...}", strings.Join(toolNames, ", "), activeTools[0].Name)
 					conversationMsgs = append(conversationMsgs, adk.Message{
 						Sender:  "SYSTEM",
 						Content: nudge,
@@ -421,13 +444,13 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 		if actionName == "" {
 			actionName, _ = action["Action"].(string)
 		}
-		if actionName == "" && len(tools) == 1 && toolsExecuted == 0 {
-			actionName = tools[0].Name
+		if actionName == "" && len(activeTools) == 1 && toolsExecuted == 0 {
+			actionName = activeTools[0].Name
 		}
 
 		if actionName == "done" || actionName == "Done" {
-			if len(tools) > 0 && toolsExecuted == 0 && unrecoveredCount < 2 {
-				execToolName := tools[0].Name
+			if len(activeTools) > 0 && toolsExecuted == 0 && unrecoveredCount < 2 {
+				execToolName := activeTools[0].Name
 				if execToolName != "" {
 					unrecoveredCount++
 					nudge := fmt.Sprintf("SYSTEM: You have tools available: [%s]. You MUST call your tool to perform the required action before declaring the task done. Example: {\"action\": \"%s\", ...}", execToolName, execToolName)
@@ -452,7 +475,7 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 		}
 
 		// Find and execute tool
-		tool, found := findTool(tools, actionName)
+		tool, found := findTool(activeTools, actionName)
 		if !found {
 			errStr := fmt.Sprintf("Action failed: unknown action or tool %q", actionName)
 			conversationMsgs = append(conversationMsgs, adk.Message{
@@ -500,6 +523,19 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 		}
 
 		toolsExecuted++
+		if actionName == "create_dynamic_tool" || actionName == "reload_dynamic_tools" || actionName == "delete_dynamic_tool" {
+			activeTools = append([]adk.Tool{}, tools...)
+			existingTools = make(map[string]bool)
+			for _, t := range activeTools {
+				existingTools[t.Name] = true
+			}
+			for _, dt := range agenttools.GetGlobalDynamicTools() {
+				if !existingTools[dt.Name] {
+					activeTools = append(activeTools, dt)
+					existingTools[dt.Name] = true
+				}
+			}
+		}
 		lastToolResults = append(lastToolResults, toolResult)
 		stepLogs = append(stepLogs, fmt.Sprintf("Step %d: %s -> %s", step+1, actionName, toolResult))
 
