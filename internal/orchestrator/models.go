@@ -9,6 +9,18 @@ import "context"
 // Messaging
 // ---------------------------------------------------------------------------
 
+// ToolCall represents a structured tool/function call returned by an LLM
+// provider that supports native function-calling (OpenAI, Anthropic, Gemini).
+// When ToolCalls are present on a Message, the ReAct loop can skip the
+// text-based JSON parsing pipeline entirely.
+type ToolCall struct {
+	// Name is the tool/function name the model wants to invoke.
+	Name string
+
+	// Arguments is the raw JSON arguments for the tool call.
+	Arguments map[string]interface{}
+}
+
 // Message is the atomic unit of communication passed between agents and the
 // central orchestrator bus. The Recipient field is matched by the router to
 // determine which agent mailbox, topic, or special channel receives the payload.
@@ -31,7 +43,13 @@ type Message struct {
 	// Metadata carries optional key/value routing and observability fields.
 	// Reserved keys: "reply_to", "correlation_id", "topic", "traceparent", "auth_scope".
 	Metadata map[string]string
+
+	// ToolCalls carries structured tool invocations from providers that support
+	// native function-calling. When non-empty, the ReAct loop uses these directly
+	// instead of parsing JSON from Content. Nil for providers that don't support it.
+	ToolCalls []ToolCall
 }
+
 
 // ---------------------------------------------------------------------------
 // Middleware

@@ -26,7 +26,7 @@ let currentArtifactRawText = "";
             imgWrapper.classList.add('hidden');
             loadingEl.classList.remove('hidden');
             copyBtn.classList.add('hidden');
-            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
             currentArtifactRawText = "";
 
             if (artifactType === 'pdf') {
@@ -59,8 +59,10 @@ let currentArtifactRawText = "";
         }
 
         function closeArtifactViewer() {
-            document.getElementById('artifact-viewer-modal').classList.add('hidden');
-            document.getElementById('artifact-modal-pdf-iframe').src = 'about:blank';
+            const modal = document.getElementById('artifact-viewer-modal');
+            if (modal) modal.style.display = 'none';
+            const pdfIframe = document.getElementById('artifact-modal-pdf-iframe');
+            if (pdfIframe) pdfIframe.src = 'about:blank';
         }
 
         function copyArtifactToClipboard() {
@@ -73,6 +75,10 @@ let currentArtifactRawText = "";
                 });
             }
         }
+
+        window.openArtifactViewer = openArtifactViewer;
+        window.closeArtifactViewer = closeArtifactViewer;
+        window.copyArtifactToClipboard = copyArtifactToClipboard;
 
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {

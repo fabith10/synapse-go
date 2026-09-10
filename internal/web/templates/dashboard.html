@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com" defer></script>
     <!-- Marked.js for markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -128,10 +131,10 @@
         html.light-theme input::placeholder, html.light-theme textarea::placeholder { color: #94a3b8 !important; }
 
         /* Preserve white text on solid action buttons */
-        html.light-theme .bg-indigo-600, html.light-theme .bg-indigo-700,
+        html.light-theme .bg-zinc-950, html.light-theme .bg-zinc-900,
         html.light-theme .bg-emerald-600, html.light-theme .bg-rose-600 { color: #ffffff !important; }
 
-        /* ---- Semantic badge overrides (amber/emerald/indigo/rose) ---- */
+        /* ---- Semantic badge overrides (amber/emerald/rose) ---- */
         html.light-theme .warning-banner  { background-color:#fffbeb !important; border-color:#fcd34d !important; color:#78350f !important; }
         html.light-theme .warning-title-badge { background-color:#b45309 !important; color:#ffffff !important; }
         html.light-theme .warning-subtitle { color:#92400e !important; font-weight:700 !important; }
@@ -144,9 +147,6 @@
         html.light-theme .text-emerald-400, html.light-theme .text-emerald-300 { color:#047857 !important; font-weight:700 !important; }
         html.light-theme .bg-emerald-500\/10, html.light-theme .bg-emerald-950\/60 { background-color:#d1fae5 !important; color:#065f46 !important; }
 
-        html.light-theme .text-indigo-400, html.light-theme .text-indigo-300 { color:#4338ca !important; font-weight:700 !important; }
-        html.light-theme .bg-indigo-500\/10, html.light-theme .bg-indigo-950\/60 { background-color:#e0e7ff !important; color:#3730a3 !important; }
-
         html.light-theme .text-rose-400, html.light-theme .text-rose-300 { color:#be123c !important; font-weight:700 !important; }
         html.light-theme .bg-rose-500\/10, html.light-theme .bg-rose-950\/60 { background-color:#ffe4e6 !important; color:#9f1239 !important; }
 
@@ -155,7 +155,6 @@
         html.light-theme .recipient-badge { background-color:#f1f5f9 !important; color:#475569 !important; border-color:var(--c-border) !important; }
 
         /* Preset task buttons */
-        html.light-theme .bg-indigo-950\/60 { background-color:#e0e7ff !important; color:#3730a3 !important; border-color:#c7d2fe !important; }
         html.light-theme .bg-emerald-950\/60 { background-color:#d1fae5 !important; color:#065f46 !important; border-color:#a7f3d0 !important; }
         html.light-theme .bg-cyan-950\/60 { background-color:#cffaff !important; color:#164e63 !important; border-color:#a5f3fc !important; }
 
@@ -208,23 +207,502 @@
         .md-content table { border-collapse: collapse; width: 100%; font-size: 0.86em; margin: 0.4em 0; }
         .md-content th { background: var(--c-surface-2); font-weight: 600; color: var(--c-text); }
         .md-content th, .md-content td { border: 1px solid var(--c-border); padding: 5px 8px; text-align: left; }
+
+        /* ----------------------------------------------------------------- */
+        /* Conversational Interface Tokens & Claude/Gemini-Style Components  */
+        /* ----------------------------------------------------------------- */
+        .chat-canvas {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 860px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .user-bubble {
+            background: linear-gradient(135deg, #1c1c24 0%, #15151a 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px 18px 4px 18px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            color: #f4f4f5;
+        }
+        html.light-theme .user-bubble {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #0f172a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .assistant-bubble {
+            color: #e4e4e7;
+            font-size: 14.5px;
+            line-height: 1.7;
+        }
+        .assistant-bubble h1 {
+            font-size: 1.45em !important;
+            font-weight: 700 !important;
+            margin-top: 1.1em !important;
+            margin-bottom: 0.4em !important;
+            color: #ffffff !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+            padding-bottom: 0.3em !important;
+        }
+        .assistant-bubble h2 {
+            font-size: 1.25em !important;
+            font-weight: 700 !important;
+            margin-top: 1em !important;
+            margin-bottom: 0.35em !important;
+            color: #f4f4f5 !important;
+        }
+        .assistant-bubble h3 {
+            font-size: 1.12em !important;
+            font-weight: 600 !important;
+            margin-top: 0.85em !important;
+            margin-bottom: 0.3em !important;
+            color: #e4e4e7 !important;
+        }
+        .assistant-bubble h4 {
+            font-size: 1.02em !important;
+            font-weight: 600 !important;
+            margin-top: 0.7em !important;
+            margin-bottom: 0.25em !important;
+            color: #d4d4d8 !important;
+        }
+        .assistant-bubble p {
+            margin: 0.6em 0 !important;
+            line-height: 1.75 !important;
+        }
+        .assistant-bubble ul {
+            list-style: disc !important;
+            padding-left: 1.5em !important;
+            margin: 0.6em 0 !important;
+        }
+        .assistant-bubble ol {
+            list-style: decimal !important;
+            padding-left: 1.5em !important;
+            margin: 0.6em 0 !important;
+        }
+        .assistant-bubble li {
+            margin: 0.3em 0 !important;
+            line-height: 1.65 !important;
+        }
+        .assistant-bubble strong {
+            font-weight: 700 !important;
+            color: #ffffff !important;
+        }
+        .assistant-bubble blockquote {
+            border-left: 3px solid #6366f1 !important;
+            background: rgba(99, 102, 241, 0.08) !important;
+            padding: 0.5em 1em !important;
+            margin: 0.7em 0 !important;
+            border-radius: 0 8px 8px 0 !important;
+        }
+
+        html.light-theme .assistant-bubble {
+            color: #1e293b !important;
+        }
+        html.light-theme .assistant-bubble h1,
+        html.light-theme .assistant-bubble h2,
+        html.light-theme .assistant-bubble h3,
+        html.light-theme .assistant-bubble h4,
+        html.light-theme .assistant-bubble strong {
+            color: #0f172a !important;
+            border-color: #e2e8f0 !important;
+        }
+        html.light-theme .assistant-bubble p,
+        html.light-theme .assistant-bubble li {
+            color: #1e293b !important;
+        }
+        html.light-theme .assistant-bubble blockquote {
+            background: #eef2ff !important;
+            border-left-color: #4f46e5 !important;
+            color: #312e81 !important;
+        }
+
+        /* Swarm Thinking Accordion — Claude 3.7 / Gemini 2.0 Style */
+        .swarm-thinking {
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            background: rgba(18, 18, 26, 0.7);
+            border-radius: 14px;
+            backdrop-filter: blur(12px);
+            transition: all 0.2s ease-in-out;
+        }
+        .swarm-thinking.is-running {
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.12);
+        }
+        html.light-theme .swarm-thinking {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+        html.light-theme .swarm-thinking.is-running {
+            border-color: #818cf8;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Shimmering Pulse for Active Thinking */
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.6; transform: scale(0.98); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+        .thinking-pulse {
+            animation: pulseGlow 2.2s infinite ease-in-out;
+        }
+
+        /* Code Block Container with Language Header & Copy Button */
+        .code-container {
+            margin: 0.9em 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--c-border);
+            background: #0d0e14;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        html.light-theme .code-container {
+            background: #0f172a;
+            border-color: #334155;
+        }
+        .code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        .code-copy-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .code-copy-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        /* Floating Bottom Composer Capsule */
+        .composer-capsule {
+            background: rgba(18, 18, 23, 0.94);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .composer-capsule:focus-within {
+            border-color: rgba(129, 140, 248, 0.7);
+            box-shadow: 0 12px 40px rgba(99, 102, 241, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.4);
+        }
+        html.light-theme .composer-capsule {
+            background: rgba(255, 255, 255, 0.98);
+            border-color: #cbd5e1;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+        }
+        html.light-theme .composer-capsule:focus-within {
+            border-color: #6366f1;
+            box-shadow: 0 12px 35px rgba(99, 102, 241, 0.18), 0 0 0 1px rgba(99, 102, 241, 0.35);
+        }
+
+        #chat-composer-input {
+            background-color: transparent !important;
+            color: var(--c-text) !important;
+            border: none !important;
+        }
+        #chat-composer-input::placeholder {
+            color: var(--c-text-muted) !important;
+            opacity: 0.9;
+        }
+
+        /* Prompt Starter Cards & Typography */
+        .starter-card {
+            background: var(--c-surface);
+            border: 1px solid var(--c-border);
+            border-radius: 16px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+        }
+        .starter-card:hover {
+            border-color: rgba(129, 140, 248, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        .starter-card .starter-title {
+            color: var(--c-text);
+            font-weight: 700;
+        }
+        .starter-card .starter-desc {
+            color: var(--c-text-muted);
+        }
+        html.light-theme .starter-card {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme .starter-card .starter-title {
+            color: #0f172a !important;
+        }
+        html.light-theme .starter-card .starter-desc {
+            color: #334155 !important;
+        }
+        html.light-theme .starter-card:hover {
+            border-color: #6366f1 !important;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.14) !important;
+        }
+        html.light-theme .starter-card:hover .starter-title {
+            color: #4338ca !important;
+        }
+
+        /* Swarm Thinking Contrast & Readability */
+        .swarm-thinking summary {
+            color: #c7d2fe;
+        }
+        .swarm-thinking .thinking-title {
+            color: #e0e7ff;
+        }
+        .swarm-thinking .timeline-step {
+            color: #e4e4e7;
+        }
+        .swarm-thinking .step-icon {
+            color: #a5b4fc;
+        }
+        .tool-step-badge {
+            background: rgba(147, 51, 234, 0.3);
+            border: 1px solid rgba(147, 51, 234, 0.5);
+            color: #e9d5ff;
+        }
+
+        html.light-theme .swarm-thinking {
+            background: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme .swarm-thinking.is-running {
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 16px rgba(99, 102, 241, 0.15) !important;
+        }
+        html.light-theme .swarm-thinking summary {
+            background: #eef2ff !important;
+            color: #312e81 !important;
+            border-bottom-color: #c7d2fe !important;
+        }
+        html.light-theme .swarm-thinking .thinking-title {
+            color: #1e1b4b !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme .swarm-thinking .thinking-timeline {
+            border-color: #cbd5e1 !important;
+            background: #ffffff !important;
+        }
+        html.light-theme .swarm-thinking .timeline-step {
+            color: #1e293b !important;
+        }
+        html.light-theme .swarm-thinking .step-icon {
+            color: #4338ca !important;
+        }
+        html.light-theme .orchestration-check {
+            color: #0e7490 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme .tool-step-badge {
+            background-color: #f3e8ff !important;
+            border-color: #d8b4fe !important;
+            color: #581c87 !important;
+            font-weight: 700 !important;
+        }
+
+        /* User Bubble High Contrast */
+        .bubble-timestamp {
+            color: #a1a1aa;
+        }
+        .bubble-file-chip {
+            background: rgba(99, 102, 241, 0.25);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            color: #c7d2fe;
+            font-weight: 600;
+        }
+        html.light-theme .user-bubble {
+            background: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        html.light-theme .bubble-timestamp {
+            color: #64748b !important;
+        }
+        html.light-theme .bubble-file-chip {
+            background: #e0e7ff !important;
+            border-color: #c7d2fe !important;
+            color: #3730a3 !important;
+        }
+
+        /* Preset Prompt Chips */
+        .prompt-chip {
+            background: #18181b;
+            border: 1px solid #27272a;
+            color: #e4e4e7;
+        }
+        .prompt-chip:hover {
+            background: #27272a;
+            color: #ffffff;
+            border-color: #3f3f46;
+        }
+        html.light-theme .prompt-chip {
+            background: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+            color: #1e293b !important;
+            font-weight: 600 !important;
+        }
+        html.light-theme .prompt-chip:hover {
+            background: #e2e8f0 !important;
+            color: #0f172a !important;
+            border-color: #94a3b8 !important;
+        }
+
+        /* Subview Switcher Contrast */
+        .subview-switcher-wrapper {
+            background: #18181b;
+            border: 1px solid #27272a;
+        }
+        .subview-btn-inactive {
+            color: #d4d4d8;
+        }
+        .subview-btn-inactive:hover {
+            color: #ffffff;
+        }
+        html.light-theme .subview-switcher-wrapper {
+            background: #e2e8f0 !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme .subview-btn-inactive {
+            color: #334155 !important;
+        }
+        html.light-theme .subview-btn-inactive:hover {
+            color: #0f172a !important;
+        }
+
+        /* Top Nav Tabs High Contrast */
+        nav button[id^="tab-btn-"]:not(.border-white) {
+            color: #a1a1aa !important;
+        }
+        nav button[id^="tab-btn-"]:not(.border-white):hover {
+            color: #f4f4f5 !important;
+        }
+        html.light-theme nav button[id^="tab-btn-"]:not(.border-white) {
+            color: #52525b !important;
+        }
+        html.light-theme nav button[id^="tab-btn-"]:not(.border-white):hover {
+            color: #09090b !important;
+        }
+        html.light-theme nav button.border-white {
+            border-color: #09090b !important;
+            color: #09090b !important;
+        }
+
+        /* Inputs & Selects Contrast */
+        #chat-orchestration-mode {
+            background-color: #18181b;
+            border: 1px solid #27272a;
+            color: #f4f4f5;
+        }
+        html.light-theme #chat-orchestration-mode {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+            font-weight: 600 !important;
+        }
+        html.light-theme #composer-file-chip {
+            background-color: #e0e7ff !important;
+            border-color: #c7d2fe !important;
+            color: #3730a3 !important;
+        }
+        html.light-theme #composer-file-chip button {
+            color: #4f46e5 !important;
+        }
+        html.light-theme #composer-file-chip button:hover {
+            color: #312e81 !important;
+        }
+
+        /* Conversational Approval Section & Panel */
+        .chat-approval-panel {
+            background-color: rgba(24, 24, 27, 0.9);
+            border-color: #27272a;
+            transition: all 0.3s ease;
+        }
+        .chat-approval-panel.has-pending {
+            border-color: rgba(245, 158, 11, 0.6) !important;
+            box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+        }
+        .chat-approval-card {
+            background-color: rgba(9, 9, 11, 0.95);
+            border-color: #27272a;
+            transition: all 0.2s ease;
+        }
+
+        html.light-theme .chat-approval-panel {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02) !important;
+        }
+        html.light-theme .chat-approval-panel.has-pending {
+            border-color: #f59e0b !important;
+            box-shadow: 0 0 20px -3px rgba(245, 158, 11, 0.25) !important;
+        }
+        html.light-theme .chat-approval-panel h2 {
+            color: #0f172a !important;
+        }
+        html.light-theme .chat-approval-card {
+            background-color: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+            border-left-color: #d97706 !important;
+        }
+        html.light-theme .chat-approval-sender {
+            color: #0f172a !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme .chat-approval-content {
+            background-color: #ffffff !important;
+            color: #1e293b !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme #chat-approvals-empty {
+            background-color: #f8fafc !important;
+            color: #475569 !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme .chat-approval-btn-deny {
+            background-color: #ffffff !important;
+            color: #b91c1c !important;
+            border-color: #fca5a5 !important;
+        }
+        html.light-theme .chat-approval-btn-deny:hover {
+            background-color: #fef2f2 !important;
+            color: #991b1b !important;
+        }
     </style>
 </head>
-<body hx-ext="sse" sse-connect="/stream/logs" class="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+<body hx-ext="sse" sse-connect="/stream/logs" class="min-h-screen flex flex-col selection:bg-zinc-800 selection:text-white">
 
     <!-- Top Header -->
     <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-400 p-[1px] shadow-lg shadow-indigo-500/20">
-                    <div class="w-full h-full bg-zinc-950 rounded-[7px] flex items-center justify-center font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-300 text-sm">
+                <div class="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 p-[1px] shadow-sm">
+                    <div class="w-full h-full bg-zinc-950 rounded-[7px] flex items-center justify-center font-bold text-white text-sm">
                         ⚡
                     </div>
                 </div>
                 <div>
                     <h1 class="text-sm font-extrabold tracking-wider text-zinc-100 uppercase flex items-center gap-2">
                         <span>Agentic Control Center</span>
-                        <span class="text-[9px] font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full lowercase">v2.4.0</span>
+                        <span class="text-[9px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded-full lowercase">v2.4.0</span>
                     </h1>
                     <p class="text-[10px] text-zinc-500 font-mono">Go Orchestration Tier // Ephemeral WASM &amp; Docker Sandboxing</p>
                 </div>
@@ -238,9 +716,9 @@
 
                 <!-- Auto-Pilot / HITL Instant Toggle -->
                 {{ if .CriticalActions.AutoApproveAll }}
-                <button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/80 border border-purple-600/80 hover:bg-purple-900/80 text-purple-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-md shadow-purple-500/20" title="Auto-Pilot is ON: all HITL checkpoints are auto-approved. Click to switch to Gated Mode.">
-                    <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
-                    <span class="font-bold">⚡ Auto-Pilot: ON</span>
+                <button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-white text-zinc-950 hover:bg-zinc-200 border border-white rounded-full text-xs font-mono font-bold transition-all cursor-pointer shadow-sm" title="Auto-Pilot is ON: all HITL checkpoints are auto-approved. Click to switch to Gated Mode.">
+                    <span class="w-2 h-2 rounded-full bg-zinc-950 animate-ping"></span>
+                    <span>⚡ Auto-Pilot: ON</span>
                 </button>
                 {{ else }}
                 <button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-sm" title="HITL Gated Mode: high-risk actions prompt operator. Click to enable Auto-Pilot.">
@@ -282,7 +760,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="flex space-x-6" aria-label="Tabs">
                 <button id="tab-btn-dashboard" onclick="switchTab('dashboard')" class="border-b-2 border-white py-3.5 px-2 text-xs font-semibold uppercase tracking-wider text-white flex items-center gap-2 transition-all cursor-pointer">
-                    <span>Control Center</span>
+                    <span>Chat &amp; Swarm</span>
                 </button>
                 <button id="tab-btn-studio" onclick="switchTab('studio')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
                     <span>Agent Studio</span>
@@ -320,8 +798,191 @@
     </div>
     {{ end }}
 
-    <!-- Control Center Tab Content -->
-    <div id="tab-content-dashboard" class="tab-pane flex-1 flex flex-col">
+    <!-- Workspace & Conversational Tab Content -->
+    <div id="tab-content-dashboard" class="tab-pane flex-1 flex flex-col relative">
+
+        <!-- Sub-View Switcher Bar -->
+        <div class="border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md sticky top-16 z-30">
+            <div class="max-w-5xl w-full mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
+                <div class="subview-switcher-wrapper inline-flex p-1 rounded-xl shadow-inner">
+                    <button id="subview-btn-chat" onclick="switchDashboardSubview('chat')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 bg-white text-zinc-950 shadow-sm transition-all cursor-pointer">
+                        <span>💬</span> <span>Conversational Agent</span>
+                        <span id="subview-approval-indicator" class="hidden px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400 text-zinc-950 animate-pulse shadow-sm">0</span>
+                    </button>
+                    <button id="subview-btn-matrix" onclick="switchDashboardSubview('matrix')" class="subview-btn-inactive px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all cursor-pointer">
+                        <span>⚡</span> <span>Swarm Matrix &amp; Logs</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="clearChatThread()" class="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-200 hover:text-white rounded-lg text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95">
+                        <span>✨</span> <span class="hidden sm:inline font-semibold">New Session</span>
+                    </button>
+                    <span id="chat-live-indicator" class="inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-3 py-1 rounded-full font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="hidden sm:inline">12 Agents Standby</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conversational Chat Canvas (Gemini & Claude Experience) -->
+        <div id="dashboard-subview-chat" class="flex-1 flex flex-col items-center w-full min-h-[calc(100vh-160px)] relative pb-44">
+            
+            <div class="w-full max-w-3xl px-4 sm:px-6 pt-6 flex-1 flex flex-col">
+
+                <!-- Conversational Agent Human-in-the-Loop Approval Section -->
+                <section id="chat-approvals-section" class="w-full mb-6 transition-all duration-300">
+                    <div id="chat-approval-panel" class="chat-approval-panel rounded-2xl p-4 sm:p-5 border shadow-xl backdrop-blur-md">
+                        <div class="flex items-center justify-between pb-3 border-b border-zinc-800/80 flex-wrap gap-2">
+                            <div class="flex items-center gap-2.5">
+                                <span class="relative flex h-2.5 w-2.5">
+                                    <span id="chat-approvals-ping" class="hidden animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span id="chat-approvals-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-zinc-500"></span>
+                                </span>
+                                <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
+                                    <span>🛡️</span> Human-in-the-Loop Steering Queue
+                                </h2>
+                                <span id="chat-approvals-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 transition-colors">0 Pending</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-3">
+                                <span class="text-[10px] font-mono text-zinc-400 hidden md:inline">Security Gateways Active</span>
+                                <button type="button" onclick="toggleChatApprovalsList()" id="chat-approvals-toggle-btn" class="text-[11px] font-mono text-zinc-400 hover:text-zinc-200 cursor-pointer transition-colors flex items-center gap-1">
+                                    <span id="chat-approvals-toggle-icon">▼</span>
+                                    <span id="chat-approvals-toggle-text">Collapse</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic list of pending human approvals -->
+                        <div id="chat-approvals-list" class="space-y-3 pt-3">
+                            <div id="chat-approvals-empty" class="text-[11px] text-zinc-400 italic p-4 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
+                                AWAITING INSTRUCTIONS. CRITICAL ACTIONS (SHELL COMMANDS, SENSITIVE CODE, WORKBOOK MODIFICATIONS) WILL PAUSE HERE FOR OPERATOR SIGN-OFF.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Welcome Hero (Displayed when conversation has no messages) -->
+                <div id="chat-hero" class="my-auto py-12 flex flex-col items-center text-center space-y-6 animate-in fade-in duration-500">
+                    <div class="w-14 h-14 rounded-2xl bg-zinc-800 border border-zinc-700 p-[1.5px] shadow-lg">
+                        <div class="w-full h-full bg-zinc-950 rounded-[14px] flex items-center justify-center text-2xl text-white">
+                            ✦
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 max-w-lg">
+                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-100 to-zinc-300 bg-clip-text text-transparent">
+                            What can the swarm accomplish for you?
+                        </h1>
+                        <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed font-medium">
+                            Autonomous multi-agent intelligence with live web extraction, Docker sandboxed Python execution, and financial workbook auditing.
+                        </p>
+                    </div>
+
+                    <!-- 4 Quick-Start Suggestion Cards (Claude / Gemini style) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl pt-4 text-left">
+                        <div onclick="dispatchQuickPrompt('Search the web for latest AI agent architecture trends and compile an executive PDF report', 'autonomous')" class="starter-card group">
+                            <div class="flex items-center gap-2.5 mb-1.5">
+                                <span class="text-base">🌐</span>
+                                <span class="starter-title text-xs font-bold transition-colors">Deep Web Research &amp; PDF</span>
+                            </div>
+                            <p class="starter-desc text-[11px] leading-relaxed">Extracts live web context and synthesizes a structured executive PDF brief.</p>
+                        </div>
+
+                        <div onclick="dispatchQuickPrompt('Inspect financial workbook in chicago_offsite_budget.xlsx, calculate variance metrics, and audit formulas', 'autonomous')" class="starter-card group">
+                            <div class="flex items-center gap-2.5 mb-1.5">
+                                <span class="text-base">📊</span>
+                                <span class="starter-title text-xs font-bold transition-colors">Excel Financial Audit</span>
+                            </div>
+                            <p class="starter-desc text-[11px] leading-relaxed">Audits spreadsheet assumptions, cell formulas, and generates variance tables.</p>
+                        </div>
+
+                        <div onclick="dispatchQuickPrompt('Inspect host system hardware and query spot GPU rental prices across providers', 'autonomous')" class="starter-card group">
+                            <div class="flex items-center gap-2.5 mb-1.5">
+                                <span class="text-base">💻</span>
+                                <span class="starter-title text-xs font-bold transition-colors">Compute &amp; GPU Arbitrage</span>
+                            </div>
+                            <p class="starter-desc text-[11px] leading-relaxed">Queries pricing oracles and hardware metrics to identify low-cost compute.</p>
+                        </div>
+
+                        <div onclick="dispatchQuickPrompt('Plan and decompose a multi-agent quantitative financial analysis workflow', 'steered')" class="starter-card group">
+                            <div class="flex items-center gap-2.5 mb-1.5">
+                                <span class="text-base">⚡</span>
+                                <span class="starter-title text-xs font-bold transition-colors">Steered Task Decomposition</span>
+                            </div>
+                            <p class="starter-desc text-[11px] leading-relaxed">Creates a DAG execution plan requiring human review before running.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Stream Messages Container -->
+                <div id="chat-messages" class="space-y-6 pt-2 pb-8 w-full">
+                    <!-- Dynamic user turns and assistant response turns appended here -->
+                </div>
+
+            </div>
+
+            <!-- Floating Bottom Composer Dock (Signature Claude / Gemini Experience) -->
+            <div class="fixed bottom-0 left-0 right-0 z-40 pb-5 pt-3 px-4 pointer-events-none bg-gradient-to-t from-zinc-950 via-zinc-950/90 to-transparent">
+                <div class="max-w-3xl w-full mx-auto pointer-events-auto space-y-2">
+                    
+                    <!-- Preset Pills Carousel above composer -->
+                    <div class="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-[10px] font-mono select-none">
+                        <span class="prompt-label uppercase shrink-0 font-bold text-zinc-400">Prompts:</span>
+                        <button type="button" onclick="setPromptTask('Search the web for AI market news and compile an executive PDF report')" class="prompt-chip shrink-0 px-3 py-1 rounded-full text-[11px] transition-all">Web Search &amp; PDF</button>
+                        <button type="button" onclick="setPromptTask('Inspect financial workbook in chicago_offsite_budget.xlsx and audit expense metrics')" class="prompt-chip shrink-0 px-3 py-1 rounded-full text-[11px] transition-all">Excel Audit</button>
+                        <button type="button" onclick="setPromptTask('Inspect host system hardware and query spot GPU rental prices')" class="prompt-chip shrink-0 px-3 py-1 rounded-full text-[11px] transition-all">Spot Hardware</button>
+                    </div>
+
+                    <!-- Composer Pill Capsule -->
+                    <div class="composer-capsule p-3 sm:p-3.5 space-y-2.5">
+                        
+                        <!-- Chosen file chip (if attachment selected) -->
+                        <div id="composer-file-chip" class="hidden inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium">
+                            <span>📎</span>
+                            <span id="composer-file-name" class="max-w-[200px] truncate">file</span>
+                            <button type="button" onclick="clearComposerFile()" class="ml-1 font-bold cursor-pointer">×</button>
+                        </div>
+
+                        <!-- Auto-expanding Textarea -->
+                        <div class="relative flex items-center">
+                            <textarea id="chat-composer-input" rows="1"
+                                placeholder="Message the agent swarm... (Enter to send, Shift+Enter for newline)"
+                                class="w-full bg-transparent border-0 focus:ring-0 text-sm sm:text-[15px] leading-relaxed resize-none outline-none max-h-48 overflow-y-auto font-sans"></textarea>
+                        </div>
+
+                        <!-- Bottom Controls: Attachment, Orchestration Mode, Send Button -->
+                        <div class="flex items-center justify-between pt-1 border-t border-zinc-800/60 flex-wrap gap-2">
+                            <div class="flex items-center gap-2.5">
+                                <label for="chat-file-input" class="p-2 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white cursor-pointer transition-colors" title="Attach file context (CSV, PDF, TXT, MD)">
+                                    <span class="text-base">📎</span>
+                                    <input type="file" id="chat-file-input" class="hidden" onchange="handleComposerFileSelected(this)">
+                                </label>
+
+                                <div class="relative">
+                                    <select id="chat-orchestration-mode" class="rounded-lg px-2.5 py-1 text-[11px] font-mono focus:outline-none cursor-pointer">
+                                        <option value="autonomous" selected>⚡ Autonomous</option>
+                                        <option value="steered">🛡️ Steered Review</option>
+                                        <option value="deferred">⏱️ Deferred</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button id="chat-send-btn" type="button" onclick="submitChatComposer()" class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span>Send</span>
+                                <span class="text-sm font-bold">↑</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Observability Swarm Matrix & Trace View (Existing 3-Column Layout) -->
+        <div id="dashboard-subview-matrix" class="hidden flex-1 flex flex-col">
         <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <!-- Left Column: Tasks, Controls & Event Stream (Taking 2/3 width) -->
@@ -395,9 +1056,13 @@
                     </div>
                     
                     <div id="approvals-list" sse-swap="hitl-request" hx-swap="beforeend" class="space-y-4">
+                        {{ if .PendingApprovalsHTML }}
+                            {{ .PendingApprovalsHTML }}
+                        {{ else }}
                         <div class="empty-state text-[11px] text-zinc-400 italic p-6 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
                             AWAITING INSTRUCTIONS. STEERING CONTROLS WILL POPULATE HERE UPON CRITICAL ACTIONS.
                         </div>
+                        {{ end }}
                     </div>
                 </section>
 
@@ -519,7 +1184,7 @@
                         <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
                             <div class="flex justify-between items-center">
                                 <span class="font-bold text-zinc-100 text-xs font-mono">quant-agent</span>
-                                <span class="text-[9px] font-mono bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded uppercase">Quant Sandboxer</span>
+                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Quant Sandboxer</span>
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Writes Python code to perform financial modeling and Monte Carlo simulations inside Docker containers.</p>
                             <div class="flex flex-wrap gap-1 mt-1">
@@ -530,7 +1195,7 @@
                         <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
                             <div class="flex justify-between items-center">
                                 <span class="font-bold text-zinc-100 text-xs font-mono">excel-agent</span>
-                                <span class="text-[9px] font-mono bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded uppercase">Spreadsheet Hero</span>
+                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Spreadsheet Hero</span>
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Modifies financial spreadsheets, updates cell formulas, and extracts model assumptions natively.</p>
                             <div class="flex flex-wrap gap-1 mt-1">
@@ -541,7 +1206,7 @@
                         <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
                             <div class="flex justify-between items-center">
                                 <span class="font-bold text-zinc-100 text-xs font-mono">researcher-agent</span>
-                                <span class="text-[9px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded uppercase">Deep Researcher</span>
+                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Deep Researcher</span>
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Searches live web context, parses search extracts, and compiles PDF research reports natively.</p>
                             <div class="flex flex-wrap gap-1.5 mt-1">
@@ -553,7 +1218,7 @@
                         <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
                             <div class="flex justify-between items-center">
                                 <span class="font-bold text-zinc-100 text-xs font-mono">email-agent</span>
-                                <span class="text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded uppercase">Email Assistant</span>
+                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Email Assistant</span>
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Drafts formatted emails with automatic recipient extraction and security checks for external domains.</p>
                             <div class="flex flex-wrap gap-1 mt-1">
@@ -564,7 +1229,7 @@
                         <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
                             <div class="flex justify-between items-center">
                                 <span class="font-bold text-zinc-100 text-xs font-mono">browser-agent</span>
-                                <span class="text-[9px] font-mono bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 rounded uppercase">Web Browser Agent</span>
+                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Web Browser Agent</span>
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Navigates websites statefully, enters input values, and submits forms step-by-step.</p>
                             <div class="flex flex-wrap gap-1.5 mt-1">
@@ -576,7 +1241,7 @@
                         <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
                             <div class="flex justify-between items-center">
                                 <span class="font-bold text-zinc-100 text-xs font-mono">planner-agent</span>
-                                <span class="text-[9px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded uppercase">Task Planner</span>
+                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Task Planner</span>
                             </div>
                             <p class="text-xs text-zinc-400 leading-relaxed">Dissects complex instructions into sub-tasks with dependencies and executes them in parallel.</p>
                             <div class="flex flex-wrap gap-1 mt-1">
@@ -588,6 +1253,7 @@
                 </section>
             </div>
         </main>
+        </div>
     </div>
 
     <!-- Configurations Tab Content -->
@@ -601,7 +1267,7 @@
                         <p class="text-xs text-zinc-400 mt-1">Configure agent system prompts, tool blocklists, and core LLM provider models.</p>
                     </div>
                     <div>
-                        <button type="submit" form="config-form" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 active:scale-95 cursor-pointer">
+                        <button type="submit" form="config-form" class="px-6 py-2.5 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer">
                             Save Configurations
                         </button>
                     </div>
@@ -613,14 +1279,14 @@
 
                     <!-- Dynamic Agent Prompts Grid -->
                     <div>
-                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-indigo-400 mb-4 border-b border-zinc-800 pb-2">Agent System Prompts</h3>
+                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 mb-4 border-b border-zinc-800 pb-2">Agent System Prompts</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             
                             {{ range $id, $prompt := .AgentsConfig }}
                             <div class="space-y-1.5">
                                 <label for="{{$id}}_prompt" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">{{$id}} Prompt</label>
                                 <textarea name="{{$id}}_prompt" id="{{$id}}_prompt" rows="7" 
-                                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner transition-all">{{$prompt}}</textarea>
+                                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner transition-all">{{$prompt}}</textarea>
                             </div>
                             {{ end }}
 
@@ -631,11 +1297,11 @@
                     <div class="pt-6 border-t border-zinc-800">
                         <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3 flex-wrap gap-2">
                             <div>
-                                <h3 class="text-xs font-extrabold uppercase tracking-widest text-indigo-400">Human-in-the-Loop &amp; Security Controls</h3>
+                                <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200">Human-in-the-Loop &amp; Security Controls</h3>
                                 <p class="text-[10px] text-zinc-400 font-mono mt-0.5">Configure command blocklists, risky Python syscalls, and tool approval triggers (.agents/critical_actions.json).</p>
                             </div>
                             <label class="flex items-center space-x-2 cursor-pointer bg-zinc-900 border border-zinc-800 px-3.5 py-2 rounded-lg hover:bg-zinc-800 transition-colors">
-                                <input type="checkbox" name="auto_approve_all" {{if .CriticalActions.AutoApproveAll}}checked{{end}} class="w-4 h-4 text-indigo-600 border-zinc-700 rounded focus:ring-indigo-500">
+                                <input type="checkbox" name="auto_approve_all" {{if .CriticalActions.AutoApproveAll}}checked{{end}} class="w-4 h-4 accent-zinc-200 border-zinc-700 rounded">
                                 <span class="text-[10px] font-bold font-mono text-zinc-300 uppercase">Auto-Approve All (Auto-Pilot Mode)</span>
                             </label>
                         </div>
@@ -643,27 +1309,27 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="space-y-1.5">
                                 <label for="risky_bash_keywords" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Risky Bash Commands (comma/newline separated)</label>
-                                <textarea name="risky_bash_keywords" id="risky_bash_keywords" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner" placeholder="rm, rmdir, sudo, chmod, curl, pkill">{{.RiskyBashKeywordsStr}}</textarea>
+                                <textarea name="risky_bash_keywords" id="risky_bash_keywords" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner" placeholder="rm, rmdir, sudo, chmod, curl, pkill">{{.RiskyBashKeywordsStr}}</textarea>
                             </div>
 
                             <div class="space-y-1.5">
                                 <label for="risky_python_keywords" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Risky Python Syscalls (comma/newline separated)</label>
-                                <textarea name="risky_python_keywords" id="risky_python_keywords" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner" placeholder="shutil.rmtree, os.remove, os.system, subprocess, eval">{{.RiskyPythonKeywordsStr}}</textarea>
+                                <textarea name="risky_python_keywords" id="risky_python_keywords" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner" placeholder="shutil.rmtree, os.remove, os.system, subprocess, eval">{{.RiskyPythonKeywordsStr}}</textarea>
                             </div>
 
                             <div class="space-y-1.5">
                                 <label for="require_approval_tools" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Tools Requiring HITL Approval (comma/newline separated)</label>
-                                <textarea name="require_approval_tools" id="require_approval_tools" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner" placeholder="execute_bash_docker, write_email">{{.RequireApprovalToolsStr}}</textarea>
+                                <textarea name="require_approval_tools" id="require_approval_tools" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner" placeholder="execute_bash_docker, write_email">{{.RequireApprovalToolsStr}}</textarea>
                             </div>
                         </div>
                     </div>
 
                     <!-- LLM Providers raw JSON editing -->
                     <div class="pt-6 border-t border-zinc-800">
-                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-indigo-400 mb-2 border-b border-zinc-800 pb-2">LLM Providers (models.json)</h3>
+                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 mb-2 border-b border-zinc-800 pb-2">LLM Providers (models.json)</h3>
                         <p class="text-[10px] text-zinc-400 font-mono mb-4">Edit the active provider endpoints below. Updates require a server restart to take effect.</p>
                         <div class="space-y-1.5">
-                            <textarea name="models_json" id="models_json" rows="10" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner">{{.ModelsConfig}}</textarea>
+                            <textarea name="models_json" id="models_json" rows="10" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner">{{.ModelsConfig}}</textarea>
                         </div>
                     </div>
                 </form>
@@ -680,7 +1346,7 @@
                 <div>
                     <h2 class="text-sm font-extrabold uppercase tracking-wider text-zinc-100 flex items-center gap-2">
                         <span>🎨 Agent Studio &amp; No-Code Builder</span>
-                        <span class="text-[9px] font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-0.5 rounded-full uppercase">Dynamic Registry</span>
+                        <span class="text-[9px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 px-2.5 py-0.5 rounded-full uppercase">Dynamic Registry</span>
                     </h2>
                     <p class="text-xs text-zinc-400 mt-1">Create custom specialized agents, assign tool permissions visually, and import/export team blueprints without modifying Go source code.</p>
                 </div>
@@ -706,7 +1372,7 @@
                     <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-6">
                         <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
                             <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
                                 Visual Agent Creator
                             </h3>
                             <span class="text-[9px] font-mono text-zinc-400">Instant Orchestrator Binding</span>
@@ -719,12 +1385,12 @@
                                 <div class="space-y-1.5">
                                     <label for="studio_agent_id" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Agent Unique ID</label>
                                     <input type="text" id="studio_agent_id" required placeholder="e.g. market-analyst-agent" 
-                                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+                                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400" />
                                 </div>
                                 <div class="space-y-1.5">
                                     <label for="studio_description" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Role / Capability Summary</label>
                                     <input type="text" id="studio_description" required placeholder="e.g. Evaluates market research and builds financial forecasts" 
-                                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+                                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400" />
                                 </div>
                             </div>
 
@@ -733,13 +1399,13 @@
                                 <div class="flex items-center justify-between">
                                     <label for="studio_system_prompt" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">System Prompt Instructions</label>
                                     <div class="flex gap-2">
-                                        <button type="button" onclick="insertPromptTemplate('analyst')" class="text-[9px] font-mono text-indigo-400 hover:underline cursor-pointer">Insert Analyst Template</button>
-                                        <button type="button" onclick="insertPromptTemplate('researcher')" class="text-[9px] font-mono text-indigo-400 hover:underline cursor-pointer">Insert Researcher Template</button>
+                                        <button type="button" onclick="insertPromptTemplate('analyst')" class="text-[9px] font-mono text-zinc-400 hover:text-white hover:underline cursor-pointer">Insert Analyst Template</button>
+                                        <button type="button" onclick="insertPromptTemplate('researcher')" class="text-[9px] font-mono text-zinc-400 hover:text-white hover:underline cursor-pointer">Insert Researcher Template</button>
                                     </div>
                                 </div>
                                 <textarea id="studio_system_prompt" rows="6" required 
                                     placeholder="You are a specialized agent responsible for processing..." 
-                                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-xs font-mono text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-y shadow-inner"></textarea>
+                                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-xs font-mono text-zinc-100 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner"></textarea>
                             </div>
 
                             <!-- Tool Permissions Checklist -->
@@ -750,7 +1416,7 @@
                                 </div>
                             </div>
 
-                            <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 active:scale-95 cursor-pointer flex items-center justify-center gap-2">
+                            <button type="submit" class="w-full py-3.5 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer flex items-center justify-center gap-2">
                                 <span>✨ Register &amp; Deploy Agent</span>
                                 <span>➔</span>
                             </button>
@@ -823,7 +1489,7 @@
                 </div>
                 <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
                     <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Total Tokens Processed</div>
-                    <div id="audit-kpi-total-tokens" class="text-2xl font-extrabold text-indigo-400 mt-1">0 Tokens</div>
+                    <div id="audit-kpi-total-tokens" class="text-2xl font-extrabold text-zinc-100 mt-1">0 Tokens</div>
                     <div class="text-[9px] text-zinc-500 mt-1">Prompt &amp; Completion tokens</div>
                 </div>
                 <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
@@ -901,7 +1567,7 @@
     <div id="tab-content-network" class="tab-pane hidden flex-1 flex flex-col">
         <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex flex-col">
             <!-- Header Banner -->
-            <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-indigo-500">
+            <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-zinc-500">
                 <div>
                     <h2 class="text-lg font-bold text-zinc-100 flex items-center gap-2">
                         <span>📡 Mission Control Radar &amp; Network Topology</span>
@@ -922,7 +1588,7 @@
                 <div class="flex items-center gap-4 flex-wrap text-xs">
                     <span class="text-emerald-400 font-bold uppercase text-[10px] tracking-wider">HUD RETICLE:</span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> <span class="text-zinc-300">User Client</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span> <span class="text-zinc-300">Orchestrator</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-zinc-400 shadow-sm shadow-zinc-400/50"></span> <span class="text-zinc-300">Orchestrator</span></span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> <span class="text-zinc-300">Specialist Node</span></span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span> <span class="text-cyan-300 font-bold">SSE Signal Pulse</span></span>
                 </div>
@@ -963,18 +1629,18 @@
                     <form id="schedule-form" hx-post="/api/schedules" hx-target="#schedules-list" hx-swap="innerHTML" class="space-y-4">
                         <div class="space-y-1.5">
                             <label for="sched_name" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Schedule Name</label>
-                            <input type="text" name="name" id="sched_name" required placeholder="e.g. Daily Market Briefing" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-zinc-200" />
+                            <input type="text" name="name" id="sched_name" required placeholder="e.g. Daily Market Briefing" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 text-zinc-200" />
                         </div>
                         <div class="space-y-1.5">
                             <label for="sched_cron" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Cron Expression (5-field)</label>
-                            <input type="text" name="cron" id="sched_cron" required placeholder="e.g. 0 9 * * 1-5" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-zinc-200" />
+                            <input type="text" name="cron" id="sched_cron" required placeholder="e.g. 0 9 * * 1-5" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 text-zinc-200" />
                             <div class="text-[9px] text-zinc-500 font-mono">Min Hour DOM Month DOW</div>
                         </div>
                         <div class="space-y-1.5">
                             <label for="sched_task" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Goal/Task Prompt</label>
-                            <textarea name="task" id="sched_task" rows="4" required placeholder="e.g. Research options volatility surfaces and compile a report" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-zinc-200 resize-none"></textarea>
+                            <textarea name="task" id="sched_task" rows="4" required placeholder="e.g. Research options volatility surfaces and compile a report" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 text-zinc-200 resize-none"></textarea>
                         </div>
-                        <button type="submit" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-md cursor-pointer flex items-center justify-center">
+                        <button type="submit" class="w-full py-3 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-center">
                             Add Cron Schedule
                         </button>
                     </form>
@@ -1009,13 +1675,13 @@
     <!-- Security (C-3): CSRF Token injection for all HTMX mutating requests.
          Reads the _csrf_token cookie (set by the server on page load) and
          attaches it as an X-CSRF-Token header on every state-mutating request. -->
-    <script src="/static/js/dashboard.js"></script>
-    <script src="/static/js/studio.js"></script>
-    <script src="/static/js/network.js"></script>
-    <script src="/static/js/artifacts.js"></script>
+    <script src="/static/js/dashboard.js?v=20260910_hitl"></script>
+    <script src="/static/js/studio.js?v=20260910_hitl"></script>
+    <script src="/static/js/network.js?v=20260910_hitl"></script>
+    <script src="/static/js/artifacts.js?v=20260910_hitl"></script>
 
     <!-- Artifact Viewer Modal Overlay -->
-    <div id="artifact-viewer-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden p-4 sm:p-6 transition-all duration-300">
+    <div id="artifact-viewer-modal" style="display: none;" onclick="if(event.target===this)closeArtifactViewer()" class="fixed inset-0 z-50 items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6 transition-all duration-300">
         <div class="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
             <!-- Modal Header -->
             <div class="flex items-center justify-between px-6 py-4 bg-zinc-950 text-white border-b border-zinc-800">
@@ -1024,7 +1690,7 @@
                     <div class="flex flex-col truncate">
                         <div class="flex items-center gap-2">
                             <span id="artifact-modal-title" class="font-mono text-sm font-bold text-white truncate">artifact</span>
-                            <span id="artifact-modal-badge" class="text-[9px] font-mono font-bold bg-zinc-800 text-indigo-400 px-2.5 py-0.5 rounded border border-zinc-700 uppercase">FILE</span>
+                            <span id="artifact-modal-badge" class="text-[9px] font-mono font-bold bg-zinc-800 text-zinc-300 px-2.5 py-0.5 rounded border border-zinc-700 uppercase">FILE</span>
                         </div>
                         <span id="artifact-modal-agent" class="text-[10px] text-zinc-400 font-mono">produced by agent</span>
                     </div>
@@ -1033,7 +1699,7 @@
                     <button id="artifact-modal-copy-btn" onclick="copyArtifactToClipboard()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer border border-zinc-700">
                         <span>📋</span> <span>Copy</span>
                     </button>
-                    <a id="artifact-modal-download-btn" href="#" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer shadow-sm">
+                    <a id="artifact-modal-download-btn" href="#" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer shadow-sm">
                         <span>↗️</span> <span>Download / Open</span>
                     </a>
                     <button onclick="closeArtifactViewer()" class="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-all cursor-pointer text-lg font-bold">
@@ -1045,7 +1711,7 @@
             <!-- Modal Content Body -->
             <div class="flex-1 overflow-auto bg-zinc-950 p-6 text-zinc-100 font-mono text-xs leading-relaxed" id="artifact-modal-content-wrapper">
                 <!-- Text / Code Viewer -->
-                <pre id="artifact-modal-text-content" class="whitespace-pre-wrap break-all hidden selection:bg-indigo-500 selection:text-white"></pre>
+                <pre id="artifact-modal-text-content" class="whitespace-pre-wrap break-all hidden selection:bg-zinc-800 selection:text-white"></pre>
 
                 <!-- PDF Viewer Iframe -->
                 <iframe id="artifact-modal-pdf-iframe" class="w-full h-[65vh] border-0 rounded-xl hidden bg-white"></iframe>
@@ -1057,7 +1723,7 @@
 
                 <!-- Loading Spinner -->
                 <div id="artifact-modal-loading" class="flex flex-col items-center justify-center py-20 gap-3 text-zinc-400 font-mono">
-                    <div class="w-8 h-8 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <div class="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
                     <span>Loading artifact content...</span>
                 </div>
             </div>

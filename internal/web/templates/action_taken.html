@@ -1,12 +1,12 @@
-<div class="p-4 bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-xl text-[10px] uppercase font-mono tracking-wider text-center flex items-center justify-center gap-2">
+<div id="approval-{{.CorrelationID}}" data-resolved="true" class="p-4 bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-xl text-[10px] uppercase font-mono tracking-wider text-center flex items-center justify-center gap-2">
     {{ if .IsRejected }}
     <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-    <span class="text-rose-400">RESOLVED // OPERATOR DECISION: DENIED</span>
+    <span class="text-rose-400 font-bold">RESOLVED // OPERATOR DECISION: DENIED</span>
     {{ else if .IsAutoApprove }}
-    <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
-    <span class="text-purple-300 font-bold">RESOLVED // ⚡ AUTO-APPROVED &amp; AUTO-PILOT ON</span>
+    <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+    <span class="text-zinc-100 font-bold">RESOLVED // ⚡ AUTO-APPROVED &amp; AUTO-PILOT ON</span>
     {{ else }}
     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-    <span class="text-emerald-400">RESOLVED // OPERATOR DECISION: {{.Decision}}</span>
+    <span class="text-emerald-400 font-bold">RESOLVED // OPERATOR DECISION: {{.Decision}}</span>
     {{ end }}
 </div>

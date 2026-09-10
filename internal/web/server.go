@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"embed"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -226,6 +227,23 @@ func NewServer(rt *adk.Runtime) *Server {
 	return s
 }
 
+// formatSSE formats an SSE event with proper multiline data prefixing according to the SSE standard.
+func formatSSE(event, data string) string {
+	var sb strings.Builder
+	sb.WriteString("event: ")
+	sb.WriteString(event)
+	sb.WriteString("\n")
+	lines := strings.Split(data, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimRight(line, "\r")
+		sb.WriteString("data: ")
+		sb.WriteString(trimmed)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
 // LogEvent helper to broadcast formatted logs.
 func (s *Server) LogEvent(sender, recipient, content string) {
 	logger.WithComponent("web").Info("LogEvent", "sender", sender, "recipient", recipient, "content", content)
@@ -259,6 +277,7 @@ func (s *Server) LogEvent(sender, recipient, content string) {
 	}
 
 	rawJSONBytes, _ := json.Marshal(content)
+	rawB64 := base64.StdEncoding.EncodeToString([]byte(content))
 
 	var buf bytes.Buffer
 	LogSnippetTemplate.Execute(&buf, map[string]interface{}{
@@ -270,10 +289,9 @@ func (s *Server) LogEvent(sender, recipient, content string) {
 		"Category":   category,
 		"ActiveTool": activeTool,
 		"RawJSON":    template.JS(rawJSONBytes),
+		"RawB64":     rawB64,
 	})
-	cleanHTML := strings.ReplaceAll(buf.String(), "\n", " ")
-	cleanHTML = strings.ReplaceAll(cleanHTML, "\r", " ")
-	sseMsg := fmt.Sprintf("event: log-message\ndata: %s\n\n", cleanHTML)
+	sseMsg := formatSSE("log-message", buf.String())
 	logger.WithComponent("web").Debug("SSE Broadcast payload", "payload", sseMsg)
 	s.logBroker.Broadcast(sseMsg)
 
@@ -379,6 +397,7 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 						RawJSONAction  template.JS
 						CorrelationID  string
 						Metadata       map[string]string
+						RawB64         string
 					}{
 						Sender:         msg.Sender,
 						Content:        msg.Content,
@@ -386,10 +405,9 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 						RawJSONAction:  template.JS(jsonAction),
 						CorrelationID:  corrID,
 						Metadata:       msg.Metadata,
+						RawB64:         base64.StdEncoding.EncodeToString([]byte(msg.Content)),
 					})
-					cleanHTML := strings.ReplaceAll(buf.String(), "\n", " ")
-					cleanHTML = strings.ReplaceAll(cleanHTML, "\r", " ")
-					sseMsg := fmt.Sprintf("event: hitl-request\ndata: %s\n\n", cleanHTML)
+					sseMsg := formatSSE("hitl-request", buf.String())
 					s.logBroker.Broadcast(sseMsg)
 					s.LogEvent("SYSTEM", "WEB", fmt.Sprintf("Approval request received from %s (action: %s)", msg.Sender, msg.Metadata["action"]))
 				} else {
@@ -518,9 +536,7 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 							"Time":         artItem.Time,
 							"Path":         cleanPath,
 						})
-						cleanCard := strings.ReplaceAll(cardBuf.String(), "\n", " ")
-						cleanCard = strings.ReplaceAll(cleanCard, "\r", " ")
-						s.logBroker.Broadcast(fmt.Sprintf("event: artifact-ready\ndata: %s\n\n", cleanCard))
+						s.logBroker.Broadcast(formatSSE("artifact-ready", cardBuf.String()))
 					}
 				}
 			}
@@ -573,9 +589,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux.HandleFunc("/api/mock/tasks", s.handleMockTasks)
 	mux.HandleFunc("/api/mock/tasks/", s.handleMockTasks)
 
-	subFS, err := fs.Sub(staticFS, "static")
-	if err == nil {
-		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(subFS))))
+	var staticHandler http.Handler
+	if _, err := os.Stat("internal/web/static"); err == nil {
+		fsHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("internal/web/static")))
+		staticHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			fsHandler.ServeHTTP(w, r)
+		})
+	} else if subFS, err := fs.Sub(staticFS, "static"); err == nil {
+		staticHandler = http.StripPrefix("/static/", http.FileServer(http.FS(subFS)))
+	}
+	if staticHandler != nil {
+		mux.Handle("/static/", staticHandler)
 	}
 
 	// Security (C-3): wrap the entire mux with CSRF protection.
@@ -606,6 +631,7 @@ type DashboardData struct {
 	RequireApprovalToolsStr string
 	Schedules               []*ScheduleWithNext
 	ArtifactsHTML           template.HTML
+	PendingApprovalsHTML    template.HTML
 }
 
 func isProtectedSystemFile(filePath string) bool {
@@ -823,6 +849,30 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		artifactsBuf.WriteString(cardBuf.String())
 	}
 
+	// Render any pending approvals so they are immediately visible on page load/refresh
+	var approvalsBuf bytes.Buffer
+	s.approvalsMu.Lock()
+	for corrID, msg := range s.approvals {
+		var cardBuf bytes.Buffer
+		_ = PendingApprovalTemplate.Execute(&cardBuf, struct {
+			Sender         string
+			Content        string
+			RawJSONContent template.JS
+			RawJSONAction  template.JS
+			CorrelationID  string
+			Metadata       map[string]string
+			RawB64         string
+		}{
+			Sender:        msg.Sender,
+			Content:       msg.Content,
+			CorrelationID: corrID,
+			Metadata:      msg.Metadata,
+			RawB64:        base64.StdEncoding.EncodeToString([]byte(msg.Content)),
+		})
+		approvalsBuf.WriteString(cardBuf.String())
+	}
+	s.approvalsMu.Unlock()
+
 	data := DashboardData{
 		Warnings:                warnings,
 		AgentsConfig:            agents,
@@ -833,9 +883,10 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		RequireApprovalToolsStr: strings.Join(agenttools.CriticalActions.RequireApprovalTools, ", "),
 		Schedules:               schedulesWithNext,
 		ArtifactsHTML:           template.HTML(artifactsBuf.String()),
+		PendingApprovalsHTML:    template.HTML(approvalsBuf.String()),
 	}
 
-	DashboardPage.Execute(w, data)
+	RenderDashboard(w, data)
 }
 
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
@@ -896,6 +947,31 @@ func (s *Server) handleTaskDispatch(w http.ResponseWriter, r *http.Request) {
 	content := r.FormValue("content")
 	if content == "" {
 		http.Error(w, "Missing task content", http.StatusBadRequest)
+		return
+	}
+
+	// 1b. Check if there is an active pending approval and the user provided an approval intent
+	s.approvalsMu.Lock()
+	hasPending := len(s.approvals) > 0
+	var targetCorrID string
+	if hasPending {
+		for id := range s.approvals {
+			targetCorrID = id
+		}
+	}
+	s.approvalsMu.Unlock()
+
+	trimmed := strings.ToLower(strings.TrimSpace(content))
+	isApprove := trimmed == "approve" || trimmed == "approved" || trimmed == "yes" || trimmed == "proceed" || trimmed == "go ahead" || trimmed == "ok" || trimmed == "sure" || trimmed == "confirm" || trimmed == "confirmed" || trimmed == "continue" || trimmed == "y"
+	isReject := trimmed == "deny" || trimmed == "denied" || trimmed == "reject" || trimmed == "rejected" || trimmed == "cancel" || trimmed == "no" || trimmed == "stop" || trimmed == "abort" || trimmed == "n"
+
+	if hasPending && targetCorrID != "" && (isApprove || isReject) {
+		decision := "APPROVED"
+		if isReject {
+			decision = "REJECTED"
+		}
+		s.resolveApproval(targetCorrID, decision)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -965,19 +1041,7 @@ func (s *Server) handleTaskDispatch(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	corrID := r.FormValue("correlation_id")
-	decision := r.FormValue("decision") // APPROVED, REJECTED, or APPROVE_ALL
-
-	if corrID == "" || decision == "" {
-		http.Error(w, "Missing correlation_id or decision", http.StatusBadRequest)
-		return
-	}
-
+func (s *Server) resolveApproval(corrID, decision string) (adk.Message, string, bool, bool) {
 	displayDecision := decision
 	isAutoApprove := decision == "APPROVE_ALL" || decision == "AUTO_APPROVE"
 	if isAutoApprove {
@@ -999,8 +1063,7 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 	s.approvalsMu.Unlock()
 
 	if !ok {
-		http.Error(w, "Approval request not found or already resolved", http.StatusNotFound)
-		return
+		return adk.Message{}, "", false, false
 	}
 
 	if gw := hitl.GetGlobalHITLGateway(); gw != nil {
@@ -1015,7 +1078,7 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 	s.LogEvent("USER", replyTo, fmt.Sprintf("HITL Steering response submitted: %s", decision))
 
 	// Resolve and unblock the agent
-	s.runtime.Orchestrator().Send(adk.Message{
+	respMsg := adk.Message{
 		Sender:    "USER",
 		Recipient: replyTo,
 		Content:   decision,
@@ -1024,15 +1087,45 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 			"Type":           "HITL_RESPONSE",
 			"reason":         "operator decision submitted via web interface",
 		},
-	})
+	}
+	if adk.ResponseDispatcher != nil {
+		adk.ResponseDispatcher(corrID, respMsg)
+	}
+	if s.runtime != nil && s.runtime.Orchestrator() != nil {
+		s.runtime.Orchestrator().Send(respMsg)
+	}
+
+	return originalMsg, displayDecision, isAutoApprove, true
+}
+
+func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	corrID := r.FormValue("correlation_id")
+	decision := r.FormValue("decision") // APPROVED, REJECTED, or APPROVE_ALL
+
+	if corrID == "" || decision == "" {
+		http.Error(w, "Missing correlation_id or decision", http.StatusBadRequest)
+		return
+	}
+
+	_, displayDecision, isAutoApprove, ok := s.resolveApproval(corrID, decision)
+	if !ok {
+		http.Error(w, "Approval request not found or already resolved", http.StatusNotFound)
+		return
+	}
 
 	// Return swapped badge html replacing the action card
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	ActionTakenTemplate.Execute(w, struct {
+		CorrelationID string
 		Decision      string
 		IsRejected    bool
 		IsAutoApprove bool
 	}{
+		CorrelationID: corrID,
 		Decision:      displayDecision,
 		IsRejected:    decision == "REJECTED",
 		IsAutoApprove: isAutoApprove,
@@ -1059,9 +1152,9 @@ func (s *Server) handleToggleAutoApprove(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if agenttools.CriticalActions.AutoApproveAll {
-		_, _ = w.Write([]byte(`<button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/80 border border-purple-600/80 hover:bg-purple-900/80 text-purple-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-md shadow-purple-500/20" title="Auto-Pilot is ON: all HITL checkpoints are auto-approved. Click to switch to Gated Mode.">
-    <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
-    <span class="font-bold">⚡ Auto-Pilot: ON</span>
+		_, _ = w.Write([]byte(`<button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-white text-zinc-950 hover:bg-zinc-200 border border-white rounded-full text-xs font-mono font-bold transition-all cursor-pointer shadow-sm" title="Auto-Pilot is ON: all HITL checkpoints are auto-approved. Click to switch to Gated Mode.">
+    <span class="w-2 h-2 rounded-full bg-zinc-950 animate-ping"></span>
+    <span>⚡ Auto-Pilot: ON</span>
 </button>`))
 	} else {
 		_, _ = w.Write([]byte(`<button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-sm" title="HITL Gated Mode: high-risk actions prompt operator. Click to enable Auto-Pilot.">

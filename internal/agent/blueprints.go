@@ -52,18 +52,21 @@ Output ONLY the raw JSON object.`
 	PlannerBlueprint = `You are the Task Planner. Your job is to dissect a complex user request into distinct, digestible sub-tasks and identify dependencies between them.
 
 CRITICAL TASK DECOMPOSITION RULE:
+- Plan ONLY the subtasks that are directly necessary to satisfy the user's explicit request. Do NOT invent unrequested actions, external deliverables, or email recipients.
+- Specifically, do NOT plan email drafting tasks unless the user explicitly requested an email or notification to be sent. If the user only asked for research, calculations, analysis, or file processing, the final step should be writing a report or synthesizing the answer directly.
 - Each sub-task MUST have a single, focused objective:
   1. Research / Data Retrieval -> Research task (assigned to an agent with web search capabilities)
   2. Calculation / Data Modeling -> Script execution task (assigned to an agent with code execution tools)
-  3. Email Drafting / Delivery -> Email drafting task (MUST specify write_email tool)
-- NEVER combine calculation and email writing into a single subtask. Always separate script calculations into a dedicated calculation task first, followed by a separate email drafting task that depends on and consumes the calculation results.
+  3. Deliverable / Reporting -> Report synthesis or file writing task (assigned to an agent with file tools)
+  4. Communication (ONLY when explicitly requested by the user) -> Email drafting task (MUST specify write_email tool)
+- NEVER combine calculation and email writing into a single subtask. If the user explicitly asks to calculate AND email results, separate into a calculation task first, followed by an email task that consumes the calculation results.
 - If the request specifies a recurring task, delayed job, or automated schedule, the subtask description MUST explicitly instruct using the framework's internal 'schedule_task' tool.
 - For web research or documentation lookup (e.g. ReadTheDocs, API references, market rates), assign the subtask to an agent with web search/fetch tools.
 - For host infrastructure inspection tasks, the subtask description MUST explicitly instruct calling the 'inspect_host_hardware' tool.
 - For code execution or calculation subtasks, explicitly instruct specialists to check the workspace 'scripts/' directory for pre-existing reusable scripts before writing a new script from scratch.
 
 CRITICAL SUBTASK ENRICHMENT RULE:
-- Every subtask description MUST be enriched, explicit, and self-contained. Specify exact tools to run (e.g. execute_python_docker, write_email, write_file, schedule_task), data to extract from upstream context, and exact expected deliverables. Do not produce brief or vague subtask descriptions.
+- Every subtask description MUST be enriched, explicit, and self-contained. Specify exact tools to run (e.g. execute_python_docker, write_file, schedule_task), data to extract from upstream context, and exact expected deliverables. Do not produce brief or vague subtask descriptions.
 - For subtasks that produce data files (e.g. CSV, JSON, reports), explicitly instruct the assigned agent to call the 'write_file' tool to write and persist the physical file to disk (e.g. 'Extract job roles and call write_file to save job_list.csv to disk').
 
 For the initial planning phase, you must output a valid JSON object matching this schema exactly:
@@ -84,7 +87,7 @@ For the initial planning phase, you must output a valid JSON object matching thi
     },
     "task3": {
       "id": "task3",
-      "description": "Draft an email to team@company.com summarizing the research findings and calculated savings",
+      "description": "Synthesize findings and write a comprehensive savings analysis report to reports/gpu_savings_report.md",
       "dependencies": ["task1", "task2"],
       "recipient": "triage-agent"
     }
@@ -97,6 +100,10 @@ If this is the final synthesis phase (you are given the results of all sub-tasks
 type AgentJSONConfig struct {
 	SystemPrompt    string   `json:"system_prompt"`
 	Description     string   `json:"description,omitempty"`
+	Role            string   `json:"role,omitempty"`
+	Goal            string   `json:"goal,omitempty"`
+	Backstory       string   `json:"backstory,omitempty"`
+	Attribution     string   `json:"attribution,omitempty"`
 	Capabilities    []string `json:"capabilities,omitempty"`
 	Tools           []string `json:"tools,omitempty"`
 	HardwareTier    string   `json:"hardware_tier,omitempty"`
@@ -283,6 +290,14 @@ func parseMarkdownAgent(data []byte) (AgentJSONConfig, error) {
 		switch key {
 		case "description":
 			config.Description = val
+		case "role":
+			config.Role = val
+		case "goal":
+			config.Goal = val
+		case "backstory":
+			config.Backstory = val
+		case "attribution":
+			config.Attribution = val
 		case "hardware_tier":
 			config.HardwareTier = val
 		case "max_willing_to_pay":
@@ -290,6 +305,14 @@ func parseMarkdownAgent(data []byte) (AgentJSONConfig, error) {
 			config.MaxWillingToPay = f
 		case "work_dir":
 			config.WorkDir = val
+		}
+	}
+
+	if config.Description == "" && config.Role != "" {
+		if config.Goal != "" {
+			config.Description = fmt.Sprintf("%s - %s", config.Role, config.Goal)
+		} else {
+			config.Description = config.Role
 		}
 	}
 
@@ -481,6 +504,10 @@ func ExportAgentBlueprint(id string) ([]byte, error) {
 		"id":                 id,
 		"system_prompt":      cfg.SystemPrompt,
 		"description":        cfg.Description,
+		"role":               cfg.Role,
+		"goal":               cfg.Goal,
+		"backstory":          cfg.Backstory,
+		"attribution":        cfg.Attribution,
 		"capabilities":       cfg.Capabilities,
 		"tools":              cfg.Tools,
 		"hardware_tier":      cfg.HardwareTier,
@@ -501,6 +528,10 @@ func ImportAgentBlueprint(data []byte) (string, AgentJSONConfig, error) {
 		ID              string   `json:"id"`
 		SystemPrompt    string   `json:"system_prompt"`
 		Description     string   `json:"description,omitempty"`
+		Role            string   `json:"role,omitempty"`
+		Goal            string   `json:"goal,omitempty"`
+		Backstory       string   `json:"backstory,omitempty"`
+		Attribution     string   `json:"attribution,omitempty"`
 		Capabilities    []string `json:"capabilities,omitempty"`
 		Tools           []string `json:"tools,omitempty"`
 		HardwareTier    string   `json:"hardware_tier,omitempty"`
@@ -515,9 +546,22 @@ func ImportAgentBlueprint(data []byte) (string, AgentJSONConfig, error) {
 		return "", AgentJSONConfig{}, fmt.Errorf("blueprint JSON missing required field 'id'")
 	}
 
+	desc := payload.Description
+	if desc == "" && payload.Role != "" {
+		if payload.Goal != "" {
+			desc = fmt.Sprintf("%s - %s", payload.Role, payload.Goal)
+		} else {
+			desc = payload.Role
+		}
+	}
+
 	cfg := AgentJSONConfig{
 		SystemPrompt:    payload.SystemPrompt,
-		Description:     payload.Description,
+		Description:     desc,
+		Role:            payload.Role,
+		Goal:            payload.Goal,
+		Backstory:       payload.Backstory,
+		Attribution:     payload.Attribution,
 		Capabilities:    payload.Capabilities,
 		Tools:           payload.Tools,
 		HardwareTier:    payload.HardwareTier,

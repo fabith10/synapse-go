@@ -3,6 +3,8 @@ package web
 import (
 	"embed"
 	"html/template"
+	"io"
+	"os"
 )
 
 //go:embed templates/*.html
@@ -10,6 +12,17 @@ var templatesFS embed.FS
 
 // DashboardPage is the HTML template for the main status page in ultra-premium dark glassmorphic design.
 var DashboardPage = template.Must(template.Must(template.New("dashboard.html").ParseFS(templatesFS, "templates/dashboard.html")).ParseFS(templatesFS, "templates/schedules_list.html"))
+
+// RenderDashboard renders dashboard, reloading from disk if available in development.
+func RenderDashboard(w io.Writer, data any) error {
+	if _, err := os.Stat("internal/web/templates/dashboard.html"); err == nil {
+		tmpl, err := template.ParseFiles("internal/web/templates/dashboard.html", "internal/web/templates/schedules_list.html")
+		if err == nil {
+			return tmpl.Execute(w, data)
+		}
+	}
+	return DashboardPage.Execute(w, data)
+}
 
 // PendingApprovalTemplate renders a pending approval card with glowing amber left border.
 var PendingApprovalTemplate = template.Must(template.New("pending_approval.html").ParseFS(templatesFS, "templates/pending_approval.html"))

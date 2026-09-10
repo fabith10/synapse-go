@@ -34,11 +34,11 @@ function insertPromptTemplate(type) {
                             const wrapper = document.createElement('label');
                             wrapper.className = "flex items-start gap-2.5 p-2.5 bg-zinc-900/80 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-all";
                             wrapper.innerHTML = 
-                                '<input type="checkbox" name="studio_tools" value="' + t.name + '" ' + (isGatedAndDisabled ? 'disabled' : '') + ' class="mt-0.5 rounded text-indigo-600 border-zinc-700 bg-zinc-950 focus:ring-indigo-500" />' +
+                                '<input type="checkbox" name="studio_tools" value="' + t.name + '" ' + (isGatedAndDisabled ? 'disabled' : '') + ' class="mt-0.5 rounded accent-zinc-200 border-zinc-700 bg-zinc-950" />' +
                                 '<div class="flex flex-col gap-0.5 min-w-0">' +
                                     '<div class="flex items-center gap-1.5 flex-wrap">' +
                                         '<span class="text-xs font-mono font-bold text-zinc-100">' + t.name + '</span>' +
-                                        '<span class="text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded ' + (t.is_gated ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20') + '">' + t.category + '</span>' +
+                                        '<span class="text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded ' + (t.is_gated ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-zinc-800 text-zinc-300 border border-zinc-700') + '">' + t.category + '</span>' +
                                     '</div>' +
                                     '<span class="text-[10px] text-zinc-400 leading-tight">' + t.description + (isGatedAndDisabled ? ' (Requires Tier 3 Admin Unlock)' : '') + '</span>' +
                                 '</div>';

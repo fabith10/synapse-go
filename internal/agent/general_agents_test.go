@@ -657,4 +657,65 @@ func TestDelegateSubtaskTool(t *testing.T) {
 	}
 }
 
+func TestCrewAIBlueprintParsingAndExport(t *testing.T) {
+	rawMarkdown := `---
+id: test-crew-agent
+role: "Lead QA Automation Engineer"
+goal: "Guarantee 100% test coverage and prevent regression defects"
+backstory: "A decade of experience testing mission-critical distributed systems"
+attribution: "Inspired by CrewAI (https://github.com/crewAIInc/crewAI)"
+capabilities:
+  - automated testing
+  - regression testing
+tools:
+  - read_file
+  - write_file
+hardware_tier: tier0
+max_willing_to_pay: 0.12
+---
+You are the Lead QA Automation Engineer.
+`
+
+	cfg, err := parseMarkdownAgent([]byte(rawMarkdown))
+	if err != nil {
+		t.Fatalf("parseMarkdownAgent failed: %v", err)
+	}
+
+	if cfg.Role != "Lead QA Automation Engineer" {
+		t.Errorf("expected role 'Lead QA Automation Engineer', got %q", cfg.Role)
+	}
+	if cfg.Goal != "Guarantee 100% test coverage and prevent regression defects" {
+		t.Errorf("expected goal to match, got %q", cfg.Goal)
+	}
+	if cfg.Backstory != "A decade of experience testing mission-critical distributed systems" {
+		t.Errorf("expected backstory to match, got %q", cfg.Backstory)
+	}
+	if cfg.Attribution != "Inspired by CrewAI (https://github.com/crewAIInc/crewAI)" {
+		t.Errorf("expected attribution to match, got %q", cfg.Attribution)
+	}
+	if cfg.Description != "Lead QA Automation Engineer - Guarantee 100% test coverage and prevent regression defects" {
+		t.Errorf("expected generated description, got %q", cfg.Description)
+	}
+
+	// Test Export and Import
+	UpdateAgentConfig("test-crew-agent", cfg)
+	exportBytes, err := ExportAgentBlueprint("test-crew-agent")
+	if err != nil {
+		t.Fatalf("ExportAgentBlueprint failed: %v", err)
+	}
+
+	importedID, importedCfg, err := ImportAgentBlueprint(exportBytes)
+	if err != nil {
+		t.Fatalf("ImportAgentBlueprint failed: %v", err)
+	}
+
+	if importedID != "test-crew-agent" {
+		t.Errorf("expected imported ID 'test-crew-agent', got %q", importedID)
+	}
+	if importedCfg.Role != cfg.Role || importedCfg.Goal != cfg.Goal || importedCfg.Backstory != cfg.Backstory || importedCfg.Attribution != cfg.Attribution {
+		t.Errorf("imported config mismatch: %+v vs %+v", importedCfg, cfg)
+	}
+}
+
+
 

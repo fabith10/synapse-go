@@ -11,7 +11,7 @@
         </span>
     </div>
     
-    <div id="approval-content-{{.CorrelationID}}" class="approval-content text-xs text-zinc-300 font-mono bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 leading-relaxed shadow-inner overflow-x-auto max-h-[360px]" data-raw="{{.Content}}">
+    <div id="approval-content-{{.CorrelationID}}" class="approval-content text-xs text-zinc-300 font-mono bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 leading-relaxed shadow-inner overflow-x-auto max-h-[360px]" data-raw="{{.Content}}" data-b64="{{.RawB64}}">
         {{.Content}}
     </div>
 
@@ -24,7 +24,7 @@
         <button type="submit" name="decision" value="APPROVED" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer">
             Approve &amp; Continue
         </button>
-        <button type="submit" name="decision" value="APPROVE_ALL" class="px-3.5 py-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-purple-500 hover:from-indigo-500 hover:to-purple-400 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-md shadow-purple-500/20 active:scale-95 cursor-pointer flex items-center gap-1.5" title="Approve this request and enable Auto-Pilot for all future actions">
+        <button type="submit" name="decision" value="APPROVE_ALL" class="px-3.5 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5" title="Approve this request and enable Auto-Pilot for all future actions">
             <span>⚡</span> Auto-Approve All
         </button>
     </form>
@@ -32,9 +32,11 @@
 <script>(function(){
   var el = document.getElementById("approval-content-{{.CorrelationID}}");
   if (!el) return;
-  var raw = el.getAttribute("data-raw") || "";
+  var raw = (typeof getRawContent === "function") ? getRawContent(el) : (el.getAttribute("data-b64") ? atob(el.getAttribute("data-b64")) : (el.getAttribute("data-raw") || ""));
 
-  if (typeof marked !== "undefined" && typeof marked.parse === "function") {
+  if (typeof renderMarkdown === "function") {
+      el.innerHTML = renderMarkdown(raw);
+  } else if (typeof marked !== "undefined" && typeof marked.parse === "function") {
       try {
           el.innerHTML = marked.parse(raw, { breaks: true, gfm: true });
       } catch(e) {

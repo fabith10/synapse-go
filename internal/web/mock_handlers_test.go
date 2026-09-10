@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fabith10/synapse-go/adk"
 )
 
 func TestMockComputePricesHandler(t *testing.T) {
@@ -451,6 +453,140 @@ func TestToggleAutoApproveAPI(t *testing.T) {
 		t.Errorf("expected response to contain auto-pilot-btn, got: %s", rec.Body.String())
 	}
 }
+
+func TestDashboardPageRender(t *testing.T) {
+	srv := NewServer(nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for dashboard page, got %d", rec.Code)
+	}
+
+	body := rec.Body.String()
+	requiredElements := []string{
+		"dashboard-subview-chat",
+		"chat-composer-input",
+		"Conversational Agent",
+		"Swarm Matrix &amp; Logs",
+		"highlight.min.js",
+		"chat-approvals-section",
+		"chat-approvals-list",
+		"chat-approvals-badge",
+		"subview-approval-indicator",
+	}
+
+	for _, elem := range requiredElements {
+		if !strings.Contains(body, elem) {
+			t.Errorf("expected dashboard HTML to contain %q, but was missing", elem)
+		}
+	}
+}
+
+func TestFormatSSE_MultilineMarkdown(t *testing.T) {
+	multilineMD := "## Executive Summary\n\nOperational readiness confirmed.\n\n* Item 1\n* Item 2"
+	sse := formatSSE("log-message", multilineMD)
+
+	if !strings.HasPrefix(sse, "event: log-message\n") {
+		t.Errorf("expected event: log-message header, got: %s", sse)
+	}
+
+	if !strings.Contains(sse, "data: ## Executive Summary\n") {
+		t.Errorf("expected multiline header preserved in data:, got: %s", sse)
+	}
+
+	if !strings.Contains(sse, "data: * Item 1\n") {
+		t.Errorf("expected list item preserved in data:, got: %s", sse)
+	}
+
+	if !strings.HasSuffix(sse, "\n\n") {
+		t.Errorf("expected trailing double newline in SSE block, got: %q", sse)
+	}
+}
+
+func TestHITLApprovalResolutionAndChatSync(t *testing.T) {
+	srv := NewServer(nil)
+
+	// 1. Manually insert a pending approval
+	corrID := "test-corr-1234"
+	srv.approvalsMu.Lock()
+	srv.approvals[corrID] = adk.Message{
+		Sender:    "planner-agent",
+		Recipient: "USER",
+		Content:   "Execute plan with 3 subtasks",
+		Metadata: map[string]string{
+			"Type":           "HITL_APPROVAL",
+			"correlation_id": corrID,
+			"action":         "plan.execute",
+			"risk_level":     "MEDIUM",
+		},
+	}
+	srv.approvalsMu.Unlock()
+
+	// 2. Test that Dashboard renders this pending approval on page load
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from dashboard, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "approval-"+corrID) {
+		t.Fatalf("expected dashboard HTML to include pending approval card for %s", corrID)
+	}
+
+	// 3. Test handleTaskDispatch with approval intent "approve"
+	taskReq := httptest.NewRequest(http.MethodPost, "/api/task", strings.NewReader("content=approve"))
+	taskReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	taskRec := httptest.NewRecorder()
+	srv.ServeHTTP(taskRec, taskReq)
+
+	if taskRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from approval intent task dispatch, got %d", taskRec.Code)
+	}
+
+	// Verify the approval was resolved and removed from srv.approvals
+	srv.approvalsMu.Lock()
+	_, stillExists := srv.approvals[corrID]
+	srv.approvalsMu.Unlock()
+	if stillExists {
+		t.Fatalf("expected approval %s to be resolved, but it is still pending", corrID)
+	}
+
+	// 4. Test handleHITLResponse directly with a new pending approval
+	corrID2 := "test-corr-5678"
+	srv.approvalsMu.Lock()
+	srv.approvals[corrID2] = adk.Message{
+		Sender:    "developer-agent",
+		Recipient: "USER",
+		Content:   "Execute shell command",
+		Metadata: map[string]string{
+			"Type":           "HITL_APPROVAL",
+			"correlation_id": corrID2,
+			"action":         "bash.execute",
+			"risk_level":     "HIGH",
+		},
+	}
+	srv.approvalsMu.Unlock()
+
+	hitlReq := httptest.NewRequest(http.MethodPost, "/api/hitl/respond", strings.NewReader("correlation_id="+corrID2+"&decision=APPROVED"))
+	hitlReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	hitlRec := httptest.NewRecorder()
+	srv.ServeHTTP(hitlRec, hitlReq)
+
+	if hitlRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from hitl/respond, got %d: %s", hitlRec.Code, hitlRec.Body.String())
+	}
+	if !strings.Contains(hitlRec.Body.String(), "approval-"+corrID2) {
+		t.Fatalf("expected action_taken card to retain id approval-%s, got: %s", corrID2, hitlRec.Body.String())
+	}
+	if !strings.Contains(hitlRec.Body.String(), "data-resolved=\"true\"") {
+		t.Fatalf("expected action_taken card to include data-resolved=\"true\", got: %s", hitlRec.Body.String())
+	}
+}
+
 
 
 

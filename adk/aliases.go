@@ -18,6 +18,10 @@ import (
 // Message is the canonical message unit passed across the orchestrator bus.
 type Message = orchestrator.Message
 
+// ToolCall represents a structured tool invocation from providers with native function-calling.
+type ToolCall = orchestrator.ToolCall
+
+
 // Agent is the base building block for every participant in the framework.
 type Agent = orchestrator.Agent
 

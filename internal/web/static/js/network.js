@@ -449,13 +449,13 @@ function initNetworkVisualizer() {
             badge.textContent = node.category.toUpperCase();
             badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase ' +
                 (node.category === 'user' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                (node.category === 'orchestrator' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' :
-                (node.category === 'specialist' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-sky-500/20 text-sky-300 border border-sky-500/30')));
+                (node.category === 'orchestrator' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700' :
+                (node.category === 'specialist' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-300 border border-zinc-700')));
 
             let toolsHtml = '';
             if (node.tools && node.tools.length > 0) {
                 toolsHtml = '<div class="space-y-1"><span class="text-[10px] uppercase font-bold text-zinc-400">Assigned Tools:</span><div class="flex flex-wrap gap-1">' +
-                    node.tools.map(t => '<span class="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] text-indigo-300">' + t + '</span>').join('') +
+                    node.tools.map(t => '<span class="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-200">' + t + '</span>').join('') +
                     '</div></div>';
             }
 
@@ -470,7 +470,7 @@ function initNetworkVisualizer() {
                 toolsHtml +
                 '<div class="pt-2 border-t border-zinc-800 flex items-center justify-between text-[10px] text-zinc-400">' +
                     '<span>Status: <strong class="text-emerald-400">ONLINE</strong></span>' +
-                    '<button onclick="triggerPulseFromNode(\'' + node.id + '\')" class="text-indigo-400 hover:underline cursor-pointer">Emit Signal</button>' +
+                    '<button onclick="triggerPulseFromNode(\'' + node.id + '\')" class="text-zinc-300 hover:text-white hover:underline cursor-pointer">Emit Signal</button>' +
                 '</div>';
         }
 

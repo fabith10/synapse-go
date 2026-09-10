@@ -12,6 +12,9 @@ import (
 )
 
 func TestRAG_TurnMemoryPersistenceAndRetrieval(t *testing.T) {
+	os.Setenv("AGENT_FRAMEWORK_TESTING", "true")
+	defer os.Unsetenv("AGENT_FRAMEWORK_TESTING")
+
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test_rag_store.db")
 
@@ -67,6 +70,41 @@ func TestRAG_TurnMemoryPersistenceAndRetrieval(t *testing.T) {
 	if !strings.Contains(block, "Always prioritize H100 SXM") {
 		t.Errorf("expected context block to contain prior user preference text, got: %s", block)
 	}
+}
 
-	_ = os.Remove(dbPath)
+func TestComputeEmbedding_FixedDimension(t *testing.T) {
+	os.Setenv("AGENT_FRAMEWORK_TESTING", "true")
+	defer os.Unsetenv("AGENT_FRAMEWORK_TESTING")
+
+	// The fundamental fix: vectors from completely different texts must have
+	// the same dimension so cosine similarity produces non-zero results.
+	texts := []string{
+		"Deploy a Kubernetes cluster on AWS with GPU nodes",
+		"The quick brown fox jumps over the lazy dog",
+		"Machine learning model training requires significant compute resources",
+	}
+
+	var dims []int
+	var embeddings [][]float64
+	for _, text := range texts {
+		emb := ComputeEmbedding(text)
+		if emb == nil {
+			t.Fatalf("ComputeEmbedding returned nil for: %s", text)
+		}
+		dims = append(dims, len(emb))
+		embeddings = append(embeddings, emb)
+	}
+
+	// All dimensions must be equal (the old TF-IDF approach failed this).
+	for i := 1; i < len(dims); i++ {
+		if dims[i] != dims[0] {
+			t.Errorf("dimension mismatch: text[0] has dim %d, text[%d] has dim %d", dims[0], i, dims[i])
+		}
+	}
+
+	// Cosine similarity between related texts should be non-zero.
+	sim := CosineSimilarity(embeddings[0], embeddings[2]) // both about compute
+	if sim == 0 {
+		t.Errorf("expected non-zero cosine similarity between related texts, got 0")
+	}
 }

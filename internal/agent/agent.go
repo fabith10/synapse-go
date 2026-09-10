@@ -347,6 +347,69 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 			Content: resp.Content,
 		})
 
+		// ---------------------------------------------------------------------------
+		// Fast path: structured tool calls from providers with native function-calling
+		// (OpenAI, Anthropic, Gemini). Skips the entire text-based JSON parse/repair
+		// pipeline when the provider returns structured ToolCalls on the Message.
+		// ---------------------------------------------------------------------------
+		if len(resp.ToolCalls) > 0 {
+			for _, tc := range resp.ToolCalls {
+				actionName := tc.Name
+				if actionName == "done" || actionName == "Done" {
+					if summary, ok := tc.Arguments["summary"].(string); ok {
+						lastOutput = summary
+					} else if report, ok := tc.Arguments["report"].(string); ok {
+						lastOutput = report
+					} else {
+						lastOutput = resp.Content
+					}
+					stepLogs = append(stepLogs, fmt.Sprintf("Step %d: done (structured) — %s", step+1, lastOutput))
+					goto loopEnd
+				}
+
+				tool, found := findTool(activeTools, actionName)
+				if !found {
+					errStr := fmt.Sprintf("Action failed: unknown tool %q (structured call)", actionName)
+					conversationMsgs = append(conversationMsgs, adk.Message{
+						Sender:  "SYSTEM",
+						Content: errStr,
+					})
+					stepLogs = append(stepLogs, fmt.Sprintf("Step %d: %s -> %s", step+1, actionName, errStr))
+					continue
+				}
+
+				argsBytes, _ := json.Marshal(tc.Arguments)
+				// Inject "action" key for tools that expect it in the JSON body.
+				var merged map[string]interface{}
+				_ = json.Unmarshal(argsBytes, &merged)
+				if merged == nil {
+					merged = make(map[string]interface{})
+				}
+				merged["action"] = actionName
+				argsBytes, _ = json.Marshal(merged)
+
+				toolResult, toolErr := tool.Execute(ctx, argsBytes)
+				if toolErr != nil {
+					toolResult = fmt.Sprintf("Action failed with error: %v", toolErr)
+				}
+
+				toolsExecuted++
+				lastToolResults = append(lastToolResults, toolResult)
+				stepLogs = append(stepLogs, fmt.Sprintf("Step %d: %s (structured) -> %s", step+1, actionName, toolResult))
+
+				conversationMsgs = append(conversationMsgs, adk.Message{
+					Sender:  "SYSTEM",
+					Content: fmt.Sprintf("Action Result:\n%s", toolResult),
+				})
+
+				if toolErr == nil && GlobalMemoryStore != nil {
+					_ = GlobalMemoryStore.SaveExemplar(ctx, agentID, taskContent, string(argsBytes))
+				}
+			}
+			continue // Next ReAct step
+		}
+
+
 		// Clean JSON payload
 		cleanedContent := toolpkg.StripMarkdownFences(strings.TrimSpace(resp.Content))
 
@@ -545,6 +608,7 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 			Content: fmt.Sprintf("Action Result:\n%s", toolResult),
 		})
 	}
+loopEnd:
 
 	if len(lastToolResults) > 0 {
 		combinedTools := strings.Join(lastToolResults, "\n\n")

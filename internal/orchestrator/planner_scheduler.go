@@ -81,6 +81,12 @@ func (ps *PlannerScheduler) StartPlan(goal, planJSON, corrID string, meta map[st
 		t.Result = ""
 	}
 
+	// Validate the dependency graph: detect cycles and missing references
+	// early instead of discovering them as runtime deadlocks.
+	if err := validateDAG(plan.Tasks); err != nil {
+		return fmt.Errorf("invalid execution plan: %w", err)
+	}
+
 	ps.mu.Lock()
 	ps.plans[corrID] = plan
 	ps.mu.Unlock()
@@ -378,4 +384,70 @@ func getAllCompletedAncestors(plan *ExecutionPlan, task *SubTask) []*SubTask {
 
 	dfs(task.ID)
 	return ordered
+}
+
+// validateDAG checks the task dependency graph for cycles and missing
+// references using Kahn's topological sort. Returns a descriptive error
+// if the graph is invalid, nil if all dependencies are satisfiable.
+func validateDAG(tasks map[string]*SubTask) error {
+	// Check for missing dependency references.
+	for id, t := range tasks {
+		for _, depID := range t.Dependencies {
+			if _, ok := tasks[depID]; !ok {
+				return fmt.Errorf("task %q depends on unknown task %q", id, depID)
+			}
+		}
+	}
+
+	// Kahn's algorithm: topological sort to detect cycles.
+	inDegree := make(map[string]int, len(tasks))
+	for id := range tasks {
+		inDegree[id] = 0
+	}
+	for _, t := range tasks {
+		for _, depID := range t.Dependencies {
+			inDegree[t.ID]++ // t depends on depID, so t has an incoming edge
+			_ = depID
+		}
+	}
+
+	// Seed queue with zero in-degree nodes.
+	var queue []string
+	for id, deg := range inDegree {
+		if deg == 0 {
+			queue = append(queue, id)
+		}
+	}
+
+	visited := 0
+	for len(queue) > 0 {
+		node := queue[0]
+		queue = queue[1:]
+		visited++
+
+		// Find all tasks that depend on this node (node is their dependency).
+		for id, t := range tasks {
+			for _, depID := range t.Dependencies {
+				if depID == node {
+					inDegree[id]--
+					if inDegree[id] == 0 {
+						queue = append(queue, id)
+					}
+				}
+			}
+		}
+	}
+
+	if visited != len(tasks) {
+		// Find the cycle participants for a useful error message.
+		var cycleNodes []string
+		for id, deg := range inDegree {
+			if deg > 0 {
+				cycleNodes = append(cycleNodes, id)
+			}
+		}
+		return fmt.Errorf("dependency cycle detected among tasks: %s", strings.Join(cycleNodes, ", "))
+	}
+
+	return nil
 }

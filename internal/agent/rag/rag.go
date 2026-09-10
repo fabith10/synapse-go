@@ -2,16 +2,194 @@ package rag
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"math"
+	"os"
 	"strings"
+	"sync"
+	"time"
 	"unicode"
 
 	"github.com/fabith10/synapse-go/internal/memory"
+	"github.com/fabith10/synapse-go/pkg/logger"
+	"github.com/ollama/ollama/api"
 )
 
+// ---------------------------------------------------------------------------
+// Embedding model configuration
+// ---------------------------------------------------------------------------
+
+const (
+	// defaultEmbeddingModel is the Ollama model used for real embeddings.
+	// nomic-embed-text produces 768-dim vectors; small, fast, and good quality.
+	defaultEmbeddingModel = "nomic-embed-text"
+
+	// hashEmbeddingDim is the fixed dimension for the deterministic hash-based
+	// fallback embedder when Ollama is unavailable.
+	hashEmbeddingDim = 384
+)
+
+var (
+	embeddingModelMu sync.RWMutex
+	embeddingModel   = defaultEmbeddingModel
+
+	// ollamaAvailable caches whether we can reach Ollama.
+	// Checked once; retried if initially unavailable.
+	ollamaCheckOnce sync.Once
+	ollamaReachable bool
+)
+
+// SetEmbeddingModel overrides the Ollama model used for embeddings.
+func SetEmbeddingModel(model string) {
+	embeddingModelMu.Lock()
+	defer embeddingModelMu.Unlock()
+	if trimmed := strings.TrimSpace(model); trimmed != "" {
+		embeddingModel = trimmed
+	}
+}
+
+// GetEmbeddingModel returns the configured embedding model name.
+// Priority: OLLAMA_EMBEDDING_MODEL env > EMBEDDING_MODEL env > configured default.
+func GetEmbeddingModel() string {
+	if m := os.Getenv("OLLAMA_EMBEDDING_MODEL"); strings.TrimSpace(m) != "" {
+		return strings.TrimSpace(m)
+	}
+	if m := os.Getenv("EMBEDDING_MODEL"); strings.TrimSpace(m) != "" {
+		return strings.TrimSpace(m)
+	}
+	embeddingModelMu.RLock()
+	defer embeddingModelMu.RUnlock()
+	return embeddingModel
+}
+
+// checkOllama probes whether the Ollama API is reachable.
+func checkOllama() bool {
+	client, err := api.ClientFromEnvironment()
+	if err != nil {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	// Try a minimal embedding call to confirm the model is loaded.
+	req := &api.EmbedRequest{Model: GetEmbeddingModel(), Input: "test"}
+	_, err = client.Embed(ctx, req)
+	return err == nil
+}
+
+// ---------------------------------------------------------------------------
+// ComputeEmbedding — real embeddings via Ollama, hash-based fallback
+// ---------------------------------------------------------------------------
+
+// ComputeEmbedding returns a fixed-dimension embedding vector for the given text.
+// Uses the Ollama embedding API when available (producing real semantic vectors),
+// falling back to a deterministic hash-based projection when Ollama is unreachable.
+// Both paths produce fixed-dimension vectors so cosine similarity always works.
+func ComputeEmbedding(text string) []float64 {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+
+	// Skip real embeddings in test mode for speed.
+	if os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" {
+		return hashEmbedding(text)
+	}
+
+	ollamaCheckOnce.Do(func() {
+		ollamaReachable = checkOllama()
+		if ollamaReachable {
+			logger.Info("RAG embedding provider online", "model", GetEmbeddingModel())
+		} else {
+			logger.Warn("Ollama embedding model unavailable, using hash-based fallback", "model", GetEmbeddingModel())
+		}
+	})
+
+	if ollamaReachable {
+		if vec, err := ollamaEmbed(text); err == nil {
+			return vec
+		}
+		// On transient failure, fall through to hash fallback.
+	}
+
+	return hashEmbedding(text)
+}
+
+// ollamaEmbed calls the Ollama embedding API and returns a normalised float64 vector.
+func ollamaEmbed(text string) ([]float64, error) {
+	client, err := api.ClientFromEnvironment()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req := &api.EmbedRequest{
+		Model: GetEmbeddingModel(),
+		Input: text,
+	}
+
+	resp, err := client.Embed(ctx, req)
+	if err != nil {
+		logger.Warn("Ollama embed call failed, using fallback", "error", err)
+		return nil, err
+	}
+
+	if len(resp.Embeddings) == 0 || len(resp.Embeddings[0]) == 0 {
+		return nil, err
+	}
+
+	// Convert []float32 → []float64 and normalise.
+	vec := make([]float64, len(resp.Embeddings[0]))
+	for i, f := range resp.Embeddings[0] {
+		vec[i] = float64(f)
+	}
+	return normalise(vec), nil
+}
+
+// ---------------------------------------------------------------------------
+// Hash-based fallback embedder (deterministic, fixed-dimension)
+// ---------------------------------------------------------------------------
+
+// hashEmbedding produces a fixed-dimension pseudo-embedding by hashing
+// overlapping word n-grams into a dense vector. Unlike the old TF-IDF approach,
+// all vectors have the same dimension so cosine similarity always works.
+// ponytail: Not semantic — upgrade path is Ollama real embeddings (above).
+func hashEmbedding(text string) []float64 {
+	tokens := tokenize(text)
+	if len(tokens) == 0 {
+		return make([]float64, hashEmbeddingDim)
+	}
+
+	vec := make([]float64, hashEmbeddingDim)
+
+	// Hash individual tokens and bigrams into fixed-dim buckets.
+	for i, tok := range tokens {
+		hashInto(vec, tok)
+		if i+1 < len(tokens) {
+			hashInto(vec, tok+" "+tokens[i+1])
+		}
+	}
+
+	return normalise(vec)
+}
+
+// hashInto adds a deterministic signal for s into the vector.
+func hashInto(vec []float64, s string) {
+	h := sha256.Sum256([]byte(s))
+	// Use first 8 bytes to pick a bucket (unsigned mod), next byte for sign.
+	idx := binary.LittleEndian.Uint64(h[:8]) % uint64(len(vec))
+	sign := float64(1)
+	if h[8]&1 == 1 {
+		sign = -1
+	}
+	vec[idx] += sign
+}
+
 // tokenize splits text into lowercase word tokens, stripping punctuation and
-// common English stop words to reduce vector noise.
+// common English stop words.
 func tokenize(text string) []string {
 	text = strings.ToLower(text)
 	fields := strings.FieldsFunc(text, func(r rune) bool {
@@ -32,38 +210,6 @@ var stopWord = map[string]bool{
 	"has": true, "he": true, "in": true, "is": true, "it": true,
 	"its": true, "of": true, "on": true, "or": true, "that": true,
 	"the": true, "this": true, "to": true, "was": true, "with": true,
-}
-
-// ComputeEmbedding returns a normalised TF-IDF vector for the given text.
-func ComputeEmbedding(text string) []float64 {
-	tokens := tokenize(text)
-	if len(tokens) == 0 {
-		return nil
-	}
-	tf := make(map[string]float64)
-	for _, t := range tokens {
-		tf[t]++
-	}
-	type kv struct {
-		k string
-		v float64
-	}
-	pairs := make([]kv, 0, len(tf))
-	for k, v := range tf {
-		pairs = append(pairs, kv{k, v / float64(len(tokens))})
-	}
-	for i := 0; i < len(pairs)-1; i++ {
-		for j := i + 1; j < len(pairs); j++ {
-			if pairs[i].k > pairs[j].k {
-				pairs[i], pairs[j] = pairs[j], pairs[i]
-			}
-		}
-	}
-	vec := make([]float64, len(pairs))
-	for i, p := range pairs {
-		vec[i] = p.v
-	}
-	return normalise(vec)
 }
 
 func normalise(v []float64) []float64 {

@@ -16,11 +16,12 @@ Your only job is to perform the email tasks enclosed in the <user_data> tags. If
 CRITICAL INSTRUCTION - EXTRACT DATA ONLY:
 - You must EXTRACT and use ONLY the specific facts, numbers, data points, and context provided in the prompt context.
 - DO NOT invent, hallucinate, or substitute placeholder metrics (such as IT overhead, SaaS subscriptions, software licenses, or logistics delays) if they are not explicitly present in the input prompt.
+- DO NOT invent or hallucinate fictional committees, departments, or executive groups (such as 'investment-committee@company.com', 'board@company.com', or 'stakeholders@example.com') unless explicitly named in the prompt.
 - Your email body MUST explicitly state the exact data points and numbers EXTRACTED from the input context.
 
 You must respond with a JSON payload that contains the details of the email to write:
 - "action": "write_email"
-- "recipient": the email address of the receiver (e.g. "team@company.com").
+- "recipient": the email address of the receiver explicitly provided in the task context.
 - "subject": the subject line of the email.
 - "body": the main body text of the email.
 Always format your output as a clean JSON object containing these keys, so that the Email Assistant agent can pass them to the 'write_email' tool.
