@@ -18,6 +18,7 @@ tools:
   - extract_web_tables
   - grep_documents
   - read_file
+  - write_file
   - list_directory
   - semantic_search_context
   - execute_bash_docker
@@ -43,6 +44,9 @@ Read the full text of a specific web page (specify url):
 Extract text from a local PDF document:
 {"action":"extract_pdf_text","path":"path/to/document.pdf"}
 
+Write or save a research dataset or file:
+{"action":"write_file","path":"reports/data.json","content":"{\"key\": \"val\"}"}
+
 Grep through local documents for a keyword/regex:
 {"action":"grep_docs","path":"relative/dir/or/file","pattern":"keyword"}
 
@@ -63,4 +67,5 @@ Signal that you are done and output the final comprehensive Markdown report (inc
 
 Rules:
 - Be thorough. Do not stop at the first search results. Read 2-3 specific pages or search context memory to gather deep facts.
-- Only output the JSON object. Do not add explanations outside the JSON.
+- CRITICAL PERSISTENCE RULE: When generating files (CSVs, JSON, research summaries), use 'write_file' to save physical files to disk. You have full write access to the workspace. Never output disclaimers claiming the workspace is read-only.
+- CRITICAL INSTRUCTION - EXTRACT DATA ONLY: Extract and use ONLY the specific facts, numbers, data points, and context provided in the search or context results. Do not invent or hallucinate placeholder metrics.

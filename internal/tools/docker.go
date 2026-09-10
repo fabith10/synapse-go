@@ -93,13 +93,15 @@ func (s *DockerSandbox) Execute(ctx context.Context, req ExecutionRequest) Execu
 			},
 		}
 	}
-
 	cwd, _ := os.Getwd()
 	if cwd != "" {
-		// Security (H-2): Mount workspace read-only to prevent sandboxed code
-		// from modifying host files (.env, agents.json, DB, source code, etc.).
-		// Containers that need write access should use their own ephemeral /tmp.
-		hostCfg.Binds = append(hostCfg.Binds, fmt.Sprintf("%s:/workspace:ro", cwd))
+		// Workspace mount: default to read-only (:ro). If AllowWrite is explicitly granted
+		// (e.g. approved via HITL checkpoint), mount read-write (:rw).
+		mountMode := "ro"
+		if req.AllowWrite || os.Getenv("DOCKER_ALLOW_WRITE") == "true" {
+			mountMode = "rw"
+		}
+		hostCfg.Binds = append(hostCfg.Binds, fmt.Sprintf("%s:/workspace:%s", cwd, mountMode))
 
 		// Security (H-4): Mask sensitive credential and environment files (.env, DBs, MCP configs)
 		// by bind-mounting /dev/null over them so sandboxed code cannot exfiltrate secret keys.

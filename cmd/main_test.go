@@ -85,3 +85,35 @@ func TestLoadModelsConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkspaceModelsConfig(t *testing.T) {
+	configPath := "../models.json"
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		configPath = "models.json"
+	}
+	nodes, err := loadModelsConfig(configPath)
+	if err != nil {
+		t.Fatalf("failed to load workspace models.json: %v", err)
+	}
+	if len(nodes) == 0 {
+		t.Fatalf("expected at least 1 provider in models.json, got 0")
+	}
+
+	foundGroq := false
+	foundModal := false
+	for _, n := range nodes {
+		if n.Name == "groq-llama-3.3-70b" {
+			foundGroq = true
+		}
+		if n.Name == "modal-vllm-openweight" {
+			foundModal = true
+		}
+	}
+	if !foundGroq {
+		t.Errorf("expected groq-llama-3.3-70b in models.json")
+	}
+	if !foundModal {
+		t.Errorf("expected modal-vllm-openweight in models.json")
+	}
+}
+

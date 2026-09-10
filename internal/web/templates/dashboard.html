@@ -236,6 +236,19 @@
                     <span id="theme-toggle-icon">☀️</span> <span id="theme-toggle-text" class="hidden sm:inline">Light Mode</span>
                 </button>
 
+                <!-- Auto-Pilot / HITL Instant Toggle -->
+                {{ if .CriticalActions.AutoApproveAll }}
+                <button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/80 border border-purple-600/80 hover:bg-purple-900/80 text-purple-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-md shadow-purple-500/20" title="Auto-Pilot is ON: all HITL checkpoints are auto-approved. Click to switch to Gated Mode.">
+                    <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
+                    <span class="font-bold">⚡ Auto-Pilot: ON</span>
+                </button>
+                {{ else }}
+                <button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-sm" title="HITL Gated Mode: high-risk actions prompt operator. Click to enable Auto-Pilot.">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    <span>🛡️ Auto-Pilot: OFF</span>
+                </button>
+                {{ end }}
+
                 {{ if .Warnings }}
                 <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-full text-[10px] font-mono uppercase tracking-wider" title="System warnings or mock settings connected">
                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> <span>Warnings Active</span>

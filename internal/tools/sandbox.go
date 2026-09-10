@@ -77,6 +77,9 @@ type ExecutionRequest struct {
 
 	// AllowNetwork enables container internet access when explicitly granted (e.g., via HITL operator approval).
 	AllowNetwork bool
+
+	// AllowWrite enables container workspace write access (:rw) when explicitly granted (e.g., via HITL operator approval).
+	AllowWrite bool
 }
 
 // ExecutionResult holds the captured output of one sandboxed execution.

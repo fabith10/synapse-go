@@ -163,3 +163,37 @@ func RequiresNetworkApproval(code string, params map[string]interface{}) bool {
 	}
 	return false
 }
+
+// RequiresWriteApproval checks if code, parameters, or scripts indicate a requirement for workspace write access.
+func RequiresWriteApproval(code string, params map[string]interface{}) bool {
+	if os.Getenv("AGENT_FRAMEWORK_BYPASS_HITL") == "true" && os.Getenv("AGENT_FRAMEWORK_TESTING") == "true" {
+		return false
+	}
+	if CriticalActions.AutoApproveAll {
+		return false
+	}
+	if params != nil {
+		if reqWrite, ok := params["allow_write"].(bool); ok && reqWrite {
+			return true
+		}
+		if reqWrite, ok := params["request_write"].(bool); ok && reqWrite {
+			return true
+		}
+		if reqWrite, ok := params["write_access"].(bool); ok && reqWrite {
+			return true
+		}
+	}
+	lower := strings.ToLower(code)
+	writeKeywords := []string{
+		"open(", "savefig(", "to_csv(", "to_excel(", "to_parquet(", "to_json(",
+		"write_text(", "write_bytes(", "os.mkdir", "os.makedirs",
+		"shutil.copy", "shutil.move", "touch ", "mkdir ", "> ", ">> ",
+	}
+	for _, kw := range writeKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
+}
+

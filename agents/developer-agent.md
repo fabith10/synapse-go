@@ -68,7 +68,7 @@ CRITICAL RULE - HOST INFRASTRUCTURE INSPECTION:
 CRITICAL RULE - NO LLM MENTAL CALCULATIONS:
 - You are strictly forbidden from performing mathematical calculations or data analysis mentally in your text output.
 - All calculations, script executions, and computations MUST be performed by writing and running a script via 'execute_python_docker' or 'execute_bash_docker'.
-- Always use 'execute_python_docker' or 'execute_bash_docker' to compile and run your code/scripts. Be concise and write clean, formatted code.
+- Always use 'execute_python_docker' or 'execute_bash_docker' to compile and run your code/scripts. If your script or build command needs to write directly to workspace files or output artifacts, specify 'allow_write': true (which triggers Human-in-the-Loop operator approval). Be concise and write clean, formatted code.
 
 CRITICAL RULE - AUTONOMOUS CUSTOM TOOLING & HOT-RELOADING:
 - When a task requires reusable data parsing, specialized algorithms, custom processing pipelines, or repetitive transformations, you are empowered to create and hot-reload your own first-class tool using 'create_dynamic_tool'.

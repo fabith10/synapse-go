@@ -38,6 +38,10 @@ func GetExecutePythonDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID 
 					"type":        "boolean",
 					"description": "Set to true if internet access is strictly required for container execution (e.g. fetching remote API data). Triggers a Human-in-the-Loop operator approval prompt.",
 				},
+				"allow_write": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Set to true if workspace write access is strictly required for container execution (e.g. saving artifacts, writing output files). Triggers a Human-in-the-Loop operator approval prompt.",
+				},
 			},
 			"required": []string{"python_code"},
 		},
@@ -181,12 +185,42 @@ func GetExecutePythonDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID 
 				}
 			}
 
+			var allowWrite bool
+			if RequiresWriteApproval(code, params) {
+				uniqueCorrID := fmt.Sprintf("%s-write-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
+				orch.Send(adk.Message{
+					Sender:    agentID,
+					Recipient: "USER",
+					Content:   fmt.Sprintf("[Write Access Checkpoint] Agent %q requests human approval for read-write access to the workspace in Docker.\nScript Preview:\n%s\nAllow container workspace write access?", agentID, code),
+					Metadata: map[string]string{
+						"Type":           "HITL_APPROVAL",
+						"correlation_id": uniqueCorrID,
+						"reply_to":       agentID,
+						"risk_level":     "HIGH",
+						"action":         "docker.write_access",
+					},
+				})
+				replyCh := make(chan adk.Message, 1)
+				RegisterPendingResponse(uniqueCorrID, replyCh)
+				defer UnregisterPendingResponse(uniqueCorrID)
+				select {
+				case reply := <-replyCh:
+					allowWrite = reply.Content == "APPROVED"
+				case <-ctx.Done():
+					return "", ctx.Err()
+				}
+				if !allowWrite {
+					return "", fmt.Errorf("human operator denied Docker container workspace write access")
+				}
+			}
+
 			res := sb.Execute(ctx, adk.ExecutionRequest{
 				Language:       "python",
 				RawCode:        code,
 				Packages:       packages,
 				PrepCommands:   prepCommands,
 				AllowNetwork:   allowNetwork,
+				AllowWrite:     allowWrite,
 				TimeoutSeconds: 45,
 			})
 			if res.Error == tools.ErrDockerUnavailable {
@@ -215,6 +249,10 @@ func GetExecuteBashDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID st
 				"allow_network": map[string]interface{}{
 					"type":        "boolean",
 					"description": "Set to true if internet access is strictly required for container execution. Triggers a Human-in-the-Loop operator approval prompt.",
+				},
+				"allow_write": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Set to true if workspace write access is strictly required for container execution (e.g. saving artifacts, writing output files). Triggers a Human-in-the-Loop operator approval prompt.",
 				},
 			},
 			"required": []string{"bash_script"},
@@ -329,10 +367,40 @@ func GetExecuteBashDockerTool(sb adk.Sandbox, orch *adk.Orchestrator, agentID st
 				}
 			}
 
+			var allowWrite bool
+			if RequiresWriteApproval(script, params) {
+				uniqueCorrID := fmt.Sprintf("%s-bash-write-%d-%d", agentID, time.Now().UnixNano(), NextHITLCorrID())
+				orch.Send(adk.Message{
+					Sender:    agentID,
+					Recipient: "USER",
+					Content:   fmt.Sprintf("[Write Access Checkpoint] Agent %q requests human approval for read-write access to the workspace in Docker.\nBash Script Preview:\n%s\nAllow container workspace write access?", agentID, script),
+					Metadata: map[string]string{
+						"Type":           "HITL_APPROVAL",
+						"correlation_id": uniqueCorrID,
+						"reply_to":       agentID,
+						"risk_level":     "HIGH",
+						"action":         "docker.write_access",
+					},
+				})
+				replyCh := make(chan adk.Message, 1)
+				RegisterPendingResponse(uniqueCorrID, replyCh)
+				defer UnregisterPendingResponse(uniqueCorrID)
+				select {
+				case reply := <-replyCh:
+					allowWrite = reply.Content == "APPROVED"
+				case <-ctx.Done():
+					return "", ctx.Err()
+				}
+				if !allowWrite {
+					return "", fmt.Errorf("human operator denied Docker container workspace write access")
+				}
+			}
+
 			res := sb.Execute(ctx, adk.ExecutionRequest{
 				Language:       "bash",
 				RawCode:        script,
 				AllowNetwork:   allowNetwork,
+				AllowWrite:     allowWrite,
 				TimeoutSeconds: 45,
 			})
 			if res.Error == tools.ErrDockerUnavailable {

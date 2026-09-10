@@ -275,7 +275,7 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 			}
 			toolDescs = append(toolDescs, fmt.Sprintf("- '%s': %s%s", t.Name, t.Description, paramSpec))
 		}
-		toolDirective := fmt.Sprintf("TASK EXECUTION TOOL SCHEMAS & FORMAT DIRECTIVE:\nYou have access to the following tools with exact parameter names:\n%s\n\nEXACT TOOL CALL JSON FORMAT EXAMPLES:\n- read_file: {\"action\": \"read_file\", \"path\": \"docs/readme.md\"}\n- execute_python_docker: {\"action\": \"execute_python_docker\", \"python_code\": \"print('hello world')\"}\n- create_dynamic_tool: {\"action\": \"create_dynamic_tool\", \"name\": \"my_calc\", \"description\": \"...\", \"language\": \"python\", \"code\": \"...\"}\n- web_search_and_extract: {\"action\": \"web_search_and_extract\", \"query\": \"latest market trends\"}\n- write_file: {\"action\": \"write_file\", \"path\": \"reports/summary.txt\", \"content\": \"...\"}\n- write_email: {\"action\": \"write_email\", \"recipient\": \"team@company.com\", \"subject\": \"...\", \"body\": \"...\"}\n\nRULES:\n1. Always specify the exact required parameter name shown in the schema above (e.g. 'python_code' for execute_python_docker, 'path' for read_file/write_file, 'query' for web_search_and_extract).\n2. If your task requires code execution or math calculations, call 'execute_python_docker' or 'execute_bash_docker'.\n3. Respond strictly with raw JSON tool calls.", strings.Join(toolDescs, "\n"))
+		toolDirective := fmt.Sprintf("TASK EXECUTION TOOL SCHEMAS & FORMAT DIRECTIVE:\nYou have access to the following tools with exact parameter names:\n%s\n\nEXACT TOOL CALL JSON FORMAT EXAMPLES:\n- read_file: {\"action\": \"read_file\", \"path\": \"docs/readme.md\"}\n- execute_python_docker: {\"action\": \"execute_python_docker\", \"python_code\": \"print('hello world')\"}\n- create_dynamic_tool: {\"action\": \"create_dynamic_tool\", \"name\": \"my_calc\", \"description\": \"...\", \"language\": \"python\", \"code\": \"...\"}\n- web_search_and_extract: {\"action\": \"web_search_and_extract\", \"query\": \"latest market trends\"}\n- write_file: {\"action\": \"write_file\", \"path\": \"job_list.csv\", \"content\": \"...\"}\n- write_email: {\"action\": \"write_email\", \"recipient\": \"team@company.com\", \"subject\": \"...\", \"body\": \"...\"}\n\nRULES:\n1. Always specify the exact required parameter name shown in the schema above (e.g. 'python_code' for execute_python_docker, 'path'/'content' for write_file, 'query' for web_search_and_extract).\n2. If your task requires code execution or math calculations, call 'execute_python_docker' or 'execute_bash_docker'.\n3. When generating files (CSVs, JSON, reports, code), you MUST call 'write_file' to save the physical file to disk. Never output disclaimers claiming the workspace is read-only.\n4. Respond strictly with raw JSON tool calls.", strings.Join(toolDescs, "\n"))
 		conversationMsgs = append(conversationMsgs, adk.Message{
 			Sender:  "SYSTEM",
 			Content: toolDirective,
@@ -285,7 +285,7 @@ func RunGenericReActLoop(ctx context.Context, llm adk.LLMClient, orch *adk.Orche
 	if rootVal, ok := ctx.Value(agenttools.WorkspaceRootKey).(string); ok && rootVal != "" {
 		conversationMsgs = append(conversationMsgs, adk.Message{
 			Sender:  "SYSTEM",
-			Content: fmt.Sprintf("WORKING DIRECTORY: %s\nSave all output files (reports, screenshots, data, artifacts) here. Use relative paths from this directory or absolute paths within it. Do NOT write to /tmp.", rootVal),
+			Content: fmt.Sprintf("WORKING DIRECTORY & PERSISTENCE DIRECTIVE: %s\nYou have write access to this workspace. Save all output deliverables (CSVs, JSON, reports, scripts) here using the 'write_file' tool. Use relative paths or absolute paths within this directory. Do NOT claim the workspace is read-only.", rootVal),
 		})
 	}
 	if historyBlock != "" {
@@ -1049,7 +1049,7 @@ func (pa *PlannerAgent) Handle(ctx context.Context, msg adk.Message) error {
 
 	systemPrompt := pa.SystemPrompt()
 	if msg.Metadata != nil && msg.Metadata["phase"] == "synthesis" {
-		systemPrompt = "You are the Task Planner. Your job now is to synthesize the results of all completed sub-tasks into a final, comprehensive, human-readable report for the user. Summarize the achievements, details, and outputs clearly, and format it in clean Markdown. Do not output JSON."
+		systemPrompt = "You are the Task Planner. Your job now is to synthesize the results of all completed sub-tasks into a final, comprehensive, human-readable report for the user. Summarize the achievements, details, and outputs clearly, and format it in clean Markdown. Do not output JSON. Do NOT include disclaimers claiming files could not be saved due to workspace read-only constraints; reference the saved files directly."
 	}
 
 	tier := "tier0"

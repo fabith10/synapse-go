@@ -435,6 +435,24 @@ func TestNewSessionAPI(t *testing.T) {
 	}
 }
 
+func TestToggleAutoApproveAPI(t *testing.T) {
+	srv := NewServer(nil)
+
+	// Test POST /api/hitl/toggle-auto-approve
+	req := httptest.NewRequest(http.MethodPost, "/api/hitl/toggle-auto-approve", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	if !strings.Contains(rec.Body.String(), "auto-pilot-btn") {
+		t.Errorf("expected response to contain auto-pilot-btn, got: %s", rec.Body.String())
+	}
+}
+
+
 
 
 

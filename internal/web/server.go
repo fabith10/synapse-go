@@ -399,59 +399,91 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 					// Broadcast final outcome to event log
 					s.LogEvent(msg.Sender, "USER", fmt.Sprintf("[Final Outcome] %s", msg.Content))
 
-					// Check if message carries an artifact or references a generated file path
-					artifactPath := ""
+					// Extract any artifact paths referenced in metadata or message body
+					var artifactPaths []string
 					if msg.Metadata != nil && msg.Metadata["artifact_path"] != "" {
-						artifactPath = msg.Metadata["artifact_path"]
-					} else {
-						for _, dir := range []string{"emails/", "reports/", "workbooks/", "scripts/", "scratch/", "output/"} {
-							if idx := strings.Index(msg.Content, dir); idx != -1 {
-								rest := msg.Content[idx:]
-								end := strings.IndexAny(rest, " \t\n\r\"')}]")
-								if end == -1 {
-									artifactPath = rest
-								} else {
-									artifactPath = rest[:end]
-								}
+						artifactPaths = append(artifactPaths, msg.Metadata["artifact_path"])
+					}
+					
+					dirs := []string{"emails/", "reports/", "uploads/", "workbooks/", "scripts/", "scratch/", "output/", "workspace/"}
+					for _, dir := range dirs {
+						start := 0
+						for {
+							idx := strings.Index(msg.Content[start:], dir)
+							if idx == -1 {
 								break
 							}
-						}
-						if artifactPath == "" && strings.Contains(msg.Content, "file://") {
-							idx := strings.Index(msg.Content, "file://")
-							rest := msg.Content[idx+7:]
-							end := strings.IndexAny(rest, " \t\n\r\"')}]")
+							realIdx := start + idx
+							rest := msg.Content[realIdx:]
+							end := strings.IndexAny(rest, " \t\n\r\"'`)]}>,;")
+							var p string
 							if end == -1 {
-								artifactPath = rest
+								p = rest
+								start = len(msg.Content)
 							} else {
-								artifactPath = rest[:end]
+								p = rest[:end]
+								start = realIdx + end
+							}
+							p = strings.Trim(p, " \t\n\r\"'`.,;:)}]<>")
+							if p != "" {
+								artifactPaths = append(artifactPaths, p)
 							}
 						}
 					}
 
-					if artifactPath != "" {
-						artifactPath = strings.TrimPrefix(artifactPath, "file://")
-						artifactPath = strings.TrimPrefix(artifactPath, "file:")
-						artifactPath = strings.TrimRight(artifactPath, ".,;:\t\n\r\"')}]")
+					// Also check for file:// links
+					start := 0
+					for {
+						idx := strings.Index(msg.Content[start:], "file://")
+						if idx == -1 {
+							break
+						}
+						realIdx := start + idx + 7
+						rest := msg.Content[realIdx:]
+						end := strings.IndexAny(rest, " \t\n\r\"'`)]}>,;")
+						var p string
+						if end == -1 {
+							p = rest
+							start = len(msg.Content)
+						} else {
+							p = rest[:end]
+							start = realIdx + end
+						}
+						p = strings.Trim(p, " \t\n\r\"'`.,;:)}]<>")
+						if p != "" {
+							artifactPaths = append(artifactPaths, p)
+						}
+					}
 
-						filename := filepath.Base(artifactPath)
+					seenPaths := make(map[string]bool)
+					for _, rawPath := range artifactPaths {
+						cleanPath := strings.TrimPrefix(rawPath, "file://")
+						cleanPath = strings.TrimPrefix(cleanPath, "file:")
+						cleanPath = strings.Trim(cleanPath, " \t\n\r\"'`.,;:)}]<>")
+						if cleanPath == "" || seenPaths[cleanPath] || isProtectedSystemFile(cleanPath) {
+							continue
+						}
+						seenPaths[cleanPath] = true
+
+						filename := filepath.Base(cleanPath)
 						artifactType := "file"
-						extLower := strings.ToLower(filepath.Ext(artifactPath))
+						extLower := strings.ToLower(filepath.Ext(cleanPath))
 						switch extLower {
 						case ".pdf":
 							artifactType = "pdf"
-						case ".xlsx", ".xls":
+						case ".xlsx", ".xls", ".csv":
 							artifactType = "excel"
 						case ".py", ".sh", ".js", ".go", ".css", ".html":
 							artifactType = "code"
 						case ".json":
 							artifactType = "json"
 						case ".txt":
-							if strings.Contains(artifactPath, "email") {
+							if strings.Contains(cleanPath, "email") {
 								artifactType = "email"
 							} else {
 								artifactType = "text"
 							}
-						case ".md":
+						case ".md", ".markdown":
 							artifactType = "doc"
 						case ".png", ".jpg", ".jpeg", ".webp", ".svg":
 							artifactType = "image"
@@ -460,17 +492,31 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 						agentName := msg.Sender
 						if msg.Metadata != nil && msg.Metadata["artifact_agent"] != "" {
 							agentName = msg.Metadata["artifact_agent"]
-						} else if strings.Contains(artifactPath, "email") {
+						} else if strings.Contains(cleanPath, "email") {
 							agentName = "email-agent"
+						} else if strings.Contains(cleanPath, "resume") || strings.Contains(cleanPath, "cv") {
+							agentName = "writer-agent"
 						}
+
+						artItem := ArtifactItem{
+							Filename:     filename,
+							Path:         cleanPath,
+							Agent:        agentName,
+							Time:         time.Now().Format("15:04:05"),
+							ArtifactType: artifactType,
+						}
+
+						s.artifactsMu.Lock()
+						s.artifacts = append(s.artifacts, artItem)
+						s.artifactsMu.Unlock()
 
 						var cardBuf bytes.Buffer
 						ArtifactCardTemplate.Execute(&cardBuf, map[string]string{
 							"ArtifactType": artifactType,
 							"Filename":     filename,
 							"Agent":        agentName,
-							"Time":         time.Now().Format("15:04:05"),
-							"Path":         artifactPath,
+							"Time":         artItem.Time,
+							"Path":         cleanPath,
 						})
 						cleanCard := strings.ReplaceAll(cardBuf.String(), "\n", " ")
 						cleanCard = strings.ReplaceAll(cleanCard, "\r", " ")
@@ -490,6 +536,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux.HandleFunc("/api/task", s.handleTaskDispatch)
 	mux.HandleFunc("/api/hitl/respond", s.handleHITLResponse)
 	mux.HandleFunc("/api/hitl/pending", s.handleHITLPending)
+	mux.HandleFunc("/api/hitl/toggle-auto-approve", s.handleToggleAutoApprove)
 	mux.HandleFunc("/api/config/save", s.handleConfigSave)
 	mux.HandleFunc("/api/config/pricing-provider", s.handlePricingProviderConfig)
 	mux.HandleFunc("/api/artifact", s.handleArtifact)
@@ -610,7 +657,7 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 		return discovered
 	}
 
-	searchDirs := []string{"reports", "uploads", "emails", "workbooks", "scratch", "output"}
+	searchDirs := []string{"reports", "uploads", "emails", "workbooks", "scripts", "scratch", "output", "."}
 	for _, dir := range searchDirs {
 		targetDir := filepath.Join(absWd, dir)
 		entries, err := os.ReadDir(targetDir)
@@ -629,6 +676,9 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 			}
 
 			relPath := filepath.Join(dir, name)
+			if dir == "." {
+				relPath = name
+			}
 			if seen[relPath] {
 				continue
 			}
@@ -640,7 +690,7 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 				artifactType = "pdf"
 			case ".xlsx", ".xls", ".csv":
 				artifactType = "excel"
-			case ".py", ".js", ".css", ".html":
+			case ".py", ".sh", ".js", ".css", ".html":
 				artifactType = "code"
 			case ".json":
 				artifactType = "json"
@@ -650,8 +700,8 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 				} else {
 					artifactType = "text"
 				}
-			case ".md":
-				if name != "README.md" && name != "AGENTS.md" {
+			case ".md", ".markdown":
+				if name != "README.md" && name != "AGENTS.md" && name != "antigravity.md" {
 					artifactType = "doc"
 				}
 			case ".png", ".jpg", ".jpeg", ".webp", ".svg":
@@ -665,9 +715,11 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 			agentName := "agent"
 			if dir == "emails" || strings.Contains(name, "email") {
 				agentName = "email-agent"
+			} else if strings.Contains(name, "resume") || strings.Contains(name, "cv") {
+				agentName = "writer-agent"
 			} else if dir == "reports" || strings.Contains(name, "report") || extLower == ".pdf" {
 				agentName = "researcher-agent"
-			} else if extLower == ".xlsx" || extLower == ".xls" {
+			} else if extLower == ".xlsx" || extLower == ".xls" || extLower == ".csv" {
 				agentName = "excel-agent"
 			} else if extLower == ".py" || dir == "scripts" {
 				agentName = "developer-agent"
@@ -919,11 +971,24 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	corrID := r.FormValue("correlation_id")
-	decision := r.FormValue("decision") // APPROVED or REJECTED
+	decision := r.FormValue("decision") // APPROVED, REJECTED, or APPROVE_ALL
 
 	if corrID == "" || decision == "" {
 		http.Error(w, "Missing correlation_id or decision", http.StatusBadRequest)
 		return
+	}
+
+	displayDecision := decision
+	isAutoApprove := decision == "APPROVE_ALL" || decision == "AUTO_APPROVE"
+	if isAutoApprove {
+		agenttools.CriticalActions.AutoApproveAll = true
+		if critBytes, err := json.MarshalIndent(agenttools.CriticalActions, "", "  "); err == nil {
+			_ = os.WriteFile(".agents/critical_actions.json", critBytes, 0644)
+			_ = os.WriteFile("critical_actions.json", critBytes, 0644)
+		}
+		s.LogEvent("SYSTEM", "WEB", "⚡ Auto-Pilot Mode Enabled: All future Human-in-the-Loop checkpoints will be auto-approved.")
+		decision = "APPROVED"
+		displayDecision = "AUTO-APPROVED & AUTO-PILOT ON"
 	}
 
 	s.approvalsMu.Lock()
@@ -963,9 +1028,47 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 
 	// Return swapped badge html replacing the action card
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	ActionTakenTemplate.Execute(w, map[string]string{
-		"Decision": decision,
+	ActionTakenTemplate.Execute(w, struct {
+		Decision      string
+		IsRejected    bool
+		IsAutoApprove bool
+	}{
+		Decision:      displayDecision,
+		IsRejected:    decision == "REJECTED",
+		IsAutoApprove: isAutoApprove,
 	})
+}
+
+func (s *Server) handleToggleAutoApprove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	agenttools.CriticalActions.AutoApproveAll = !agenttools.CriticalActions.AutoApproveAll
+	if critBytes, err := json.MarshalIndent(agenttools.CriticalActions, "", "  "); err == nil {
+		_ = os.WriteFile(".agents/critical_actions.json", critBytes, 0644)
+		_ = os.WriteFile("critical_actions.json", critBytes, 0644)
+	}
+
+	stateStr := "Disabled"
+	if agenttools.CriticalActions.AutoApproveAll {
+		stateStr = "Enabled"
+	}
+	s.LogEvent("SYSTEM", "WEB", fmt.Sprintf("⚡ Auto-Pilot Mode %s by operator", stateStr))
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if agenttools.CriticalActions.AutoApproveAll {
+		_, _ = w.Write([]byte(`<button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/80 border border-purple-600/80 hover:bg-purple-900/80 text-purple-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-md shadow-purple-500/20" title="Auto-Pilot is ON: all HITL checkpoints are auto-approved. Click to switch to Gated Mode.">
+    <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
+    <span class="font-bold">⚡ Auto-Pilot: ON</span>
+</button>`))
+	} else {
+		_, _ = w.Write([]byte(`<button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-sm" title="HITL Gated Mode: high-risk actions prompt operator. Click to enable Auto-Pilot.">
+    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+    <span>🛡️ Auto-Pilot: OFF</span>
+</button>`))
+	}
 }
 
 func (s *Server) handleHITLPending(w http.ResponseWriter, r *http.Request) {
@@ -1172,21 +1275,29 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Security bounds (M-1): restrict to artifact-producing directories only.
-	// Source code directories (internal, adk, cmd) are explicitly excluded.
+	// 3. Security bounds (M-1): restrict to artifact-producing directories and workspace deliverables.
+	// Source code directories (internal, adk, cmd, pkg) and system files are explicitly excluded.
 	allowed := false
+	if isProtectedSystemFile(absPath) {
+		http.Error(w, "Forbidden: protected system file", http.StatusForbidden)
+		return
+	}
 	if strings.HasPrefix(absPath, geminiBrainDir+string(filepath.Separator)) || absPath == geminiBrainDir {
 		// Allow reads within the brain dir itself (not its parent).
 		allowed = true
 	} else {
-		// Only artifact-producing directories are served — no source code.
-		allowedDirs := []string{"reports", "emails", "uploads", "workbooks", "scratch", "output", "artifacts"}
+		// Only artifact-producing directories and workspace deliverables are served.
+		allowedDirs := []string{"reports", "emails", "uploads", "workbooks", "scripts", "scratch", "output", "artifacts", "workspace"}
 		for _, dir := range allowedDirs {
 			absDir := filepath.Join(absWd, dir)
 			if strings.HasPrefix(absPath, absDir+string(filepath.Separator)) || absPath == absDir {
 				allowed = true
 				break
 			}
+		}
+		// Also allow valid non-protected files located directly in the workspace root
+		if !allowed && filepath.Dir(absPath) == absWd && !isProtectedSystemFile(absPath) {
+			allowed = true
 		}
 	}
 	if !allowed {

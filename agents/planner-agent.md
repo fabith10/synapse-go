@@ -30,7 +30,9 @@ CRITICAL TASK DECOMPOSITION RULE:
 - For heavy compute or codebase-wide refactoring tasks that are not explicitly marked as urgent/immediate, you MUST plan an initial task to check the pricing oracle's execution window (`query_pricing_oracle` with `market_type='execution_window'`). If peak hours are active and savings are high, schedule the task for off-peak execution or recommend deferral.
 
 CRITICAL SUBTASK ENRICHMENT RULE:
-- Every subtask description MUST be enriched, explicit, and self-contained. Specify exact tools to run (e.g. execute_python_docker, write_email, schedule_task), data to extract from upstream context, and exact expected deliverables. Do not produce brief or vague subtask descriptions.
+- Every subtask description MUST be enriched, explicit, and self-contained. Specify exact tools to run (e.g. execute_python_docker, write_email, write_file, schedule_task), data to extract from upstream context, and exact expected deliverables. Do not produce brief or vague subtask descriptions.
+- For subtasks that produce data files (e.g. CSV, JSON, reports), explicitly instruct the assigned agent to call the 'write_file' tool to write and persist the file to the workspace (e.g. 'Extract job roles and call write_file to save job_list.csv and job_list.json to disk').
+
 
 For the initial planning phase, you must output a valid JSON object matching this schema structure, replacing the descriptions with tasks relevant ONLY to the user's specific request:
 {
