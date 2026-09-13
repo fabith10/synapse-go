@@ -74,8 +74,8 @@
             box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
         html.light-theme .glass-card-hover:hover {
-            border-color: #6366f1;
-            box-shadow: 0 10px 30px -5px rgba(99,102,241,0.15);
+            border-color: #09090b;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06);
         }
 
         /* Broad light-theme surface sweep — covers Tailwind bg-zinc-* panels */
@@ -130,9 +130,42 @@
         }
         html.light-theme input::placeholder, html.light-theme textarea::placeholder { color: #94a3b8 !important; }
 
-        /* Preserve white text on solid action buttons */
-        html.light-theme .bg-zinc-950, html.light-theme .bg-zinc-900,
+        /* Preserve white text on solid colored action buttons */
         html.light-theme .bg-emerald-600, html.light-theme .bg-rose-600 { color: #ffffff !important; }
+
+        /* Crisp contrast for header & action buttons in light theme */
+        html.light-theme #theme-toggle-btn,
+        html.light-theme #auto-pilot-btn:not(.bg-white),
+        html.light-theme button[onclick="clearChatThread()"] {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        html.light-theme #theme-toggle-btn:hover,
+        html.light-theme #auto-pilot-btn:not(.bg-white):hover,
+        html.light-theme button[onclick="clearChatThread()"]:hover {
+            background-color: #f1f5f9 !important;
+            border-color: #94a3b8 !important;
+            color: #000000 !important;
+        }
+        html.light-theme button.bg-white,
+        html.light-theme a.bg-white {
+            background-color: #09090b !important;
+            color: #ffffff !important;
+            border-color: #09090b !important;
+        }
+        html.light-theme button.bg-white:hover,
+        html.light-theme a.bg-white:hover {
+            background-color: #27272a !important;
+            color: #ffffff !important;
+        }
+        html.light-theme #auto-pilot-btn.bg-white {
+            background-color: #09090b !important;
+            color: #ffffff !important;
+        }
+        html.light-theme #auto-pilot-btn.bg-white span.bg-zinc-950 {
+            background-color: #ffffff !important;
+        }
 
         /* ---- Semantic badge overrides (amber/emerald/rose) ---- */
         html.light-theme .warning-banner  { background-color:#fffbeb !important; border-color:#fcd34d !important; color:#78350f !important; }
@@ -292,11 +325,12 @@
             color: #ffffff !important;
         }
         .assistant-bubble blockquote {
-            border-left: 3px solid #6366f1 !important;
-            background: rgba(99, 102, 241, 0.08) !important;
+            border-left: 3px solid #71717a !important;
+            background: rgba(255, 255, 255, 0.03) !important;
             padding: 0.5em 1em !important;
             margin: 0.7em 0 !important;
             border-radius: 0 8px 8px 0 !important;
+            color: #d4d4d8 !important;
         }
 
         html.light-theme .assistant-bubble {
@@ -315,30 +349,30 @@
             color: #1e293b !important;
         }
         html.light-theme .assistant-bubble blockquote {
-            background: #eef2ff !important;
-            border-left-color: #4f46e5 !important;
-            color: #312e81 !important;
+            background: #f1f5f9 !important;
+            border-left-color: #475569 !important;
+            color: #1e293b !important;
         }
 
         /* Swarm Thinking Accordion — Claude 3.7 / Gemini 2.0 Style */
         .swarm-thinking {
-            border: 1px solid rgba(99, 102, 241, 0.25);
-            background: rgba(18, 18, 26, 0.7);
+            border: 1px solid var(--c-border);
+            background: var(--c-surface);
             border-radius: 14px;
             backdrop-filter: blur(12px);
             transition: all 0.2s ease-in-out;
         }
         .swarm-thinking.is-running {
-            border-color: rgba(168, 85, 247, 0.4);
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.04);
         }
         html.light-theme .swarm-thinking {
-            background: #f8fafc;
-            border-color: #cbd5e1;
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
         }
         html.light-theme .swarm-thinking.is-running {
-            border-color: #818cf8;
-            box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+            border-color: #09090b !important;
+            box-shadow: 0 0 16px rgba(0, 0, 0, 0.06) !important;
         }
 
         /* Shimmering Pulse for Active Thinking */
@@ -400,17 +434,25 @@
             transition: border-color 0.2s, box-shadow 0.2s;
         }
         .composer-capsule:focus-within {
-            border-color: rgba(129, 140, 248, 0.7);
-            box-shadow: 0 12px 40px rgba(99, 102, 241, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.4);
+            border-color: rgba(255, 255, 255, 0.35);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.15);
         }
         html.light-theme .composer-capsule {
-            background: rgba(255, 255, 255, 0.98);
-            border-color: #cbd5e1;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08) !important;
         }
         html.light-theme .composer-capsule:focus-within {
-            border-color: #6366f1;
-            box-shadow: 0 12px 35px rgba(99, 102, 241, 0.18), 0 0 0 1px rgba(99, 102, 241, 0.35);
+            border-color: #09090b !important;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(9, 9, 11, 0.12) !important;
+        }
+
+        /* Bottom Floating Dock Gradient Bar */
+        .composer-dock-wrapper {
+            background: linear-gradient(to top, #09090b 0%, rgba(9, 9, 11, 0.94) 70%, transparent 100%);
+        }
+        html.light-theme .composer-dock-wrapper {
+            background: linear-gradient(to top, #f8fafc 0%, rgba(248, 250, 252, 0.96) 70%, transparent 100%) !important;
         }
 
         #chat-composer-input {
@@ -427,15 +469,15 @@
         .starter-card {
             background: var(--c-surface);
             border: 1px solid var(--c-border);
-            border-radius: 16px;
-            padding: 16px;
+            border-radius: 12px;
+            padding: 10px 12px;
             cursor: pointer;
             transition: all 0.2s ease-out;
         }
         .starter-card:hover {
-            border-color: rgba(129, 140, 248, 0.6);
+            border-color: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
         }
         .starter-card .starter-title {
             color: var(--c-text);
@@ -455,47 +497,73 @@
             color: #334155 !important;
         }
         html.light-theme .starter-card:hover {
-            border-color: #6366f1 !important;
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.14) !important;
+            border-color: #09090b !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05) !important;
         }
         html.light-theme .starter-card:hover .starter-title {
-            color: #4338ca !important;
+            color: #09090b !important;
+        }
+
+        /* Light-theme hero icon and typography styling */
+        html.light-theme #chat-hero .bg-zinc-800 {
+            background-color: #e2e8f0 !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme #chat-hero .bg-zinc-950 {
+            background-color: #ffffff !important;
+            color: #09090b !important;
+        }
+        html.light-theme .chat-hero-heading {
+            color: #09090b !important;
+        }
+        html.light-theme #chat-hero p {
+            color: #475569 !important;
+        }
+
+        /* Light-theme Network Legend Bar */
+        html.light-theme .network-legend-bar {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        }
+        html.light-theme .network-legend-bar .text-zinc-300 {
+            color: #334155 !important;
+        }
+        html.light-theme .network-orchestrator-dot {
+            background-color: #0f172a !important;
         }
 
         /* Swarm Thinking Contrast & Readability */
         .swarm-thinking summary {
-            color: #c7d2fe;
+            color: var(--c-text-muted);
         }
         .swarm-thinking .thinking-title {
-            color: #e0e7ff;
+            color: var(--c-text);
+            font-weight: 600;
         }
         .swarm-thinking .timeline-step {
-            color: #e4e4e7;
+            color: var(--c-text);
         }
         .swarm-thinking .step-icon {
-            color: #a5b4fc;
+            color: var(--c-text-dim);
         }
         .tool-step-badge {
-            background: rgba(147, 51, 234, 0.3);
-            border: 1px solid rgba(147, 51, 234, 0.5);
-            color: #e9d5ff;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            color: #f4f4f5;
         }
 
         html.light-theme .swarm-thinking {
-            background: #f8fafc !important;
+            background: #ffffff !important;
             border-color: #cbd5e1 !important;
         }
-        html.light-theme .swarm-thinking.is-running {
-            border-color: #6366f1 !important;
-            box-shadow: 0 0 16px rgba(99, 102, 241, 0.15) !important;
-        }
         html.light-theme .swarm-thinking summary {
-            background: #eef2ff !important;
-            color: #312e81 !important;
-            border-bottom-color: #c7d2fe !important;
+            background: #f8fafc !important;
+            color: #09090b !important;
+            border-bottom-color: #e2e8f0 !important;
         }
         html.light-theme .swarm-thinking .thinking-title {
-            color: #1e1b4b !important;
+            color: #09090b !important;
             font-weight: 700 !important;
         }
         html.light-theme .swarm-thinking .thinking-timeline {
@@ -506,16 +574,16 @@
             color: #1e293b !important;
         }
         html.light-theme .swarm-thinking .step-icon {
-            color: #4338ca !important;
+            color: #475569 !important;
         }
         html.light-theme .orchestration-check {
-            color: #0e7490 !important;
+            color: #047857 !important;
             font-weight: 700 !important;
         }
         html.light-theme .tool-step-badge {
-            background-color: #f3e8ff !important;
-            border-color: #d8b4fe !important;
-            color: #581c87 !important;
+            background-color: #e2e8f0 !important;
+            border-color: #cbd5e1 !important;
+            color: #1e293b !important;
             font-weight: 700 !important;
         }
 
@@ -524,9 +592,9 @@
             color: #a1a1aa;
         }
         .bubble-file-chip {
-            background: rgba(99, 102, 241, 0.25);
-            border: 1px solid rgba(99, 102, 241, 0.4);
-            color: #c7d2fe;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            color: #f4f4f5;
             font-weight: 600;
         }
         html.light-theme .user-bubble {
@@ -538,9 +606,9 @@
             color: #64748b !important;
         }
         html.light-theme .bubble-file-chip {
-            background: #e0e7ff !important;
-            border-color: #c7d2fe !important;
-            color: #3730a3 !important;
+            background: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
         }
 
         /* Preset Prompt Chips */
@@ -555,15 +623,18 @@
             border-color: #3f3f46;
         }
         html.light-theme .prompt-chip {
-            background: #f1f5f9 !important;
+            background: #ffffff !important;
             border-color: #cbd5e1 !important;
-            color: #1e293b !important;
+            color: #0f172a !important;
             font-weight: 600 !important;
         }
         html.light-theme .prompt-chip:hover {
-            background: #e2e8f0 !important;
-            color: #0f172a !important;
+            background: #f1f5f9 !important;
+            color: #000000 !important;
             border-color: #94a3b8 !important;
+        }
+        html.light-theme .prompt-label {
+            color: #475569 !important;
         }
 
         /* Subview Switcher Contrast */
@@ -619,15 +690,15 @@
             font-weight: 600 !important;
         }
         html.light-theme #composer-file-chip {
-            background-color: #e0e7ff !important;
-            border-color: #c7d2fe !important;
-            color: #3730a3 !important;
+            background-color: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
         }
         html.light-theme #composer-file-chip button {
-            color: #4f46e5 !important;
+            color: #475569 !important;
         }
         html.light-theme #composer-file-chip button:hover {
-            color: #312e81 !important;
+            color: #09090b !important;
         }
 
         /* Conversational Approval Section & Panel */
@@ -685,6 +756,21 @@
         html.light-theme .chat-approval-btn-deny:hover {
             background-color: #fef2f2 !important;
             color: #991b1b !important;
+        }
+
+        /* Chat hero typography & modal text styling in light mode */
+        html.light-theme .chat-hero-heading {
+            color: #0f172a !important;
+        }
+        html.light-theme #chat-hero p {
+            color: #475569 !important;
+        }
+        html.light-theme #artifact-modal-text-content {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+            border: 1px solid #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
         }
     </style>
 </head>
@@ -820,19 +906,19 @@
                     </button>
                     <span id="chat-live-indicator" class="inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-3 py-1 rounded-full font-semibold">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="hidden sm:inline">12 Agents Standby</span>
+                        <span class="hidden sm:inline">Swarm Ready</span>
                     </span>
                 </div>
             </div>
         </div>
 
         <!-- Conversational Chat Canvas (Gemini & Claude Experience) -->
-        <div id="dashboard-subview-chat" class="flex-1 flex flex-col items-center w-full min-h-[calc(100vh-160px)] relative pb-44">
+        <div id="dashboard-subview-chat" class="flex-1 flex flex-col items-center w-full min-h-[calc(100vh-160px)] relative pb-36 sm:pb-40">
             
-            <div class="w-full max-w-3xl px-4 sm:px-6 pt-6 flex-1 flex flex-col">
+            <div class="w-full max-w-3xl px-4 sm:px-6 pt-5 flex-1 flex flex-col">
 
                 <!-- Conversational Agent Human-in-the-Loop Approval Section -->
-                <section id="chat-approvals-section" class="w-full mb-6 transition-all duration-300">
+                <section id="chat-approvals-section" class="w-full mb-6 transition-all duration-300 hidden">
                     <div id="chat-approval-panel" class="chat-approval-panel rounded-2xl p-4 sm:p-5 border shadow-xl backdrop-blur-md">
                         <div class="flex items-center justify-between pb-3 border-b border-zinc-800/80 flex-wrap gap-2">
                             <div class="flex items-center gap-2.5">
@@ -865,54 +951,54 @@
                 </section>
                 
                 <!-- Welcome Hero (Displayed when conversation has no messages) -->
-                <div id="chat-hero" class="my-auto py-12 flex flex-col items-center text-center space-y-6 animate-in fade-in duration-500">
-                    <div class="w-14 h-14 rounded-2xl bg-zinc-800 border border-zinc-700 p-[1.5px] shadow-lg">
-                        <div class="w-full h-full bg-zinc-950 rounded-[14px] flex items-center justify-center text-2xl text-white">
+                <div id="chat-hero" class="pt-1 sm:pt-2 pb-2 flex flex-col items-center text-center space-y-2.5 animate-in fade-in duration-500">
+                    <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 p-[1.5px] shadow-md">
+                        <div class="w-full h-full bg-zinc-950 rounded-[10px] flex items-center justify-center text-lg text-white">
                             ✦
                         </div>
                     </div>
                     
-                    <div class="space-y-2 max-w-lg">
-                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-100 to-zinc-300 bg-clip-text text-transparent">
+                    <div class="space-y-1 max-w-lg">
+                        <h1 class="chat-hero-heading text-xl sm:text-2xl font-extrabold tracking-tight text-white leading-tight">
                             What can the swarm accomplish for you?
                         </h1>
-                        <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed font-medium">
+                        <p class="text-xs text-zinc-400 leading-normal font-normal">
                             Autonomous multi-agent intelligence with live web extraction, Docker sandboxed Python execution, and financial workbook auditing.
                         </p>
                     </div>
 
                     <!-- 4 Quick-Start Suggestion Cards (Claude / Gemini style) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl pt-4 text-left">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-2xl pt-1 text-left">
                         <div onclick="dispatchQuickPrompt('Search the web for latest AI agent architecture trends and compile an executive PDF report', 'autonomous')" class="starter-card group">
-                            <div class="flex items-center gap-2.5 mb-1.5">
-                                <span class="text-base">🌐</span>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm">🌐</span>
                                 <span class="starter-title text-xs font-bold transition-colors">Deep Web Research &amp; PDF</span>
                             </div>
-                            <p class="starter-desc text-[11px] leading-relaxed">Extracts live web context and synthesizes a structured executive PDF brief.</p>
+                            <p class="starter-desc text-[10.5px] leading-snug">Extracts live web context and synthesizes a structured executive PDF brief.</p>
                         </div>
 
                         <div onclick="dispatchQuickPrompt('Inspect financial workbook in chicago_offsite_budget.xlsx, calculate variance metrics, and audit formulas', 'autonomous')" class="starter-card group">
-                            <div class="flex items-center gap-2.5 mb-1.5">
-                                <span class="text-base">📊</span>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm">📊</span>
                                 <span class="starter-title text-xs font-bold transition-colors">Excel Financial Audit</span>
                             </div>
-                            <p class="starter-desc text-[11px] leading-relaxed">Audits spreadsheet assumptions, cell formulas, and generates variance tables.</p>
+                            <p class="starter-desc text-[10.5px] leading-snug">Audits spreadsheet assumptions, cell formulas, and generates variance tables.</p>
                         </div>
 
                         <div onclick="dispatchQuickPrompt('Inspect host system hardware and query spot GPU rental prices across providers', 'autonomous')" class="starter-card group">
-                            <div class="flex items-center gap-2.5 mb-1.5">
-                                <span class="text-base">💻</span>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm">💻</span>
                                 <span class="starter-title text-xs font-bold transition-colors">Compute &amp; GPU Arbitrage</span>
                             </div>
-                            <p class="starter-desc text-[11px] leading-relaxed">Queries pricing oracles and hardware metrics to identify low-cost compute.</p>
+                            <p class="starter-desc text-[10.5px] leading-snug">Queries pricing oracles and hardware metrics to identify low-cost compute.</p>
                         </div>
 
                         <div onclick="dispatchQuickPrompt('Plan and decompose a multi-agent quantitative financial analysis workflow', 'steered')" class="starter-card group">
-                            <div class="flex items-center gap-2.5 mb-1.5">
-                                <span class="text-base">⚡</span>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm">⚡</span>
                                 <span class="starter-title text-xs font-bold transition-colors">Steered Task Decomposition</span>
                             </div>
-                            <p class="starter-desc text-[11px] leading-relaxed">Creates a DAG execution plan requiring human review before running.</p>
+                            <p class="starter-desc text-[10.5px] leading-snug">Creates a DAG execution plan requiring human review before running.</p>
                         </div>
                     </div>
                 </div>
@@ -925,17 +1011,8 @@
             </div>
 
             <!-- Floating Bottom Composer Dock (Signature Claude / Gemini Experience) -->
-            <div class="fixed bottom-0 left-0 right-0 z-40 pb-5 pt-3 px-4 pointer-events-none bg-gradient-to-t from-zinc-950 via-zinc-950/90 to-transparent">
-                <div class="max-w-3xl w-full mx-auto pointer-events-auto space-y-2">
-                    
-                    <!-- Preset Pills Carousel above composer -->
-                    <div class="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-[10px] font-mono select-none">
-                        <span class="prompt-label uppercase shrink-0 font-bold text-zinc-400">Prompts:</span>
-                        <button type="button" onclick="setPromptTask('Search the web for AI market news and compile an executive PDF report')" class="prompt-chip shrink-0 px-3 py-1 rounded-full text-[11px] transition-all">Web Search &amp; PDF</button>
-                        <button type="button" onclick="setPromptTask('Inspect financial workbook in chicago_offsite_budget.xlsx and audit expense metrics')" class="prompt-chip shrink-0 px-3 py-1 rounded-full text-[11px] transition-all">Excel Audit</button>
-                        <button type="button" onclick="setPromptTask('Inspect host system hardware and query spot GPU rental prices')" class="prompt-chip shrink-0 px-3 py-1 rounded-full text-[11px] transition-all">Spot Hardware</button>
-                    </div>
-
+            <div class="fixed bottom-0 left-0 right-0 z-40 pb-5 pt-3 px-4 pointer-events-none composer-dock-wrapper">
+                <div class="max-w-3xl w-full mx-auto pointer-events-auto">
                     <!-- Composer Pill Capsule -->
                     <div class="composer-capsule p-3 sm:p-3.5 space-y-2.5">
                         
@@ -1584,11 +1661,11 @@
             </div>
 
             <!-- Tactical Mission Control Legend & Status Bar -->
-            <div class="flex flex-wrap items-center justify-between gap-4 bg-zinc-950/80 p-3.5 rounded-xl border border-emerald-500/20 font-mono shadow-inner">
+            <div class="network-legend-bar flex flex-wrap items-center justify-between gap-4 bg-zinc-950/80 p-3.5 rounded-xl border border-zinc-800 font-mono shadow-inner">
                 <div class="flex items-center gap-4 flex-wrap text-xs">
                     <span class="text-emerald-400 font-bold uppercase text-[10px] tracking-wider">HUD RETICLE:</span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> <span class="text-zinc-300">User Client</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-zinc-400 shadow-sm shadow-zinc-400/50"></span> <span class="text-zinc-300">Orchestrator</span></span>
+                    <span class="inline-flex items-center gap-1.5"><span class="network-orchestrator-dot w-3 h-3 rounded-full bg-zinc-400 shadow-sm shadow-zinc-400/50"></span> <span class="text-zinc-300">Orchestrator</span></span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> <span class="text-zinc-300">Specialist Node</span></span>
                     <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span> <span class="text-cyan-300 font-bold">SSE Signal Pulse</span></span>
                 </div>
@@ -1675,10 +1752,10 @@
     <!-- Security (C-3): CSRF Token injection for all HTMX mutating requests.
          Reads the _csrf_token cookie (set by the server on page load) and
          attaches it as an X-CSRF-Token header on every state-mutating request. -->
-    <script src="/static/js/dashboard.js?v=20260910_hitl"></script>
-    <script src="/static/js/studio.js?v=20260910_hitl"></script>
-    <script src="/static/js/network.js?v=20260910_hitl"></script>
-    <script src="/static/js/artifacts.js?v=20260910_hitl"></script>
+    <script src="/static/js/dashboard.js?v=20260911_v4"></script>
+    <script src="/static/js/studio.js?v=20260911_v4"></script>
+    <script src="/static/js/network.js?v=20260911_v4"></script>
+    <script src="/static/js/artifacts.js?v=20260911_v4"></script>
 
     <!-- Artifact Viewer Modal Overlay -->
     <div id="artifact-viewer-modal" style="display: none;" onclick="if(event.target===this)closeArtifactViewer()" class="fixed inset-0 z-50 items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6 transition-all duration-300">

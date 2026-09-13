@@ -73,6 +73,6 @@
   "internal_email_domains": [
     "company.com"
   ],
-  "auto_approve_all": false,
+  "auto_approve_all": true,
   "require_approval_tools": []
 }

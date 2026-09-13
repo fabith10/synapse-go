@@ -23,6 +23,10 @@ func GetBrowserNavigateTool() adk.Tool {
 					"type":        "string",
 					"description": "The target website URL to navigate to.",
 				},
+				"headed": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Optional flag to run browser in visible headed mode (window on screen) so a user can watch the session.",
+				},
 			},
 			"required": []string{"url"},
 		},
@@ -36,11 +40,16 @@ func GetBrowserNavigateTool() adk.Tool {
 			if targetURL == "" {
 				return "", fmt.Errorf("missing required parameter 'url'")
 			}
-			if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") {
+			if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") &&
+				!strings.HasPrefix(targetURL, "about:") && !strings.HasPrefix(targetURL, "data:") && !strings.HasPrefix(targetURL, "file://") {
 				targetURL = "https://" + targetURL
 			}
 			sessionID, _ := ctx.Value("session_id").(string)
-			return GlobalSessionManager.GetSession(sessionID).Navigate(targetURL)
+			session := GlobalSessionManager.GetSession(sessionID)
+			if headedVal, ok := raw["headed"].(bool); ok {
+				session.SetHeaded(headedVal)
+			}
+			return session.Navigate(targetURL)
 		},
 	}
 }
@@ -330,4 +339,41 @@ func GetBrowserLoadCookiesTool() adk.Tool {
 		},
 	}
 }
+
+// GetBrowserConfigureTool returns a native tool to configure browser runtime settings (e.g. headed vs headless).
+func GetBrowserConfigureTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_configure",
+		Description: "Configures browser runtime settings, such as toggling between visible headed window mode and headless background mode.",
+		Parameters: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"headed": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Set to true to show a visible graphical browser window on screen, or false for headless background execution.",
+				},
+			},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			var params struct {
+				Headed *bool `json:"headed"`
+			}
+			if err := json.Unmarshal(args, &params); err != nil {
+				return "", fmt.Errorf("failed to parse configure arguments: %w", err)
+			}
+			sessionID, _ := ctx.Value("session_id").(string)
+			session := GlobalSessionManager.GetSession(sessionID)
+			if params.Headed != nil {
+				session.SetHeaded(*params.Headed)
+				if *params.Headed {
+					return "Browser session switched to HEADED mode (visible window on screen).", nil
+				}
+				return "Browser session switched to HEADLESS mode (background execution).", nil
+			}
+			return "No configuration changes applied.", nil
+		},
+	}
+}
+
 

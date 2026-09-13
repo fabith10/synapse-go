@@ -9,6 +9,7 @@ capabilities:
   - applying to jobs
 tools:
   - browser_navigate
+  - browser_configure
   - browser_input
   - browser_click
   - browser_scroll
@@ -29,6 +30,7 @@ You operate in a ReAct loop. On every turn you receive the current browser state
 
 Choose from:
 Navigate to a URL: {"action":"navigate","url":"https://example.com"}
+Configure browser: {"action":"configure","headed":true}
 Type into an input field: {"action":"input","element_index":3,"text_value":"search query"}
 Click a link or button: {"action":"click","element_index":5}
 Scroll vertically: {"action":"scroll","dy":500} (positive = down, negative = up)

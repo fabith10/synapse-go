@@ -112,48 +112,71 @@ function initNetworkVisualizer() {
             // Exclude tool nodes - network topology focuses on agent & user interactions
             const agentNodesOnly = rawNodes.filter(n => n.category !== 'tool');
 
+            let centerNode = agentNodesOnly.find(n => n.id === 'triage-agent');
+            if (!centerNode && agentNodesOnly.length > 0) centerNode = agentNodesOnly[0];
+
             const userNodes = agentNodesOnly.filter(n => n.category === 'user');
-            const orchNodes = agentNodesOnly.filter(n => n.category === 'orchestrator');
-            const specNodes = agentNodesOnly.filter(n => n.category === 'specialist');
-            const otherNodes = agentNodesOnly.filter(n => !['user', 'orchestrator', 'specialist'].includes(n.category));
+            const innerOrchs = agentNodesOnly.filter(n => n.category === 'orchestrator' && (!centerNode || n.id !== centerNode.id));
+            const innerNodes = [...userNodes, ...innerOrchs];
 
-            const placeRing = (nodes, radius, baseAngleOffset = 0) => {
-                const count = nodes.length;
-                return nodes.map((rn, idx) => {
-                    const angle = baseAngleOffset + (count > 0 ? (idx / count) * Math.PI * 2 : 0);
-                    let nodeRadius = 18;
-                    let color = '#818cf8';
-                    if (rn.category === 'user') { nodeRadius = 22; color = '#f59e0b'; }
-                    else if (rn.category === 'orchestrator') { nodeRadius = 20; color = '#6366f1'; }
-                    else if (rn.category === 'specialist') { nodeRadius = 18; color = '#10b981'; }
+            const outerNodes = agentNodesOnly.filter(n => {
+                if (centerNode && n.id === centerNode.id) return false;
+                if (n.category === 'user' || n.category === 'orchestrator') return false;
+                return true;
+            });
+            outerNodes.sort((a, b) => (a.label || a.id).localeCompare(b.label || b.id));
 
-                    const initX = cx + (radius === 0 ? 0 : Math.cos(angle) * radius) + (Math.random() - 0.5) * 10;
-                    const initY = cy + (radius === 0 ? 0 : Math.sin(angle) * radius) + (Math.random() - 0.5) * 10;
+            const maxRadius = Math.min(cx, cy) * 0.88;
+            const innerR = maxRadius * 0.42;
+            const outerR = maxRadius * 0.78;
 
-                    return {
-                        id: rn.id,
-                        label: rn.label || rn.id,
-                        category: rn.category || 'specialist',
-                        role: rn.role || '',
-                        tools: rn.tools || [],
-                        radius: nodeRadius,
-                        color: color,
-                        x: isNaN(initX) ? cx : initX,
-                        y: isNaN(initY) ? cy : initY,
-                        vx: 0,
-                        vy: 0,
-                        fx: null,
-                        fy: null
-                    };
-                });
+            const createNodeObj = (rn, radius, angle) => {
+                let nodeRadius = 18;
+                let color = '#a1a1aa';
+                if (rn.category === 'user') { nodeRadius = 22; color = '#f59e0b'; }
+                else if (rn.category === 'orchestrator') { nodeRadius = 20; color = '#f4f4f5'; }
+                else if (rn.category === 'specialist') { nodeRadius = 18; color = '#10b981'; }
+
+                const initX = cx + (radius === 0 ? 0 : Math.cos(angle) * radius);
+                const initY = cy + (radius === 0 ? 0 : Math.sin(angle) * radius);
+
+                return {
+                    id: rn.id,
+                    label: rn.label || rn.id,
+                    category: rn.category || 'specialist',
+                    role: rn.role || '',
+                    tools: rn.tools || [],
+                    radius: nodeRadius,
+                    color: color,
+                    orbitRadius: radius,
+                    orbitAngle: angle,
+                    x: isNaN(initX) ? cx : initX,
+                    y: isNaN(initY) ? cy : initY,
+                    vx: 0,
+                    vy: 0,
+                    fx: null,
+                    fy: null
+                };
             };
 
-            const placedUser = placeRing(userNodes, 0);
-            const placedOrch = placeRing(orchNodes, Math.min(cx, cy) * 0.40);
-            const placedSpec = placeRing(specNodes, Math.min(cx, cy) * 0.75, Math.PI / 8);
-            const placedOther = placeRing(otherNodes, Math.min(cx, cy) * 0.88);
+            const placedNodes = [];
+            if (centerNode) {
+                placedNodes.push(createNodeObj(centerNode, 0, 0));
+            }
 
-            networkNodes = [...placedUser, ...placedOrch, ...placedSpec, ...placedOther];
+            const innerCount = innerNodes.length;
+            innerNodes.forEach((rn, idx) => {
+                const angle = (idx / Math.max(1, innerCount)) * Math.PI * 2 - Math.PI / 2;
+                placedNodes.push(createNodeObj(rn, innerR, angle));
+            });
+
+            const outerCount = outerNodes.length;
+            outerNodes.forEach((rn, idx) => {
+                const angle = (idx / Math.max(1, outerCount)) * Math.PI * 2 - Math.PI / 2;
+                placedNodes.push(createNodeObj(rn, outerR, angle));
+            });
+
+            networkNodes = placedNodes;
 
             const nodeMap = {};
             networkNodes.forEach(n => { nodeMap[n.id] = n; });
@@ -198,20 +221,20 @@ function initNetworkVisualizer() {
                     updatePhysics(width, height);
                 }
 
-                const isLight = document.body.classList.contains('light-theme');
+                const isLight = document.body.classList.contains('light-theme') || document.documentElement.classList.contains('light-theme');
                 ctx.fillStyle = isLight ? '#f8fafc' : '#05070a';
                 ctx.fillRect(0, 0, width, height);
 
                 const cx = width / 2;
                 const cy = height / 2;
-                const maxRadius = Math.min(width, height) * 0.42;
+                const maxRadius = Math.min(cx, cy) * 0.88;
 
                 // --- MINIMALIST NETWORK CANVAS BACKGROUND ---
-                [0.4, 0.75].forEach((ratio) => {
+                [0.42, 0.78].forEach((ratio) => {
                     const r = maxRadius * ratio;
                     ctx.beginPath();
                     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-                    ctx.strokeStyle = isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(255, 255, 255, 0.05)';
+                    ctx.strokeStyle = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.06)';
                     ctx.lineWidth = 1;
                     ctx.setLineDash([4, 6]);
                     ctx.stroke();
@@ -220,12 +243,12 @@ function initNetworkVisualizer() {
 
                 // Telemetry Header Info Overlay
                 const hudM = 16;
-                ctx.font = '500 10px "JetBrains Mono", monospace';
-                ctx.fillStyle = isLight ? '#4f46e5' : '#a1a1aa';
+                ctx.font = '600 10px "JetBrains Mono", monospace';
+                ctx.fillStyle = isLight ? '#09090b' : '#a1a1aa';
                 ctx.textAlign = 'left';
                 ctx.fillText('NETWORK TOPOLOGY', hudM, hudM + 12);
                 ctx.font = '400 9px "JetBrains Mono", monospace';
-                ctx.fillStyle = isLight ? '#64748b' : '#52525b';
+                ctx.fillStyle = isLight ? '#475569' : '#71717a';
                 ctx.fillText(networkNodes.length + ' ACTIVE NODES', hudM, hudM + 26);
 
                 // --- RENDER INTERACTION EDGES ---
@@ -235,7 +258,7 @@ function initNetworkVisualizer() {
                     ctx.beginPath();
                     ctx.moveTo(e.source.x, e.source.y);
                     ctx.lineTo(e.target.x, e.target.y);
-                    ctx.strokeStyle = isLight ? 'rgba(99, 102, 241, 0.2)' : 'rgba(63, 63, 70, 0.5)';
+                    ctx.strokeStyle = isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(63, 63, 70, 0.5)';
                     ctx.lineWidth = 1;
                     ctx.setLineDash([3, 3]);
                     ctx.stroke();
@@ -289,156 +312,156 @@ function initNetworkVisualizer() {
 
                     // Tactical Target Lock Reticle around Selected / Firing Node
                     if (isSelected || isGlowing) {
-                        const boxSize = (n.radius + 14);
-                        ctx.strokeStyle = isGlowing ? '#34d399' : '#818cf8';
-                        ctx.lineWidth = isGlowing ? 2 : 1.5;
+                         const boxSize = (n.radius + 14);
+                         ctx.strokeStyle = isGlowing ? '#34d399' : (isLight ? '#09090b' : '#f4f4f5');
+                         ctx.lineWidth = isGlowing ? 2 : 1.5;
 
-                        // Target Bracket Corners
-                        ctx.beginPath();
-                        ctx.moveTo(n.x - boxSize, n.y - boxSize + 6); ctx.lineTo(n.x - boxSize, n.y - boxSize); ctx.lineTo(n.x - boxSize + 6, n.y - boxSize);
-                        ctx.moveTo(n.x + boxSize - 6, n.y - boxSize); ctx.lineTo(n.x + boxSize, n.y - boxSize); ctx.lineTo(n.x + boxSize, n.y - boxSize + 6);
-                        ctx.moveTo(n.x - boxSize, n.y + boxSize - 6); ctx.lineTo(n.x - boxSize, n.y + boxSize); ctx.lineTo(n.x - boxSize + 6, n.y + boxSize);
-                        ctx.moveTo(n.x + boxSize - 6, n.y + boxSize); ctx.lineTo(n.x + boxSize, n.y + boxSize); ctx.lineTo(n.x + boxSize, n.y + boxSize - 6);
-                        ctx.stroke();
+                         // Target Bracket Corners
+                         ctx.beginPath();
+                         ctx.moveTo(n.x - boxSize, n.y - boxSize + 6); ctx.lineTo(n.x - boxSize, n.y - boxSize); ctx.lineTo(n.x - boxSize + 6, n.y - boxSize);
+                         ctx.moveTo(n.x + boxSize - 6, n.y - boxSize); ctx.lineTo(n.x + boxSize, n.y - boxSize); ctx.lineTo(n.x + boxSize, n.y - boxSize + 6);
+                         ctx.moveTo(n.x - boxSize, n.y + boxSize - 6); ctx.lineTo(n.x - boxSize, n.y + boxSize); ctx.lineTo(n.x - boxSize + 6, n.y + boxSize);
+                         ctx.moveTo(n.x + boxSize - 6, n.y + boxSize); ctx.lineTo(n.x + boxSize, n.y + boxSize); ctx.lineTo(n.x + boxSize, n.y + boxSize - 6);
+                         ctx.stroke();
 
-                        if (isGlowing) {
-                            const remaining = Math.max(0, n.glowUntil - Date.now());
-                            const elapsed = (glowDuration - remaining) / 1000;
-                            const pulseCycle = (elapsed % 0.8) / 0.8;
-                            const rippleRadius = n.radius + 6 + pulseCycle * 28;
-                            const alpha = Math.max(0, 1 - pulseCycle);
+                         if (isGlowing) {
+                             const remaining = Math.max(0, n.glowUntil - Date.now());
+                             const elapsed = (glowDuration - remaining) / 1000;
+                             const pulseCycle = (elapsed % 0.8) / 0.8;
+                             const rippleRadius = n.radius + 6 + pulseCycle * 28;
+                             const alpha = Math.max(0, 1 - pulseCycle);
 
-                            ctx.beginPath();
-                            ctx.arc(n.x, n.y, rippleRadius, 0, Math.PI * 2);
-                            ctx.strokeStyle = n.color || '#34d399';
-                            ctx.lineWidth = 2.5;
-                            ctx.globalAlpha = alpha;
-                            ctx.stroke();
-                            ctx.globalAlpha = 1.0;
-                        }
-                    }
+                             ctx.beginPath();
+                             ctx.arc(n.x, n.y, rippleRadius, 0, Math.PI * 2);
+                             ctx.strokeStyle = n.color || '#34d399';
+                             ctx.lineWidth = 2.5;
+                             ctx.globalAlpha = alpha;
+                             ctx.stroke();
+                             ctx.globalAlpha = 1.0;
+                         }
+                     }
 
-                    // Node Radar Blip Core (Pulsing beat when glowing)
-                    const pulseFactor = isGlowing ? Math.sin(Date.now() / 90) * 4 : 0;
-                    const activeRadius = Math.max(2, n.radius + (isSelected ? 3 : 0) + pulseFactor);
+                     // Node Radar Blip Core (Pulsing beat when glowing)
+                     const pulseFactor = isGlowing ? Math.sin(Date.now() / 90) * 4 : 0;
+                     const activeRadius = Math.max(2, n.radius + (isSelected ? 3 : 0) + pulseFactor);
 
-                    ctx.beginPath();
-                    ctx.arc(n.x, n.y, activeRadius, 0, Math.PI * 2);
-                    ctx.fillStyle = isGlowing ? '#34d399' : (n.color || '#818cf8');
-                    if (isSelected || isGlowing) {
-                        ctx.shadowColor = isGlowing ? '#34d399' : (n.color || '#818cf8');
-                        ctx.shadowBlur = isGlowing ? 32 : 16;
-                    }
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
+                     ctx.beginPath();
+                     ctx.arc(n.x, n.y, activeRadius, 0, Math.PI * 2);
 
-                    ctx.strokeStyle = isGlowing ? '#ffffff' : (isLight ? '#ffffff' : '#05070a');
-                    ctx.lineWidth = isGlowing ? 2.5 : 2;
-                    ctx.stroke();
+                     let fillColor = n.color;
+                     if (n.category === 'orchestrator') {
+                         fillColor = isLight ? '#0f172a' : '#f4f4f5';
+                     } else if (n.category === 'user') {
+                         fillColor = '#f59e0b';
+                     } else if (n.category === 'specialist') {
+                         fillColor = isLight ? '#059669' : '#10b981';
+                     }
 
-                    // Node Label with Radar Tag
-                    ctx.font = isGlowing ? '700 11px "JetBrains Mono", monospace' : '10px "JetBrains Mono", monospace, sans-serif';
-                    ctx.fillStyle = isGlowing ? '#34d399' : (isLight ? '#0f172a' : '#f4f4f5');
-                    ctx.textAlign = 'center';
-                    ctx.fillText(n.label || n.id, n.x, n.y + n.radius + 16);
-                });
-            } catch(renderErr) {
-                console.warn('Canvas render frame error:', renderErr);
-            }
+                     ctx.fillStyle = isGlowing ? '#34d399' : fillColor;
+                     if (isSelected || isGlowing) {
+                         ctx.shadowColor = isGlowing ? '#34d399' : fillColor;
+                         ctx.shadowBlur = isGlowing ? 32 : 16;
+                     }
+                     ctx.fill();
+                     ctx.shadowBlur = 0;
 
-            requestAnimationFrame(renderNetworkLoop);
-        }
+                     ctx.strokeStyle = isGlowing ? '#ffffff' : (isLight ? (n.category === 'orchestrator' ? '#cbd5e1' : '#ffffff') : '#05070a');
+                     ctx.lineWidth = isGlowing ? 2.5 : 2;
+                     ctx.stroke();
 
-        function updatePhysics(width, height) {
-            if (!networkNodes || networkNodes.length === 0) return;
+                     // Node Label with Radar Tag - Radially offset outward to eliminate overlap
+                     ctx.font = isGlowing ? '700 11px "JetBrains Mono", monospace' : '500 10px "JetBrains Mono", monospace, sans-serif';
+                     ctx.fillStyle = isGlowing ? '#34d399' : (isLight ? '#09090b' : '#f4f4f5');
 
-            const cx = width / 2;
-            const cy = height / 2;
-            const nodeCount = networkNodes.length;
-            const k = 0.04;
-            const rep = Math.min(1000, Math.max(150, 12000 / Math.max(1, nodeCount)));
-            const maxSpeed = 10;
+                     const distFromCenter = Math.hypot(n.x - cx, n.y - cy);
+                     if (distFromCenter < 35) {
+                         // Central hub node (triage-agent) - place label neatly below center node
+                         ctx.textAlign = 'center';
+                         ctx.textBaseline = 'top';
+                         ctx.fillText(n.label || n.id, n.x, n.y + n.radius + 7);
+                     } else {
+                         // Radial label placement projecting outward away from canvas center
+                         const angle = Math.atan2(n.y - cy, n.x - cx);
+                         const isInner = distFromCenter < maxRadius * 0.58;
+                         const labelDist = isInner ? (n.radius + 8) : (n.radius + 10);
+                         const lx = n.x + Math.cos(angle) * labelDist;
+                         const ly = n.y + Math.sin(angle) * labelDist;
+                         const cosA = Math.cos(angle);
+                         const sinA = Math.sin(angle);
 
-            for (let i = 0; i < nodeCount; i++) {
-                const na = networkNodes[i];
-                if (!na || isNaN(na.x) || isNaN(na.y)) {
-                    if (na) { na.x = cx; na.y = cy; na.vx = 0; na.vy = 0; }
-                    continue;
-                }
-                for (let j = i + 1; j < nodeCount; j++) {
-                    const nb = networkNodes[j];
-                    if (!nb || isNaN(nb.x) || isNaN(nb.y)) {
-                        if (nb) { nb.x = cx; nb.y = cy; nb.vx = 0; nb.vy = 0; }
-                        continue;
-                    }
-                    let dx = nb.x - na.x;
-                    let dy = nb.y - na.y;
-                    if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
-                        dx = (Math.random() - 0.5) * 4;
-                        dy = (Math.random() - 0.5) * 4;
-                    }
-                    const distSq = dx * dx + dy * dy + 1.0;
-                    const dist = Math.sqrt(distSq);
-                    const force = rep / distSq;
+                         ctx.textAlign = cosA > 0.3 ? 'left' : (cosA < -0.3 ? 'right' : 'center');
+                         ctx.textBaseline = sinA > 0.35 ? 'top' : (sinA < -0.35 ? 'bottom' : 'middle');
+                         ctx.fillText(n.label || n.id, lx, ly);
+                     }
+                 });
+             } catch(renderErr) {
+                 console.warn('Canvas render frame error:', renderErr);
+             }
 
-                    const fx = (dx / dist) * force;
-                    const fy = (dy / dist) * force;
+             requestAnimationFrame(renderNetworkLoop);
+         }
 
-                    if (na.fx === null) { na.vx -= fx; na.vy -= fy; }
-                    if (nb.fx === null) { nb.vx += fx; nb.vy += fy; }
-                }
-            }
+         function updatePhysics(width, height) {
+             if (!networkNodes || networkNodes.length === 0) return;
 
-            networkEdges.forEach(e => {
-                if (!e.source || !e.target) return;
-                if (isNaN(e.source.x) || isNaN(e.source.y) || isNaN(e.target.x) || isNaN(e.target.y)) return;
+             const cx = width / 2;
+             const cy = height / 2;
+             const maxRadius = Math.min(cx, cy) * 0.88;
+             const nodeCount = networkNodes.length;
+             const maxSpeed = 8;
 
-                let dx = e.target.x - e.source.x;
-                let dy = e.target.y - e.source.y;
-                let dist = Math.sqrt(dx * dx + dy * dy) + 0.1;
-                const desired = e.target.category === 'tool' ? 70 : 130;
-                const delta = dist - desired;
-                const force = delta * k;
+             for (let i = 0; i < nodeCount; i++) {
+                 const na = networkNodes[i];
+                 if (!na || isNaN(na.x) || isNaN(na.y)) continue;
 
-                const fx = (dx / dist) * force;
-                const fy = (dy / dist) * force;
+                 // Gentle spring pull toward designated orbital radar slot
+                 if (na.fx === null) {
+                     const r = na.orbitRadius === 0 ? 0 : (na.orbitRadius > maxRadius * 0.6 ? maxRadius * 0.78 : maxRadius * 0.42);
+                     const ax = cx + (r === 0 ? 0 : Math.cos(na.orbitAngle) * r);
+                     const ay = cy + (r === 0 ? 0 : Math.sin(na.orbitAngle) * r);
+                     na.vx += (ax - na.x) * 0.08;
+                     na.vy += (ay - na.y) * 0.08;
+                 }
 
-                if (e.source.fx === null) { e.source.vx += fx; e.source.vy += fy; }
-                if (e.target.fx === null) { e.target.vx -= fx; e.target.vy -= fy; }
-            });
+                 // Inter-node separation to prevent collisions
+                 for (let j = i + 1; j < nodeCount; j++) {
+                     const nb = networkNodes[j];
+                     if (!nb || isNaN(nb.x) || isNaN(nb.y)) continue;
+                     let dx = nb.x - na.x;
+                     let dy = nb.y - na.y;
+                     const distSq = dx * dx + dy * dy + 1.0;
+                     const minDist = na.radius + nb.radius + 16;
+                     if (distSq < minDist * minDist) {
+                         const dist = Math.sqrt(distSq);
+                         const force = (minDist - dist) * 0.06;
+                         const fx = (dx / dist) * force;
+                         const fy = (dy / dist) * force;
+                         if (na.fx === null) { na.vx -= fx; na.vy -= fy; }
+                         if (nb.fx === null) { nb.vx += fx; nb.vy += fy; }
+                     }
+                 }
+             }
 
-            networkNodes.forEach(n => {
-                if (n.fx !== null) {
-                    n.x = n.fx;
-                    n.y = n.fy;
-                    return;
-                }
-                n.vx += (cx - n.x) * 0.002;
-                n.vy += (cy - n.y) * 0.002;
+             networkNodes.forEach(n => {
+                 if (n.fx !== null) {
+                     n.x = n.fx;
+                     n.y = n.fy;
+                     return;
+                 }
 
-                n.vx *= 0.82;
-                n.vy *= 0.82;
+                 n.vx *= 0.72;
+                 n.vy *= 0.72;
 
-                const speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
-                if (speed > maxSpeed) {
-                    n.vx = (n.vx / speed) * maxSpeed;
-                    n.vy = (n.vy / speed) * maxSpeed;
-                }
+                 const speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+                 if (speed > maxSpeed) {
+                     n.vx = (n.vx / speed) * maxSpeed;
+                     n.vy = (n.vy / speed) * maxSpeed;
+                 }
 
-                n.x += n.vx;
-                n.y += n.vy;
-
-                const minX = n.radius + 12;
-                const maxX = width - n.radius - 12;
-                const minY = n.radius + 12;
-                const maxY = height - n.radius - 12;
-
-                if (n.x < minX) { n.x = minX; n.vx = 0; }
-                if (n.x > maxX) { n.x = maxX; n.vx = 0; }
-                if (n.y < minY) { n.y = minY; n.vy = 0; }
-                if (n.y > maxY) { n.y = maxY; n.vy = 0; }
-            });
-        }
+                 n.x += n.vx;
+                 n.y += n.vy;
+             });
+         }
 
         function selectNetworkNode(node) {
             selectedNode = node;
@@ -499,7 +522,7 @@ function initNetworkVisualizer() {
                 setTimeout(() => {
                     const devNode = networkNodes.find(n => n.id === 'developer-agent' || n.category === 'specialist');
                     if (devNode) {
-                        networkPulses.push({ source: triageNode, target: devNode, progress: 0, speed: 0.02, color: '#6366f1' });
+                        networkPulses.push({ source: triageNode, target: devNode, progress: 0, speed: 0.02, color: '#38bdf8' });
                     }
                 }, 400);
             }
@@ -543,7 +566,7 @@ function initNetworkVisualizer() {
                         target: tgtNode,
                         progress: 0,
                         speed: 0.025 + Math.random() * 0.008,
-                        color: '#6366f1'
+                        color: '#38bdf8'
                     });
                 }, 150);
             }

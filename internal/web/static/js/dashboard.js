@@ -50,8 +50,10 @@ function toggleTheme() {
         function updateThemeUI(isLight) {
             const iconEl = document.getElementById('theme-toggle-icon');
             const textEl = document.getElementById('theme-toggle-text');
-            if (iconEl) iconEl.textContent = isLight ? '🌙' : '☀️';
-            if (textEl) textEl.textContent = isLight ? 'Dark Mode' : 'Light Mode';
+            const btn = document.getElementById('theme-toggle-btn');
+            if (iconEl) iconEl.textContent = isLight ? '☀️' : '🌙';
+            if (textEl) textEl.textContent = isLight ? 'Light Theme' : 'Dark Theme';
+            if (btn) btn.title = isLight ? 'Active: Light Theme. Click to switch to Dark Theme.' : 'Active: Dark Theme. Click to switch to Light Theme.';
         }
 
         function escapeHtml(str) {
@@ -127,12 +129,17 @@ function toggleTheme() {
         document.addEventListener('DOMContentLoaded', function() {
             // Restore theme preference
             const saved = localStorage.getItem('theme_preference');
-            if (saved === 'light') {
+            const isLight = (saved === 'light');
+            if (isLight) {
                 document.body.classList.add('light-theme');
                 document.documentElement.classList.remove('dark');
                 document.documentElement.classList.add('light-theme');
-                updateThemeUI(true);
+            } else {
+                document.body.classList.remove('light-theme');
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light-theme');
             }
+            updateThemeUI(isLight);
 
             // Seed known agents from the live registry so custom Studio agents
             // appear in the filter dropdown immediately, not only after telemetry.
@@ -585,7 +592,7 @@ function toggleTheme() {
                                         '<span class="text-emerald-400 font-bold">$' + cost.toFixed(4) + '</span>' +
                                     '</div>' +
                                     '<div class="w-full bg-zinc-950 rounded-full h-2 overflow-hidden border border-zinc-800">' +
-                                        '<div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-2 rounded-full" style="width: ' + pct + '%"></div>' +
+                                        '<div class="bg-emerald-500 h-2 rounded-full" style="width: ' + pct + '%"></div>' +
                                     '</div>';
                                 agentBarsEl.appendChild(row);
                             });
@@ -715,7 +722,7 @@ function toggleTheme() {
                 if (chatView) chatView.classList.add('hidden');
                 if (matrixView) matrixView.classList.remove('hidden');
                 if (chatBtn) {
-                    chatBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer";
+                    chatBtn.className = "subview-btn-inactive px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all cursor-pointer";
                 }
                 if (matrixBtn) {
                     matrixBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 bg-white text-zinc-950 shadow-sm transition-all cursor-pointer";
@@ -727,7 +734,7 @@ function toggleTheme() {
                     chatBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 bg-white text-zinc-950 shadow-sm transition-all cursor-pointer";
                 }
                 if (matrixBtn) {
-                    matrixBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer";
+                    matrixBtn.className = "subview-btn-inactive px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all cursor-pointer";
                 }
             }
         }
@@ -1258,7 +1265,7 @@ function toggleTheme() {
                             <button type="button" onclick="submitApprovalDecision('${corrId}', 'REJECTED')" class="chat-approval-btn-deny px-3.5 py-2 bg-zinc-900 hover:bg-rose-950/60 text-zinc-300 hover:text-rose-200 border border-zinc-700 hover:border-rose-800 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer">
                                 Deny Execution
                             </button>
-                            <button type="button" onclick="submitApprovalDecision('${corrId}', 'APPROVED')" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer">
+                            <button type="button" onclick="submitApprovalDecision('${corrId}', 'APPROVED')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer">
                                 Approve &amp; Continue
                             </button>
                             <button type="button" onclick="submitApprovalDecision('${corrId}', 'APPROVE_ALL')" class="px-3.5 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5" title="Approve this request and enable Auto-Pilot for all future actions">
@@ -1302,7 +1309,7 @@ function toggleTheme() {
                                 <button type="button" onclick="submitApprovalDecision('${corrId}', 'REJECTED')" class="chat-approval-btn-deny px-3.5 py-2 bg-zinc-900 hover:bg-rose-950/60 text-zinc-300 hover:text-rose-200 border border-zinc-700 hover:border-rose-800 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer">
                                     Deny Execution
                                 </button>
-                                <button type="button" onclick="submitApprovalDecision('${corrId}', 'APPROVED')" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer">
+                                <button type="button" onclick="submitApprovalDecision('${corrId}', 'APPROVED')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer">
                                     Approve &amp; Continue
                                 </button>
                                 <button type="button" onclick="submitApprovalDecision('${corrId}', 'APPROVE_ALL')" class="px-3.5 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5" title="Approve this request and enable Auto-Pilot for all future actions">
@@ -1366,6 +1373,15 @@ function toggleTheme() {
                     subviewIndicator.classList.remove('hidden');
                 } else {
                     subviewIndicator.classList.add('hidden');
+                }
+            }
+
+            const chatApprovalsSection = document.getElementById('chat-approvals-section');
+            if (chatApprovalsSection) {
+                if (pendingCount > 0) {
+                    chatApprovalsSection.classList.remove('hidden');
+                } else {
+                    chatApprovalsSection.classList.add('hidden');
                 }
             }
 

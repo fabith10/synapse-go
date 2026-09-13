@@ -302,6 +302,7 @@ func main() {
 	cliPrompt := fs.String("prompt", "", "Run a single prompt task in CLI mode")
 	cliLogFile := fs.String("log-file", "", "Path to write agent interaction and audit logs")
 	cliTimeoutSecs := fs.Int("timeout", 60, "Timeout in seconds for CLI mode prompt execution")
+	cliHeaded := fs.Bool("headed", false, "Run browser tools in visible headed window mode")
 	ntfyTopic := fs.String("ntfy-topic", "", "Ntfy topic for inbound streaming & outbound agent notifications")
 	_ = fs.Parse(os.Args[1:])
 
@@ -312,8 +313,16 @@ func main() {
 		os.Setenv("LOG_FILE", *cliLogFile)
 	}
 
+	if *cliHeaded {
+		agenttools.GlobalSessionManager.SetDefaultHeaded(true)
+		os.Setenv("BROWSER_HEADED", "true")
+	}
+
 	logger.InitFromEnv()
 	logger.Info("--- Starting Agent Framework Control Center ---")
+	if *cliHeaded || os.Getenv("BROWSER_HEADED") == "true" || os.Getenv("HEADED") == "true" {
+		logger.Info("[Browser] Headed mode enabled: browser automation will open a visible window")
+	}
 
 	if os.Getenv("DISABLE_DOCKER_TOOLS") == "true" || os.Getenv("ENABLE_DOCKER_TOOLS") == "false" {
 		agent.SetDockerToolsEnabled(false)

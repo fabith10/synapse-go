@@ -40,9 +40,37 @@ type BrowserSession struct {
 	HasCaptcha    bool
 	CaptchaNotice string
 	lastAccess    time.Time
+	Headed        bool // Explicit headed (visible window) mode
 }
 
 type cancelFuncWrapper context.CancelFunc
+
+// SetHeaded configures whether the browser session runs in visible (headed) mode.
+// If the session is already active with a different mode, it re-initializes cleanly.
+func (b *BrowserSession) SetHeaded(headed bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.Headed == headed && b.Ctx != nil {
+		return
+	}
+	b.Headed = headed
+	if b.Cancel != nil {
+		context.CancelFunc(b.Cancel)()
+		b.Ctx = nil
+		b.Cancel = nil
+	}
+	if b.allocCancel != nil {
+		b.allocCancel()
+		b.allocCancel = nil
+	}
+}
+
+// IsHeaded reports whether the session is operating in headed mode.
+func (b *BrowserSession) IsHeaded() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.Headed || os.Getenv("HEADED") == "true" || os.Getenv("HEADLESS") == "false" || os.Getenv("BROWSER_HEADED") == "true"
+}
 
 // Close releases the chromedp context and exec allocator, cleaning up the
 // Chrome process. Both cancels must be called to avoid orphaned processes (L-4).
@@ -66,18 +94,31 @@ func (b *BrowserSession) ensureContextLocked() {
 		return
 	}
 	isHeadless := true
-	if os.Getenv("HEADED") == "true" || os.Getenv("HEADLESS") == "false" || os.Getenv("BROWSER_HEADED") == "true" {
+	if b.Headed || os.Getenv("HEADED") == "true" || os.Getenv("HEADLESS") == "false" || os.Getenv("BROWSER_HEADED") == "true" {
 		isHeadless = false
 	}
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+	opts := []chromedp.ExecAllocatorOption{
+		chromedp.NoFirstRun,
+		chromedp.NoDefaultBrowserCheck,
 		chromedp.NoSandbox,
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("headless", isHeadless),
 		chromedp.Flag("disable-blink-features", "AutomationControlled"),
 		chromedp.UserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
 		chromedp.WindowSize(1440, 900),
 		chromedp.Flag("accept-lang", "en-US,en;q=0.9"),
-	)
+		chromedp.Flag("enable-features", "NetworkService,NetworkServiceInProcess"),
+		chromedp.Flag("disable-background-networking", true),
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("force-color-profile", "srgb"),
+	}
+	if isHeadless {
+		opts = append(opts, chromedp.Flag("headless", "new"))
+	} else {
+		opts = append(opts,
+			chromedp.Flag("disable-infobars", true),
+			chromedp.Flag("disable-save-password-bubble", true),
+			chromedp.Flag("disable-single-click-autofill", true),
+		)
+	}
 
 	if proxy := os.Getenv("BROWSER_PROXY"); proxy != "" {
 		opts = append(opts, chromedp.Flag("proxy-server", proxy))
@@ -96,16 +137,80 @@ func (b *BrowserSession) ensureContextLocked() {
 	b.allocCancel = allocCancel
 
 	const stealthScript = `(function() {
-		Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-		window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
-		Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-		Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-		const getParameter = WebGLRenderingContext.prototype.getParameter;
-		WebGLRenderingContext.prototype.getParameter = function(parameter) {
-			if (parameter === 37445) return 'Intel Inc.';
-			if (parameter === 37446) return 'Intel Iris OpenGL Engine';
-			return getParameter.apply(this, arguments);
+		// 1. Remove webdriver property from Navigator prototype & instance
+		try {
+			delete Object.getPrototypeOf(navigator).webdriver;
+		} catch (e) {}
+		try {
+			delete navigator.webdriver;
+		} catch (e) {}
+
+		// 2. Normalise window.chrome
+		window.chrome = {
+			runtime: {},
+			loadTimes: function() {},
+			csi: function() {},
+			app: {}
 		};
+
+		// 3. Languages
+		Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+
+		// 4. PluginArray normalisation & fallback
+		try {
+			if (!navigator.plugins || navigator.plugins.length === 0 || !(navigator.plugins instanceof PluginArray)) {
+				const mockPlugin = function(name, description, filename) {
+					const p = Object.create(Plugin.prototype);
+					Object.defineProperties(p, {
+						name: { value: name, enumerable: true },
+						description: { value: description, enumerable: true },
+						filename: { value: filename, enumerable: true },
+						length: { value: 0, enumerable: true }
+					});
+					return p;
+				};
+				const pluginList = [
+					mockPlugin('PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+					mockPlugin('Chrome PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+					mockPlugin('Chromium PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+					mockPlugin('Microsoft Edge PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+					mockPlugin('WebKit built-in PDF', 'Portable Document Format', 'internal-pdf-viewer')
+				];
+				const pluginArray = Object.create(PluginArray.prototype);
+				pluginList.forEach((p, i) => {
+					pluginArray[i] = p;
+					pluginArray[p.name] = p;
+				});
+				Object.defineProperties(pluginArray, {
+					length: { value: pluginList.length, enumerable: true },
+					item: { value: function(index) { return this[index] || null; } },
+					namedItem: { value: function(name) { return this[name] || null; } },
+					refresh: { value: function() {} }
+				});
+				Object.defineProperty(Object.getPrototypeOf(navigator), 'plugins', {
+					get: () => pluginArray,
+					enumerable: true,
+					configurable: true
+				});
+			}
+		} catch (e) {}
+
+		// 5. Mask WebGL vendor and renderer across WebGL1 & WebGL2
+		try {
+			const maskWebGL = (contextProto) => {
+				if (!contextProto) return;
+				const origGetParameter = contextProto.getParameter;
+				contextProto.getParameter = function(parameter) {
+					if (parameter === 37445) return 'Intel Inc.';
+					if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+					return origGetParameter.apply(this, arguments);
+				};
+			};
+			maskWebGL(window.WebGLRenderingContext && window.WebGLRenderingContext.prototype);
+			maskWebGL(window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype);
+		} catch (e) {}
+
+		// 6. Notification permission
 		if (window.navigator.permissions) {
 			const origQuery = window.navigator.permissions.query;
 			window.navigator.permissions.query = (params) => (
@@ -125,8 +230,23 @@ func (b *BrowserSession) ensureContextLocked() {
 // BrowserSessionManager stores thread-safe browser sessions isolated by session ID.
 // ponytail: In-memory map storage with stdlib TTL eviction and Chrome process cleanup; upgrade to Redis/LRU for multi-node deployments.
 type BrowserSessionManager struct {
-	mu       sync.Mutex
-	sessions map[string]*BrowserSession
+	mu            sync.Mutex
+	sessions      map[string]*BrowserSession
+	defaultHeaded bool
+}
+
+// SetDefaultHeaded configures the default headed mode for newly created sessions.
+func (m *BrowserSessionManager) SetDefaultHeaded(headed bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.defaultHeaded = headed
+}
+
+// IsDefaultHeaded returns whether new sessions default to headed mode.
+func (m *BrowserSessionManager) IsDefaultHeaded() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.defaultHeaded
 }
 
 func (m *BrowserSessionManager) GetSession(sessionID string) *BrowserSession {
@@ -149,6 +269,7 @@ func (m *BrowserSessionManager) GetSession(sessionID string) *BrowserSession {
 	if !ok {
 		s = &BrowserSession{
 			Inputs: make(map[int]string),
+			Headed: m.defaultHeaded,
 		}
 		m.sessions[sessionID] = s
 	}
