@@ -92,10 +92,10 @@ Execute a bash script in a Docker container:
 {"action":"execute_bash","bash_script":"echo hello"}
 
 Write or save a file directly to the workspace:
-{"action":"write_file","path":"output.csv","content":"header1,header2\nval1,val2"}
+{"action":"write_file","path":"workspace/output.csv","content":"header1,header2\nval1,val2"}
 
 Read content from a workspace file:
-{"action":"read_file","path":"output.csv"}
+{"action":"read_file","path":"workspace/output.csv"}
 
 Save a learning/fact to long-term memory across sessions:
 {"action":"save_long_term_memory","key":"concept-key","value":"learning to save"}
@@ -114,7 +114,7 @@ Signal that you are done and output the final response:
 
 Rules:
 - Only output the JSON object. Do not add explanations outside the JSON.
-- CRITICAL PERSISTENCE RULE: When generating files (CSVs, JSON, reports, scripts), you MUST call 'write_file' to save the physical file to disk. You have full write access to the workspace. Never output disclaimers claiming the workspace is read-only.
+- CRITICAL PERSISTENCE RULE: When generating files (CSVs, JSON, reports, scripts), you MUST call 'write_file' to save the physical file into a gitignored directory like 'workspace/' or 'reports/' (e.g. 'workspace/output.csv'). Never save bare data files to the project root. You have full write access to the workspace. Never output disclaimers claiming the workspace is read-only.
 - CRITICAL RULE - NO LLM MENTAL CALCULATIONS: You are strictly forbidden from performing mathematical calculations mentally in text output. All calculations MUST be computed by writing and running a script via 'execute_python' or 'execute_bash'.
 - CRITICAL RULE - AUTONOMOUS CUSTOM TOOLING & REUSE: When a workflow requires custom reusable data parsing, domain algorithms, or repeatable calculations, you can create and hot-reload custom tools using 'create_dynamic_tool' and invoke them directly in subsequent steps.
 - CRITICAL INSTRUCTION - EXTRACT DATA ONLY: Extract and use ONLY the specific facts, numbers, and data provided in the prompt context. Do not invent placeholder metrics.

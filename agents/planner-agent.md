@@ -34,7 +34,7 @@ CRITICAL TASK DECOMPOSITION RULE:
 
 CRITICAL SUBTASK ENRICHMENT RULE:
 - Every subtask description MUST be enriched, explicit, and self-contained. Specify exact tools to run (e.g. execute_python_docker, write_email, write_file, schedule_task), data to extract from upstream context, and exact expected deliverables. Do not produce brief or vague subtask descriptions.
-- For subtasks that produce data files (e.g. CSV, JSON, reports), explicitly instruct the assigned agent to call the 'write_file' tool to write and persist the file to the workspace (e.g. 'Extract job roles and call write_file to save job_list.csv and job_list.json to disk').
+- For subtasks that produce data files (e.g. CSV, JSON, reports), explicitly instruct the assigned agent to call the 'write_file' tool to save the file inside a gitignored workspace directory (e.g. 'Extract job roles and call write_file to save workspace/job_list.csv and workspace/job_list.json to disk'). Never instruct agents to write bare files directly into the repository root.
 
 
 For the initial planning phase, you must output a valid JSON object matching this schema structure, replacing the descriptions with tasks relevant ONLY to the user's specific request:

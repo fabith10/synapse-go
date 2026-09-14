@@ -23,6 +23,9 @@ scratch/
 reports/
 workspace/
 scripts/
+output/
+artifacts/
+data/
 
 # Spreadsheets & analysis dumps
 *.xlsx
