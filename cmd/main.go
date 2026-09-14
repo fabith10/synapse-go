@@ -198,7 +198,7 @@ func (p *openAILLMProvider) GenerateResponse(ctx context.Context, payload interf
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 90 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return adk.Message{}, err
@@ -217,7 +217,8 @@ func (p *openAILLMProvider) GenerateResponse(ctx context.Context, payload interf
 	var responseData struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content          string `json:"content"`
+				ReasoningContent string `json:"reasoning_content"`
 			} `json:"message"`
 		} `json:"choices"`
 	}
@@ -230,20 +231,28 @@ func (p *openAILLMProvider) GenerateResponse(ctx context.Context, payload interf
 		return adk.Message{}, fmt.Errorf("empty choices returned from OpenAI completion API")
 	}
 
+	content := responseData.Choices[0].Message.Content
+	if content == "" && responseData.Choices[0].Message.ReasoningContent != "" {
+		content = responseData.Choices[0].Message.ReasoningContent
+	}
+
 	return adk.Message{
 		Sender:  "openai",
-		Content: responseData.Choices[0].Message.Content,
+		Content: content,
 	}, nil
 }
 
 type modelJSON struct {
-	Name          string  `json:"name"`
-	Provider      string  `json:"provider"`
-	Tier          string  `json:"tier"`
-	InputRateUSD  float64 `json:"input_rate_usd"`
-	OutputRateUSD float64 `json:"output_rate_usd"`
-	APIURL        string  `json:"api_url,omitempty"`
-	APIKeyEnv     string  `json:"api_key_env,omitempty"`
+	Name                string  `json:"name"`
+	Provider            string  `json:"provider"`
+	Tier                string  `json:"tier"`
+	InputRateUSD        float64 `json:"input_rate_usd"`
+	OutputRateUSD       float64 `json:"output_rate_usd"`
+	GPUHourlyRateUSD    float64 `json:"gpu_hourly_rate_usd,omitempty"`
+	TokensPerSecond     float64 `json:"tokens_per_second,omitempty"`
+	ScaledownWindowSecs float64 `json:"scaledown_window_secs,omitempty"`
+	APIURL              string  `json:"api_url,omitempty"`
+	APIKeyEnv           string  `json:"api_key_env,omitempty"`
 }
 
 type configJSON struct {
@@ -280,18 +289,24 @@ func loadModelsConfig(path string) ([]adk.LLMNode, error) {
 		}
 
 		var tier broker.ProviderTier
-		if m.Tier == "commercial" {
+		switch m.Tier {
+		case "commercial":
 			tier = broker.TierCommercial
-		} else {
+		case "spot_gpu", "spot", "gpu_hourly":
+			tier = broker.TierSpotGPU
+		default:
 			tier = broker.TierLocal
 		}
 
 		nodes = append(nodes, adk.LLMNode{
-			Name:          m.Name,
-			Tier:          tier,
-			Provider:      provider,
-			InputRateUSD:  m.InputRateUSD,
-			OutputRateUSD: m.OutputRateUSD,
+			Name:                m.Name,
+			Tier:                tier,
+			Provider:            provider,
+			InputRateUSD:        m.InputRateUSD,
+			OutputRateUSD:       m.OutputRateUSD,
+			GPUHourlyRateUSD:    m.GPUHourlyRateUSD,
+			TokensPerSecond:     m.TokensPerSecond,
+			ScaledownWindowSecs: m.ScaledownWindowSecs,
 		})
 	}
 	return nodes, nil

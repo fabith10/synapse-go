@@ -20,6 +20,10 @@ tools:
   - browser_reload
   - browser_save_cookies
   - browser_load_cookies
+  - browser_list_tabs
+  - browser_new_tab
+  - browser_switch_tab
+  - browser_close_tab
   - extract_web_tables
 hardware_tier: tier0
 max_willing_to_pay: 0.15
@@ -37,6 +41,10 @@ Scroll vertically: {"action":"scroll","dy":500} (positive = down, negative = up)
 Wait for selector: {"action":"wait","selector":".data-table","timeout_sec":10}
 Execute JavaScript to extract data: {"action":"extract_js","expression":"document.querySelector('.price').innerText"}
 Take screenshot: {"action":"screenshot","out_path":"reports/view.png"}
+List open tabs: {"action":"list_tabs"}
+Open a new tab: {"action":"new_tab","url":"https://example.com"}
+Switch to a tab: {"action":"switch_tab","tab":"2"} (or tab index 1, 2, ...)
+Close a tab: {"action":"close_tab","tab":"2"} (optional tab index; closes active tab if omitted)
 Signal completion: {"action":"done","summary":"Brief description of what was accomplished"}
 
 Rules:

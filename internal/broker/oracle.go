@@ -125,15 +125,39 @@ func (o *PricingOracle) UpdateComputeLatency(name string, observedMs float64) {
 // Cost estimation
 // ---------------------------------------------------------------------------
 
-// EstimateLLMCost calculates the USD cost for a token-priced API call.
-// The split between input and output tokens is assumed 60/40 when only a
-// total estimate is available (conservative heuristic).
+// EstimateLLMCost calculates the USD cost for a token-priced or GPU-hourly priced API call.
+// For GPU-hourly priced nodes (Option C: GPUHourlyRateUSD > 0):
+//
+//	EstCost = (estimatedTokens / tokensPerSec) * (GPUHourlyRateUSD / 3600.0)
+//
+// For token-priced nodes:
 //
 //	EstCost = (estInput * InputRate + estOutput * OutputRate) / 1000
 func EstimateLLMCost(node *LLMNode, estimatedTokens int) float64 {
-	if node.Tier == TierLocal {
-		return 0.0 // Tier 0 is always free
+	if node.Tier == TierLocal && node.GPUHourlyRateUSD <= 0 {
+		return 0.0 // Tier 0 is always free unless an explicit GPU hourly rate is set
 	}
+
+	// Option C: Hardware-based GPU hourly rate pricing
+	if node.GPUHourlyRateUSD > 0 {
+		tokensPerSec := node.TokensPerSecond
+		if tokensPerSec <= 0 {
+			if node.AvgLatencyMs > 0 && estimatedTokens > 0 {
+				tokensPerSec = float64(estimatedTokens) / (node.AvgLatencyMs / 1000.0)
+			}
+			if tokensPerSec <= 0 {
+				tokensPerSec = 50.0 // default throughput
+			}
+		}
+
+		estSec := float64(estimatedTokens) / tokensPerSec
+		if estimatedTokens <= 0 {
+			estSec = 1.0 // 1-second nominal
+		}
+		ratePerSec := node.GPUHourlyRateUSD / 3600.0
+		return estSec * ratePerSec
+	}
+
 	estInput := float64(estimatedTokens) * 0.60
 	estOutput := float64(estimatedTokens) * 0.40
 	return (estInput*node.InputRateUSD + estOutput*node.OutputRateUSD) / 1_000.0

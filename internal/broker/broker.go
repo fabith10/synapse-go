@@ -448,10 +448,15 @@ func (b *Broker) tryLLMNode(
 	})
 
 
+	actualCost := candidate.EstCost
+	if node.GPUHourlyRateUSD > 0 {
+		actualCost = elapsed.Seconds() * (node.GPUHourlyRateUSD / 3600.0)
+	}
+
 	return RouteResult{
 		Response:         response,
 		ProviderName:     node.Name,
-		EstimatedCostUSD: candidate.EstCost,
+		EstimatedCostUSD: actualCost,
 		TierUsed:         node.Tier,
 	}, nil
 }

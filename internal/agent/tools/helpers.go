@@ -198,6 +198,7 @@ func extractStringAlias(m map[string]interface{}, keys ...string) string {
 }
 
 // extractIntAlias looks for an integer value under any of the given key names.
+// It also checks nested containers ("action_input", "parameters", "args", etc.) and parses string numbers.
 func extractIntAlias(m map[string]interface{}, keys ...string) int {
 	if m == nil {
 		return 0
@@ -209,9 +210,30 @@ func extractIntAlias(m map[string]interface{}, keys ...string) int {
 				return int(v)
 			case int:
 				return v
+			case int64:
+				return int(v)
 			case string:
-				if n, err := strconv.Atoi(v); err == nil {
+				if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
 					return n
+				}
+			}
+		}
+	}
+	for _, containerKey := range []string{"action_input", "parameters", "args", "input", "payload", "data"} {
+		if containerVal, ok := m[containerKey]; ok && containerVal != nil {
+			if nestedMap, isMap := containerVal.(map[string]interface{}); isMap {
+				if n := extractIntAlias(nestedMap, keys...); n != 0 {
+					return n
+				}
+			} else if strVal, isStr := containerVal.(string); isStr {
+				trimmedStr := strings.TrimSpace(strVal)
+				if strings.HasPrefix(trimmedStr, "{") && strings.HasSuffix(trimmedStr, "}") {
+					var parsed map[string]interface{}
+					if err := json.Unmarshal([]byte(trimmedStr), &parsed); err == nil {
+						if n := extractIntAlias(parsed, keys...); n != 0 {
+							return n
+						}
+					}
 				}
 			}
 		}

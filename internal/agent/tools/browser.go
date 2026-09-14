@@ -8,14 +8,102 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
+
+// stealthScript configures the browser environment to bypass automated bot detection heuristics.
+const stealthScript = `(function() {
+	// 1. Remove webdriver property from Navigator prototype & instance
+	try {
+		delete Object.getPrototypeOf(navigator).webdriver;
+	} catch (e) {}
+	try {
+		delete navigator.webdriver;
+	} catch (e) {}
+
+	// 2. Normalise window.chrome
+	window.chrome = {
+		runtime: {},
+		loadTimes: function() {},
+		csi: function() {},
+		app: {}
+	};
+
+	// 3. Languages
+	Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+
+	// 4. PluginArray normalisation & fallback
+	try {
+		if (!navigator.plugins || navigator.plugins.length === 0 || !(navigator.plugins instanceof PluginArray)) {
+			const mockPlugin = function(name, description, filename) {
+				const p = Object.create(Plugin.prototype);
+				Object.defineProperties(p, {
+					name: { value: name, enumerable: true },
+					description: { value: description, enumerable: true },
+					filename: { value: filename, enumerable: true },
+					length: { value: 0, enumerable: true }
+				});
+				return p;
+			};
+			const pluginList = [
+				mockPlugin('PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+				mockPlugin('Chrome PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+				mockPlugin('Chromium PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+				mockPlugin('Microsoft Edge PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+				mockPlugin('WebKit built-in PDF', 'Portable Document Format', 'internal-pdf-viewer')
+			];
+			const pluginArray = Object.create(PluginArray.prototype);
+			pluginList.forEach((p, i) => {
+				pluginArray[i] = p;
+				pluginArray[p.name] = p;
+			});
+			Object.defineProperties(pluginArray, {
+				length: { value: pluginList.length, enumerable: true },
+				item: { value: function(index) { return this[index] || null; } },
+				namedItem: { value: function(name) { return this[name] || null; } },
+				refresh: { value: function() {} }
+			});
+			Object.defineProperty(Object.getPrototypeOf(navigator), 'plugins', {
+				get: () => pluginArray,
+				enumerable: true,
+				configurable: true
+			});
+		}
+	} catch (e) {}
+
+	// 5. Mask WebGL vendor and renderer across WebGL1 & WebGL2
+	try {
+		const maskWebGL = (contextProto) => {
+			if (!contextProto) return;
+			const origGetParameter = contextProto.getParameter;
+			contextProto.getParameter = function(parameter) {
+				if (parameter === 37445) return 'Intel Inc.';
+				if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+				return origGetParameter.apply(this, arguments);
+			};
+		};
+		maskWebGL(window.WebGLRenderingContext && window.WebGLRenderingContext.prototype);
+		maskWebGL(window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype);
+	} catch (e) {}
+
+	// 6. Notification permission
+	if (window.navigator.permissions) {
+		const origQuery = window.navigator.permissions.query;
+		window.navigator.permissions.query = (params) => (
+			params && params.name === 'notifications' ?
+				Promise.resolve({ state: Notification.permission }) :
+				origQuery(params)
+		);
+	}
+})();`
 
 type BrowserElement struct {
 	Index  int    `json:"index"`
@@ -26,13 +114,27 @@ type BrowserElement struct {
 	FormID string `json:"form_id"` // Associated form identifier (deprecated)
 }
 
+// BrowserTab represents an open tab/page in the browser session.
+type BrowserTab struct {
+	Index    int       `json:"index"`
+	TargetID target.ID `json:"target_id"`
+	Title    string    `json:"title"`
+	URL      string    `json:"url"`
+	Active   bool      `json:"active"`
+}
+
 type BrowserSession struct {
 	mu            sync.Mutex
 	Ctx           context.Context
 	Cancel        cancelFuncWrapper
-	// Security (L-4): track the allocator cancel separately so both
-	// the chromedp context and its exec allocator are cleaned up on Close.
 	allocCancel   context.CancelFunc
+	allocCtx      context.Context
+	browserCtx    context.Context
+	browserCancel context.CancelFunc
+	activeTabID   target.ID
+	tabOrder      []target.ID
+	tabContexts   map[target.ID]context.Context
+	tabCancels    map[target.ID]context.CancelFunc
 	CurrentURL    string
 	PageText      string
 	Elements      []BrowserElement
@@ -54,6 +156,19 @@ func (b *BrowserSession) SetHeaded(headed bool) {
 		return
 	}
 	b.Headed = headed
+	for _, cancel := range b.tabCancels {
+		if cancel != nil {
+			cancel()
+		}
+	}
+	b.tabContexts = nil
+	b.tabCancels = nil
+
+	if b.browserCancel != nil {
+		b.browserCancel()
+		b.browserCtx = nil
+		b.browserCancel = nil
+	}
 	if b.Cancel != nil {
 		context.CancelFunc(b.Cancel)()
 		b.Ctx = nil
@@ -62,7 +177,9 @@ func (b *BrowserSession) SetHeaded(headed bool) {
 	if b.allocCancel != nil {
 		b.allocCancel()
 		b.allocCancel = nil
+		b.allocCtx = nil
 	}
+	b.activeTabID = ""
 }
 
 // IsHeaded reports whether the session is operating in headed mode.
@@ -77,6 +194,19 @@ func (b *BrowserSession) IsHeaded() bool {
 func (b *BrowserSession) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	for _, cancel := range b.tabCancels {
+		if cancel != nil {
+			cancel()
+		}
+	}
+	b.tabContexts = nil
+	b.tabCancels = nil
+
+	if b.browserCancel != nil {
+		b.browserCancel()
+		b.browserCtx = nil
+		b.browserCancel = nil
+	}
 	if b.Cancel != nil {
 		context.CancelFunc(b.Cancel)()
 		b.Ctx = nil
@@ -85,11 +215,17 @@ func (b *BrowserSession) Close() {
 	if b.allocCancel != nil {
 		b.allocCancel()
 		b.allocCancel = nil
+		b.allocCtx = nil
 	}
+	b.activeTabID = ""
 }
 
 // ensureContextLocked initializes or self-heals the stealth chromedp session.
 func (b *BrowserSession) ensureContextLocked() {
+	if b.tabContexts == nil {
+		b.tabContexts = make(map[target.ID]context.Context)
+		b.tabCancels = make(map[target.ID]context.CancelFunc)
+	}
 	if b.Ctx != nil && b.Ctx.Err() == nil {
 		return
 	}
@@ -131,100 +267,26 @@ func (b *BrowserSession) ensureContextLocked() {
 	}
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	ctx, cancel := chromedp.NewContext(allocCtx)
-	b.Ctx = ctx
-	b.Cancel = cancelFuncWrapper(cancel)
+	browserCtx, browserCancel := chromedp.NewContext(allocCtx)
+	b.allocCtx = allocCtx
 	b.allocCancel = allocCancel
+	b.browserCtx = browserCtx
+	b.browserCancel = browserCancel
 
-	const stealthScript = `(function() {
-		// 1. Remove webdriver property from Navigator prototype & instance
-		try {
-			delete Object.getPrototypeOf(navigator).webdriver;
-		} catch (e) {}
-		try {
-			delete navigator.webdriver;
-		} catch (e) {}
-
-		// 2. Normalise window.chrome
-		window.chrome = {
-			runtime: {},
-			loadTimes: function() {},
-			csi: function() {},
-			app: {}
-		};
-
-		// 3. Languages
-		Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-
-		// 4. PluginArray normalisation & fallback
-		try {
-			if (!navigator.plugins || navigator.plugins.length === 0 || !(navigator.plugins instanceof PluginArray)) {
-				const mockPlugin = function(name, description, filename) {
-					const p = Object.create(Plugin.prototype);
-					Object.defineProperties(p, {
-						name: { value: name, enumerable: true },
-						description: { value: description, enumerable: true },
-						filename: { value: filename, enumerable: true },
-						length: { value: 0, enumerable: true }
-					});
-					return p;
-				};
-				const pluginList = [
-					mockPlugin('PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
-					mockPlugin('Chrome PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
-					mockPlugin('Chromium PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
-					mockPlugin('Microsoft Edge PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
-					mockPlugin('WebKit built-in PDF', 'Portable Document Format', 'internal-pdf-viewer')
-				];
-				const pluginArray = Object.create(PluginArray.prototype);
-				pluginList.forEach((p, i) => {
-					pluginArray[i] = p;
-					pluginArray[p.name] = p;
-				});
-				Object.defineProperties(pluginArray, {
-					length: { value: pluginList.length, enumerable: true },
-					item: { value: function(index) { return this[index] || null; } },
-					namedItem: { value: function(name) { return this[name] || null; } },
-					refresh: { value: function() {} }
-				});
-				Object.defineProperty(Object.getPrototypeOf(navigator), 'plugins', {
-					get: () => pluginArray,
-					enumerable: true,
-					configurable: true
-				});
-			}
-		} catch (e) {}
-
-		// 5. Mask WebGL vendor and renderer across WebGL1 & WebGL2
-		try {
-			const maskWebGL = (contextProto) => {
-				if (!contextProto) return;
-				const origGetParameter = contextProto.getParameter;
-				contextProto.getParameter = function(parameter) {
-					if (parameter === 37445) return 'Intel Inc.';
-					if (parameter === 37446) return 'Intel Iris OpenGL Engine';
-					return origGetParameter.apply(this, arguments);
-				};
-			};
-			maskWebGL(window.WebGLRenderingContext && window.WebGLRenderingContext.prototype);
-			maskWebGL(window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype);
-		} catch (e) {}
-
-		// 6. Notification permission
-		if (window.navigator.permissions) {
-			const origQuery = window.navigator.permissions.query;
-			window.navigator.permissions.query = (params) => (
-				params && params.name === 'notifications' ?
-					Promise.resolve({ state: Notification.permission }) :
-					origQuery(params)
-			);
-		}
-	})();`
+	b.Ctx = browserCtx
+	b.Cancel = cancelFuncWrapper(browserCancel)
 
 	_ = chromedp.Run(b.Ctx, chromedp.ActionFunc(func(ctx context.Context) error {
 		_, err := page.AddScriptToEvaluateOnNewDocument(stealthScript).Do(ctx)
 		return err
 	}))
+
+	if c := chromedp.FromContext(b.Ctx); c != nil && c.Target != nil {
+		b.activeTabID = c.Target.TargetID
+		b.tabContexts[c.Target.TargetID] = b.Ctx
+		b.tabCancels[c.Target.TargetID] = browserCancel
+		b.tabOrder = []target.ID{c.Target.TargetID}
+	}
 }
 
 // BrowserSessionManager stores thread-safe browser sessions isolated by session ID.
@@ -335,7 +397,10 @@ func (b *BrowserSession) Input(index int, val string) (string, error) {
 	}
 
 	sel := fmt.Sprintf("[data-agent-index='%d']", index)
-	err := chromedp.Run(b.Ctx,
+	opCtx, opCancel := context.WithTimeout(b.Ctx, 8*time.Second)
+	defer opCancel()
+
+	err := chromedp.Run(opCtx,
 		chromedp.Focus(sel, chromedp.ByQuery),
 		chromedp.Evaluate(fmt.Sprintf(`document.querySelector("%s").value = ""; document.querySelector("%s").dispatchEvent(new Event('input', { bubbles: true }));`, sel, sel), nil),
 	)
@@ -345,12 +410,15 @@ func (b *BrowserSession) Input(index int, val string) (string, error) {
 
 	// Humanized typing per character with randomized inter-key delay (30ms - 75ms)
 	for _, ch := range val {
-		_ = chromedp.Run(b.Ctx, chromedp.SendKeys(sel, string(ch), chromedp.ByQuery))
+		if opCtx.Err() != nil {
+			return "", fmt.Errorf("chromedp typing timed out: %w", opCtx.Err())
+		}
+		_ = chromedp.Run(opCtx, chromedp.SendKeys(sel, string(ch), chromedp.ByQuery))
 		time.Sleep(time.Duration(30+rand.Intn(45)) * time.Millisecond)
 	}
 
 	// Trigger input & change events for frameworks (React, Vue, Angular)
-	_ = chromedp.Run(b.Ctx,
+	_ = chromedp.Run(opCtx,
 		chromedp.Evaluate(fmt.Sprintf(`document.querySelector("%s").dispatchEvent(new Event('change', { bubbles: true }));`, sel), nil),
 		chromedp.Sleep(time.Duration(150+rand.Intn(150))*time.Millisecond),
 	)
@@ -394,7 +462,21 @@ func (b *BrowserSession) Click(index int) (string, error) {
 		}
 	})()`, sel)
 
-	err := chromedp.Run(b.Ctx,
+	opCtx, opCancel := context.WithTimeout(b.Ctx, 8*time.Second)
+	defer opCancel()
+
+	// Snapshot existing targets before click
+	var beforeIDs map[target.ID]bool
+	if allTargets, err := chromedp.Targets(b.Ctx); err == nil {
+		beforeIDs = make(map[target.ID]bool, len(allTargets))
+		for _, t := range allTargets {
+			if t.Type == "page" {
+				beforeIDs[t.TargetID] = true
+			}
+		}
+	}
+
+	err := chromedp.Run(opCtx,
 		chromedp.Evaluate(scrollHoverScript, nil),
 		chromedp.Sleep(time.Duration(150+rand.Intn(150))*time.Millisecond),
 		chromedp.Click(sel, chromedp.ByQuery),
@@ -404,8 +486,31 @@ func (b *BrowserSession) Click(index int) (string, error) {
 		return "", fmt.Errorf("chromedp click: %w", err)
 	}
 
+	newTabNotice := ""
+	if beforeIDs != nil {
+		if afterTargets, err := chromedp.Targets(b.Ctx); err == nil {
+			for _, t := range afterTargets {
+				if t.Type == "page" && !beforeIDs[t.TargetID] {
+					tabCtx, tabCancel := chromedp.NewContext(b.browserCtx, chromedp.WithTargetID(t.TargetID))
+					b.tabContexts[t.TargetID] = tabCtx
+					b.tabCancels[t.TargetID] = tabCancel
+					_ = chromedp.Run(tabCtx, chromedp.ActionFunc(func(ctx context.Context) error {
+						_, err := page.AddScriptToEvaluateOnNewDocument(stealthScript).Do(ctx)
+						return err
+					}))
+					_ = chromedp.Run(tabCtx, target.ActivateTarget(t.TargetID))
+					b.Ctx = tabCtx
+					b.Cancel = cancelFuncWrapper(tabCancel)
+					b.activeTabID = t.TargetID
+					newTabNotice = fmt.Sprintf("[Notice: Click opened a new tab %q (%s). Automatically switched focus to it.]\n\n", t.Title, t.URL)
+					break
+				}
+			}
+		}
+	}
+
 	b.updateStateLocked()
-	return b.renderViewLocked(), nil
+	return newTabNotice + b.renderViewLocked(), nil
 }
 
 // Scroll scrolls the page by dy pixels (positive = down, negative = up) and
@@ -419,8 +524,11 @@ func (b *BrowserSession) Scroll(dy int) (string, error) {
 		return "", fmt.Errorf("no active browser session; call navigate first")
 	}
 
+	opCtx, opCancel := context.WithTimeout(b.Ctx, 5*time.Second)
+	defer opCancel()
+
 	script := fmt.Sprintf("window.scrollBy(0, %d);", dy)
-	err := chromedp.Run(b.Ctx,
+	err := chromedp.Run(opCtx,
 		chromedp.Evaluate(script, nil),
 		chromedp.Sleep(400*time.Millisecond),
 	)
@@ -622,6 +730,25 @@ func (b *BrowserSession) updateStateLocked() {
 			return false;
 		}
 
+		// Auto-dismiss blocking cookie consent banners (e.g. Google #L2AGLb, OneTrust, etc.)
+		try {
+			const consentSelectors = [
+				'#L2AGLb', // Google EU "Alle akzeptieren" / "Accept all"
+				'button#introAgreeButton',
+				'button[id*="accept"]',
+				'button[id*="agree"]',
+				'button[data-testid*="agree"]',
+				'button[data-testid*="accept"]'
+			];
+			for (const sel of consentSelectors) {
+				const btn = document.querySelector(sel);
+				if (btn && btn.offsetParent !== null && typeof btn.click === 'function') {
+					btn.click();
+					break;
+				}
+			}
+		} catch (e) {}
+
 		let items = [];
 		let idx = 1;
 		let allEls = document.querySelectorAll('a, button, input, select, textarea');
@@ -663,20 +790,24 @@ func (b *BrowserSession) updateStateLocked() {
 			idx++;
 		}
 
-		let visibleText = document.body.innerText || "";
-		visibleText = visibleText.replace(/\s+/g, " ").trim();
+		let bodyClone = document.body.cloneNode(true);
+		let removeScripts = bodyClone.querySelectorAll('script, style, noscript, svg, nav, footer');
+		for (let s of removeScripts) {
+			s.remove();
+		}
 
 		return JSON.stringify({
-			elements: items,
-			text: visibleText.substring(0, 12000)
+			text: cleanText(bodyClone.innerText).substring(0, 2500),
+			elements: items
 		});
-	})()`
+	})();`
 
-	err := chromedp.Run(b.Ctx,
+	_ = chromedp.Run(b.Ctx,
 		chromedp.Evaluate(jsScript, &elementsJSON),
 		chromedp.Location(&b.CurrentURL),
 	)
-	if err == nil {
+
+	if elementsJSON != "" {
 		type pageState struct {
 			Elements []BrowserElement `json:"elements"`
 			Text     string           `json:"text"`
@@ -688,15 +819,21 @@ func (b *BrowserSession) updateStateLocked() {
 			b.PageText = ps.Text
 
 			lowerText := strings.ToLower(b.PageText)
-			if strings.Contains(lowerText, "g-recaptcha") ||
+			lowerURL := strings.ToLower(b.CurrentURL)
+			if strings.Contains(lowerURL, "/sorry/index") ||
+				strings.Contains(lowerText, "unusual traffic") ||
+				strings.Contains(lowerText, "not a robot") ||
+				strings.Contains(lowerText, "g-recaptcha") ||
 				strings.Contains(lowerText, "hcaptcha") ||
 				strings.Contains(lowerText, "cf-turnstile") ||
 				strings.Contains(lowerText, "recaptcha") ||
 				strings.Contains(lowerText, "bot verification") ||
 				strings.Contains(lowerText, "verify you are human") ||
-				strings.Contains(lowerText, "please verify you are human") {
+				strings.Contains(lowerText, "please verify you are human") ||
+				strings.Contains(lowerText, "security check") ||
+				strings.Contains(lowerText, "attention required") {
 				b.HasCaptcha = true
-				b.CaptchaNotice = "[CAPTCHA DETECTED] A CAPTCHA or bot verification prompt was detected on the page. Human intervention required!"
+				b.CaptchaNotice = "[CAPTCHA DETECTED] A bot verification or CAPTCHA prompt was detected on the page. Human intervention required!"
 			} else {
 				b.HasCaptcha = false
 				b.CaptchaNotice = ""
@@ -744,5 +881,319 @@ func (b *BrowserSession) renderViewLocked() string {
 		sb.WriteString("  (None found)\n")
 	}
 
+	return sb.String()
+}
+
+// ListTabs returns all open browser tabs (pages) with their index, title, URL, and active status.
+func (b *BrowserSession) ListTabs() ([]BrowserTab, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.listTabsLocked()
+}
+
+// NewTab opens a new tab, navigates to initialURL, brings it to the front, and updates state.
+func (b *BrowserSession) NewTab(initialURL string) (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.newTabLocked(initialURL)
+}
+
+// SwitchTab activates and focuses the specified tab by 1-based index, target ID, or title/URL substring.
+func (b *BrowserSession) SwitchTab(identifier string) (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.switchTabLocked(identifier)
+}
+
+// CloseTab closes the specified tab (or the active tab if empty) and switches focus to a remaining tab.
+func (b *BrowserSession) CloseTab(identifier string) (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.closeTabLocked(identifier)
+}
+
+func (b *BrowserSession) listTabsLocked() ([]BrowserTab, error) {
+	b.ensureContextLocked()
+
+	targets, err := chromedp.Targets(b.Ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve browser targets: %w", err)
+	}
+
+	if b.activeTabID == "" {
+		if c := chromedp.FromContext(b.Ctx); c != nil && c.Target != nil {
+			b.activeTabID = c.Target.TargetID
+		}
+	}
+
+	targetMap := make(map[target.ID]*target.Info)
+	for _, t := range targets {
+		if t.Type == "page" {
+			targetMap[t.TargetID] = t
+		}
+	}
+
+	// Reconcile tabOrder: preserve existing stable tab order and append newly discovered targets
+	var validOrder []target.ID
+	for _, id := range b.tabOrder {
+		if _, exists := targetMap[id]; exists {
+			validOrder = append(validOrder, id)
+		}
+	}
+	for _, t := range targets {
+		if t.Type == "page" {
+			alreadyInOrder := false
+			for _, id := range validOrder {
+				if id == t.TargetID {
+					alreadyInOrder = true
+					break
+				}
+			}
+			if !alreadyInOrder {
+				validOrder = append(validOrder, t.TargetID)
+			}
+		}
+	}
+	b.tabOrder = validOrder
+
+	var tabs []BrowserTab
+	for idx, id := range b.tabOrder {
+		t := targetMap[id]
+		if t == nil {
+			continue
+		}
+		isActive := false
+		if b.activeTabID != "" && t.TargetID == b.activeTabID {
+			isActive = true
+		} else if b.activeTabID == "" && idx == 0 {
+			isActive = true
+			b.activeTabID = t.TargetID
+		}
+		tabs = append(tabs, BrowserTab{
+			Index:    idx + 1,
+			TargetID: t.TargetID,
+			Title:    t.Title,
+			URL:      t.URL,
+			Active:   isActive,
+		})
+	}
+	return tabs, nil
+}
+
+func (b *BrowserSession) newTabLocked(initialURL string) (string, error) {
+	b.ensureContextLocked()
+
+	if initialURL == "" {
+		initialURL = "about:blank"
+	}
+
+	var newTargetID target.ID
+	err := chromedp.Run(b.Ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		id, err := target.CreateTarget(initialURL).Do(ctx)
+		if err != nil {
+			return err
+		}
+		newTargetID = id
+		return nil
+	}))
+	if err != nil {
+		return "", fmt.Errorf("failed to create new tab: %w", err)
+	}
+
+	b.tabOrder = append(b.tabOrder, newTargetID)
+
+	tabCtx, tabCancel := chromedp.NewContext(b.browserCtx, chromedp.WithTargetID(newTargetID))
+	b.tabContexts[newTargetID] = tabCtx
+	b.tabCancels[newTargetID] = tabCancel
+
+	_ = chromedp.Run(tabCtx, chromedp.ActionFunc(func(ctx context.Context) error {
+		_, err := page.AddScriptToEvaluateOnNewDocument(stealthScript).Do(ctx)
+		return err
+	}))
+
+	_ = chromedp.Run(tabCtx, target.ActivateTarget(newTargetID))
+
+	b.Ctx = tabCtx
+	b.Cancel = cancelFuncWrapper(tabCancel)
+	b.activeTabID = newTargetID
+
+	b.updateStateLocked()
+	return fmt.Sprintf("Opened new tab (Target: %s, URL: %s) and activated.\n\nCurrent Page:\n%s", newTargetID, initialURL, b.renderViewLocked()), nil
+}
+
+func (b *BrowserSession) switchTabLocked(identifier string) (string, error) {
+	b.ensureContextLocked()
+
+	tabs, err := b.listTabsLocked()
+	if err != nil {
+		return "", err
+	}
+	if len(tabs) == 0 {
+		return "", fmt.Errorf("no open tabs available")
+	}
+
+	var selectedTab *BrowserTab
+	trimmed := strings.TrimSpace(identifier)
+
+	// 1. Match by numeric index (e.g. "1", "2")
+	if n, err := strconv.Atoi(trimmed); err == nil && n >= 1 && n <= len(tabs) {
+		selectedTab = &tabs[n-1]
+	}
+
+	// 2. Match by target ID
+	if selectedTab == nil {
+		for i := range tabs {
+			if string(tabs[i].TargetID) == trimmed || strings.HasPrefix(string(tabs[i].TargetID), trimmed) {
+				selectedTab = &tabs[i]
+				break
+			}
+		}
+	}
+
+	// 3. Match by Title or URL substring
+	if selectedTab == nil && trimmed != "" {
+		lower := strings.ToLower(trimmed)
+		for i := range tabs {
+			if strings.Contains(strings.ToLower(tabs[i].Title), lower) || strings.Contains(strings.ToLower(tabs[i].URL), lower) {
+				selectedTab = &tabs[i]
+				break
+			}
+		}
+	}
+
+	if selectedTab == nil {
+		var available []string
+		for _, t := range tabs {
+			available = append(available, fmt.Sprintf("[%d] %q (%s)", t.Index, t.Title, t.URL))
+		}
+		return "", fmt.Errorf("tab %q not found. Available tabs:\n%s", identifier, strings.Join(available, "\n"))
+	}
+
+	targetID := selectedTab.TargetID
+
+	_ = chromedp.Run(b.Ctx, target.ActivateTarget(targetID))
+
+	tabCtx, ok := b.tabContexts[targetID]
+	if !ok || tabCtx.Err() != nil {
+		var tabCancel context.CancelFunc
+		tabCtx, tabCancel = chromedp.NewContext(b.browserCtx, chromedp.WithTargetID(targetID))
+		b.tabContexts[targetID] = tabCtx
+		b.tabCancels[targetID] = tabCancel
+		_ = chromedp.Run(tabCtx, chromedp.ActionFunc(func(ctx context.Context) error {
+			_, err := page.AddScriptToEvaluateOnNewDocument(stealthScript).Do(ctx)
+			return err
+		}))
+	}
+
+	b.Ctx = tabCtx
+	b.Cancel = cancelFuncWrapper(b.tabCancels[targetID])
+	b.activeTabID = targetID
+
+	b.updateStateLocked()
+	return fmt.Sprintf("Switched to Tab [%d] %q (%s)\n\nCurrent Page:\n%s", selectedTab.Index, selectedTab.Title, selectedTab.URL, b.renderViewLocked()), nil
+}
+
+func (b *BrowserSession) closeTabLocked(identifier string) (string, error) {
+	b.ensureContextLocked()
+
+	tabs, err := b.listTabsLocked()
+	if err != nil {
+		return "", err
+	}
+	if len(tabs) == 0 {
+		return "", fmt.Errorf("no open tabs to close")
+	}
+
+	var targetToClose *BrowserTab
+	trimmed := strings.TrimSpace(identifier)
+
+	if trimmed == "" {
+		for i := range tabs {
+			if tabs[i].Active {
+				targetToClose = &tabs[i]
+				break
+			}
+		}
+		if targetToClose == nil && len(tabs) > 0 {
+			targetToClose = &tabs[0]
+		}
+	} else {
+		if n, err := strconv.Atoi(trimmed); err == nil && n >= 1 && n <= len(tabs) {
+			targetToClose = &tabs[n-1]
+		} else {
+			for i := range tabs {
+				if string(tabs[i].TargetID) == trimmed || strings.HasPrefix(string(tabs[i].TargetID), trimmed) {
+					targetToClose = &tabs[i]
+					break
+				}
+			}
+		}
+	}
+
+	if targetToClose == nil {
+		return "", fmt.Errorf("tab %q not found to close", identifier)
+	}
+
+	if cancel, ok := b.tabCancels[targetToClose.TargetID]; ok && cancel != nil {
+		cancel()
+	}
+	delete(b.tabContexts, targetToClose.TargetID)
+	delete(b.tabCancels, targetToClose.TargetID)
+
+	var newOrder []target.ID
+	for _, id := range b.tabOrder {
+		if id != targetToClose.TargetID {
+			newOrder = append(newOrder, id)
+		}
+	}
+	b.tabOrder = newOrder
+
+	_ = chromedp.Run(b.Ctx, target.CloseTarget(targetToClose.TargetID))
+
+	remaining, _ := b.listTabsLocked()
+	if len(remaining) == 0 {
+		return b.newTabLocked("about:blank")
+	}
+
+	newActive := remaining[0]
+	targetID := newActive.TargetID
+	_ = chromedp.Run(b.browserCtx, target.ActivateTarget(targetID))
+
+	tabCtx, ok := b.tabContexts[targetID]
+	if !ok || tabCtx.Err() != nil {
+		var tabCancel context.CancelFunc
+		tabCtx, tabCancel = chromedp.NewContext(b.browserCtx, chromedp.WithTargetID(targetID))
+		b.tabContexts[targetID] = tabCtx
+		b.tabCancels[targetID] = tabCancel
+	}
+	b.Ctx = tabCtx
+	b.Cancel = cancelFuncWrapper(b.tabCancels[targetID])
+	b.activeTabID = targetID
+
+	b.updateStateLocked()
+	return fmt.Sprintf("Closed tab [%d] %q. Switched to Tab [%d] %q (%s)\n\nCurrent Page:\n%s",
+		targetToClose.Index, targetToClose.Title, newActive.Index, newActive.Title, newActive.URL, b.renderViewLocked()), nil
+}
+
+// FormatTabsSummary formats the tab list into a clean, human-readable summary.
+func FormatTabsSummary(tabs []BrowserTab) string {
+	if len(tabs) == 0 {
+		return "No open browser tabs."
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Open Browser Tabs (%d total):\n", len(tabs)))
+	for _, t := range tabs {
+		status := ""
+		prefix := "  "
+		if t.Active {
+			status = " [ACTIVE]"
+			prefix = "* "
+		}
+		title := t.Title
+		if title == "" {
+			title = "(Untitled)"
+		}
+		sb.WriteString(fmt.Sprintf("%s[%d] %s (%s)%s\n", prefix, t.Index, title, t.URL, status))
+	}
 	return sb.String()
 }

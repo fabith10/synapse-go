@@ -36,7 +36,7 @@ func GetBrowserNavigateTool() adk.Tool {
 			if err := json.Unmarshal(args, &raw); err != nil {
 				return "", fmt.Errorf("failed to parse navigation URL: %w", err)
 			}
-			targetURL := extractStringAlias(raw, "url", "target_url", "link", "address", "uri")
+			targetURL := extractStringAlias(raw, "url", "target_url", "link", "address", "uri", "target", "href", "destination", "site", "webpage")
 			if targetURL == "" {
 				return "", fmt.Errorf("missing required parameter 'url'")
 			}
@@ -75,20 +75,17 @@ func GetBrowserInputTool() adk.Tool {
 		},
 		Tier: adk.TierNative,
 		Execute: func(ctx context.Context, args []byte) (string, error) {
-			var params struct {
-				ElementIndex int    `json:"element_index"`
-				ElementID    int    `json:"element_id"`
-				TextValue    string `json:"text_value"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
+			var raw map[string]interface{}
+			if err := json.Unmarshal(args, &raw); err != nil {
 				return "", fmt.Errorf("failed to parse input arguments: %w", err)
 			}
-			idx := params.ElementIndex
-			if idx == 0 && params.ElementID != 0 {
-				idx = params.ElementID
+			idx := extractIntAlias(raw, "element_index", "element_id", "index", "id", "element", "target_element", "target_index", "target")
+			textVal := extractStringAlias(raw, "text_value", "text", "value", "content", "input")
+			if idx <= 0 {
+				return "", fmt.Errorf("missing or invalid required parameter 'element_index' (must be a positive integer matching a numbered element)")
 			}
 			sessionID, _ := ctx.Value("session_id").(string)
-			return GlobalSessionManager.GetSession(sessionID).Input(idx, params.TextValue)
+			return GlobalSessionManager.GetSession(sessionID).Input(idx, textVal)
 		},
 	}
 }
@@ -110,16 +107,13 @@ func GetBrowserClickTool() adk.Tool {
 		},
 		Tier: adk.TierNative,
 		Execute: func(ctx context.Context, args []byte) (string, error) {
-			var params struct {
-				ElementIndex int `json:"element_index"`
-				ElementID    int `json:"element_id"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
+			var raw map[string]interface{}
+			if err := json.Unmarshal(args, &raw); err != nil {
 				return "", fmt.Errorf("failed to parse click arguments: %w", err)
 			}
-			idx := params.ElementIndex
-			if idx == 0 && params.ElementID != 0 {
-				idx = params.ElementID
+			idx := extractIntAlias(raw, "element_index", "element_id", "index", "id", "element", "target_element", "target_index", "target")
+			if idx <= 0 {
+				return "", fmt.Errorf("missing or invalid required parameter 'element_index' (must be a positive integer matching a numbered element)")
 			}
 			sessionID, _ := ctx.Value("session_id").(string)
 			return GlobalSessionManager.GetSession(sessionID).Click(idx)
@@ -144,17 +138,16 @@ func GetBrowserScrollTool() adk.Tool {
 		},
 		Tier: adk.TierNative,
 		Execute: func(ctx context.Context, args []byte) (string, error) {
-			var params struct {
-				Dy int `json:"dy"`
-			}
-			if err := json.Unmarshal(args, &params); err != nil {
+			var raw map[string]interface{}
+			if err := json.Unmarshal(args, &raw); err != nil {
 				return "", fmt.Errorf("failed to parse scroll arguments: %w", err)
 			}
-			if params.Dy == 0 {
-				params.Dy = 500
+			dy := extractIntAlias(raw, "dy", "delta", "pixels", "amount", "y", "scroll_y")
+			if dy == 0 {
+				dy = 500
 			}
 			sessionID, _ := ctx.Value("session_id").(string)
-			return GlobalSessionManager.GetSession(sessionID).Scroll(params.Dy)
+			return GlobalSessionManager.GetSession(sessionID).Scroll(dy)
 		},
 	}
 }
@@ -372,6 +365,126 @@ func GetBrowserConfigureTool() adk.Tool {
 				return "Browser session switched to HEADLESS mode (background execution).", nil
 			}
 			return "No configuration changes applied.", nil
+		},
+	}
+}
+
+// GetBrowserListTabsTool returns a native tool to list all open browser tabs/windows.
+func GetBrowserListTabsTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_list_tabs",
+		Description: "Lists all currently open browser tabs/windows with their index, title, URL, and active status.",
+		Parameters: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			sessionID, _ := ctx.Value("session_id").(string)
+			tabs, err := GlobalSessionManager.GetSession(sessionID).ListTabs()
+			if err != nil {
+				return "", err
+			}
+			return FormatTabsSummary(tabs), nil
+		},
+	}
+}
+
+// GetBrowserNewTabTool returns a native tool to open a new tab in the browser.
+func GetBrowserNewTabTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_new_tab",
+		Description: "Opens a new browser tab with the optional target URL, brings it to the front, and renders its interactables.",
+		Parameters: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"url": map[string]interface{}{
+					"type":        "string",
+					"description": "Optional initial URL to load in the new tab (defaults to 'about:blank').",
+				},
+			},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			var raw map[string]interface{}
+			if len(args) > 0 {
+				_ = json.Unmarshal(args, &raw)
+			}
+			targetURL := extractStringAlias(raw, "url", "target_url", "link", "address", "uri", "target", "href")
+			if targetURL != "" && !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") &&
+				!strings.HasPrefix(targetURL, "about:") && !strings.HasPrefix(targetURL, "data:") && !strings.HasPrefix(targetURL, "file://") {
+				targetURL = "https://" + targetURL
+			}
+			sessionID, _ := ctx.Value("session_id").(string)
+			return GlobalSessionManager.GetSession(sessionID).NewTab(targetURL)
+		},
+	}
+}
+
+// GetBrowserSwitchTabTool returns a native tool to switch to a specific browser tab.
+func GetBrowserSwitchTabTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_switch_tab",
+		Description: "Switches focus to an open browser tab by 1-based index (e.g. 1, 2) or target ID, brings it to the foreground in headed mode, and renders its page state.",
+		Parameters: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"tab": map[string]interface{}{
+					"type":        "string",
+					"description": "Tab number (e.g. '1', '2'), target ID, or title/URL keyword.",
+				},
+			},
+			"required": []string{"tab"},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			var raw map[string]interface{}
+			if err := json.Unmarshal(args, &raw); err != nil {
+				return "", fmt.Errorf("failed to parse switch tab arguments: %w", err)
+			}
+			targetTab := extractStringAlias(raw, "tab", "tab_index", "index", "target_id", "id", "name", "title")
+			if targetTab == "" {
+				if idx := extractIntAlias(raw, "tab", "tab_index", "index", "id"); idx > 0 {
+					targetTab = fmt.Sprintf("%d", idx)
+				}
+			}
+			if targetTab == "" {
+				return "", fmt.Errorf("missing required parameter 'tab' (tab index e.g. 1 or 2)")
+			}
+			sessionID, _ := ctx.Value("session_id").(string)
+			return GlobalSessionManager.GetSession(sessionID).SwitchTab(targetTab)
+		},
+	}
+}
+
+// GetBrowserCloseTabTool returns a native tool to close an open browser tab.
+func GetBrowserCloseTabTool() adk.Tool {
+	return adk.Tool{
+		Name:        "browser_close_tab",
+		Description: "Closes the specified browser tab (or the current active tab if unspecified) and switches focus to a remaining open tab.",
+		Parameters: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"tab": map[string]interface{}{
+					"type":        "string",
+					"description": "Optional tab number (e.g. '2') or target ID to close. Closes active tab if omitted.",
+				},
+			},
+		},
+		Tier: adk.TierNative,
+		Execute: func(ctx context.Context, args []byte) (string, error) {
+			var raw map[string]interface{}
+			if len(args) > 0 {
+				_ = json.Unmarshal(args, &raw)
+			}
+			targetTab := extractStringAlias(raw, "tab", "tab_index", "index", "target_id", "id")
+			if targetTab == "" {
+				if idx := extractIntAlias(raw, "tab", "tab_index", "index", "id"); idx > 0 {
+					targetTab = fmt.Sprintf("%d", idx)
+				}
+			}
+			sessionID, _ := ctx.Value("session_id").(string)
+			return GlobalSessionManager.GetSession(sessionID).CloseTab(targetTab)
 		},
 	}
 }

@@ -123,6 +123,11 @@ type LLMNode struct {
 	OutputRateUSD float64
 	CachedRateUSD float64
 
+	// GPU hourly rate pricing (Option C: hardware-based pricing)
+	GPUHourlyRateUSD    float64 // Hourly rate for dedicated/serverless GPU compute (e.g. 26.15 for 4xB200)
+	TokensPerSecond     float64 // Expected throughput (default 50.0 tok/sec if unset)
+	ScaledownWindowSecs float64 // Idle scaledown window in seconds (e.g. 300s)
+
 	// AvgLatencyMs is a rolling average of the last N response times.
 	// Updated by the broker after every successful GenerateResponse call.
 	AvgLatencyMs float64

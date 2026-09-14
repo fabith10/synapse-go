@@ -162,6 +162,38 @@ func TestPricingOracle_LatencyUpdate(t *testing.T) {
 	}
 }
 
+func TestPricingOracle_GPUHourlyRatePricing(t *testing.T) {
+	o := broker.NewPricingOracle()
+	p := &mockLLMProvider{}
+	// $36/hr = $0.01/sec. At 100 tokens/sec, 1,000 tokens = 10s = $0.10.
+	o.RegisterLLM(broker.LLMNode{
+		Name:             "modal-b200-cluster",
+		Tier:             broker.TierCommercial,
+		Provider:         p,
+		GPUHourlyRateUSD: 36.00,
+		TokensPerSecond:  100.0,
+	})
+
+	// Estimated 1000 tokens should cost exactly $0.10
+	ranked, err := o.RankLLMNodes(broker.TierCommercial, 1000, 1.0, 0, nil)
+	if err != nil {
+		t.Fatalf("expected node to rank, got error: %v", err)
+	}
+	if len(ranked) != 1 {
+		t.Fatalf("expected 1 ranked node, got %d", len(ranked))
+	}
+	const expectedCost = 0.10
+	if diff := ranked[0].EstCost - expectedCost; diff > 1e-6 || diff < -1e-6 {
+		t.Errorf("expected EstCost %.4f, got %.4f", expectedCost, ranked[0].EstCost)
+	}
+
+	// Should be excluded if budget is only $0.05
+	_, err = o.RankLLMNodes(broker.TierCommercial, 1000, 0.05, 0, nil)
+	if err == nil {
+		t.Errorf("expected node to be excluded when estCost ($0.10) exceeds budget ($0.05)")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Broker routing tests
 // ---------------------------------------------------------------------------
