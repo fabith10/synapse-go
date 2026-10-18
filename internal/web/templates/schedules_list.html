@@ -1,32 +1,32 @@
 {{ define "schedules-list-tmpl" }}
     {{ if . }}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
             {{ range . }}
-            <div id="schedule-card-{{.ID}}" class="p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl flex flex-col justify-between shadow-lg gap-3 hover:border-zinc-600 transition-all">
-                <div class="flex flex-col gap-1.5">
-                    <div class="flex items-center justify-between">
-                        <span class="font-bold text-zinc-100 text-xs uppercase tracking-wider font-mono">{{.Name}}</span>
-                        <span class="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase font-bold">Active</span>
+            <div id="schedule-card-{{.ID}}" class="glass-panel" style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; border-left: 3px solid var(--accent-primary);">
+                <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">{{.Name}}</span>
+                        <span style="font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700; color: var(--status-emerald); background: var(--status-emerald-bg); border: 1px solid var(--status-emerald-border); padding: 0.15rem 0.5rem; border-radius: var(--radius-full); text-transform: uppercase;">Active</span>
                     </div>
-                    <div class="text-[10px] text-zinc-400 font-mono">
-                        Cron: <span class="text-zinc-100 font-bold">{{.Cron}}</span>
+                    <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary);">
+                        Cron: <span style="font-weight: 700; color: var(--text-primary); background: var(--bg-hover); padding: 0.15rem 0.35rem; border-radius: var(--radius-sm);">{{.Cron}}</span>
                     </div>
-                    <div class="text-[10px] text-zinc-400 font-mono">
-                        Next Fire: <span class="text-emerald-400 font-bold">{{.NextFire}}</span>
+                    <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary);">
+                        Next Fire: <span style="font-weight: 700; color: var(--status-emerald);">{{.NextFire}}</span>
                     </div>
-                    <p class="text-xs text-zinc-300 bg-zinc-950 p-3 rounded-lg border border-zinc-800/80 font-mono line-clamp-3 leading-relaxed">
+                    <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-app); border: 1px solid var(--border-subtle); padding: 0.75rem; border-radius: var(--radius-md); line-height: 1.5; max-height: 100px; overflow-y: auto;">
                         {{.Task}}
-                    </p>
+                    </div>
                 </div>
-                <button hx-delete="/api/schedules/{{.ID}}" hx-target="#schedules-list" hx-swap="innerHTML" class="w-full py-2 border border-rose-900/60 text-rose-400 hover:text-white hover:bg-rose-600 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer">
+                <button hx-delete="/api/schedules/{{.ID}}" hx-target="#schedules-list" hx-swap="innerHTML" style="width: 100%; padding: 0.5rem; background: var(--status-rose-bg); border: 1px solid var(--status-rose-border); color: var(--status-rose); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; transition: all var(--transition-fast);">
                     Delete Schedule
                 </button>
             </div>
             {{ end }}
         </div>
     {{ else }}
-        <div class="text-[11px] text-zinc-500 italic p-12 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
-            NO CRON SCHEDULES REGISTERED.
+        <div style="padding: 2.5rem 1rem; border: 1px dashed var(--border-medium); border-radius: var(--radius-lg); text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); background: var(--bg-app);">
+            NO RECURRING CRON SCHEDULES REGISTERED
         </div>
     {{ end }}
 {{ end }}

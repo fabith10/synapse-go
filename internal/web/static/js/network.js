@@ -1,5 +1,13 @@
+let networkNodes = [];
+let networkEdges = [];
+let networkPulses = [];
+let selectedNode = null;
+let isSimulating = false;
+let dragNode = null;
+let dragOffset = { x: 0, y: 0 };
+
 function initNetworkVisualizer() {
-            const canvas = document.getElementById('network-canvas');
+    const canvas = document.getElementById('network-canvas');
             if (!canvas) return;
 
             const container = canvas.parentElement;

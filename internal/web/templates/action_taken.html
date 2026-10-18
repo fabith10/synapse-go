@@ -1,12 +1,12 @@
-<div id="approval-{{.CorrelationID}}" data-resolved="true" class="p-4 bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-xl text-[10px] uppercase font-mono tracking-wider text-center flex items-center justify-center gap-2">
+<div id="approval-{{.CorrelationID}}" data-resolved="true" style="padding: 0.85rem 1rem; border-radius: var(--radius-md); background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 0.75rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
     {{ if .IsRejected }}
-    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-    <span class="text-rose-400 font-bold">RESOLVED // OPERATOR DECISION: DENIED</span>
+    <span style="width: 7px; height: 7px; border-radius: 9999px; background: var(--status-rose);"></span>
+    <span style="color: var(--status-rose); font-weight: 700;">RESOLVED // OPERATOR DECISION: DENIED</span>
     {{ else if .IsAutoApprove }}
-    <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
-    <span class="text-zinc-100 font-bold">RESOLVED // ⚡ AUTO-APPROVED &amp; AUTO-PILOT ON</span>
+    <span style="width: 8px; height: 8px; border-radius: 9999px; background: #fff;"></span>
+    <span style="color: var(--text-primary); font-weight: 700;">RESOLVED // ⚡ AUTO-APPROVED &amp; AUTO-PILOT ON</span>
     {{ else }}
-    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-    <span class="text-emerald-400 font-bold">RESOLVED // OPERATOR DECISION: {{.Decision}}</span>
+    <span style="width: 7px; height: 7px; border-radius: 9999px; background: var(--status-emerald);"></span>
+    <span style="color: var(--status-emerald); font-weight: 700;">RESOLVED // OPERATOR DECISION: {{.Decision}}</span>
     {{ end }}
 </div>

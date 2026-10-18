@@ -1,881 +1,76 @@
 <!DOCTYPE html>
-<html lang="en" class="min-h-full dark">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agentic Control Center // Multi-Agent Autonomous Framework</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com" defer></script>
+    
+    <!-- Design System Tokens & Core Dashboard Stylesheet (Pure Vanilla CSS) -->
+    <link rel="stylesheet" href="/static/css/tokens.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    
     <!-- Marked.js for markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- Highlight.js for code syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
-        /* ----------------------------------------------------------------- */
-        /* Semantic colour tokens — toggle the entire theme by flipping       */
-        /* one class on <html>. No !important cascade wars needed.            */
-        /* ----------------------------------------------------------------- */
-        :root {
-            --c-bg:          #09090b;
-            --c-surface:     #121215;
-            --c-surface-2:   #18181b;
-            --c-border:      #27272a;
-            --c-border-muted:rgba(39,39,42,0.8);
-            --c-text:        #f4f4f5;
-            --c-text-muted:  #a1a1aa;
-            --c-text-dim:    #71717a;
-        }
-
-        html.light-theme {
-            --c-bg:          #f8fafc;
-            --c-surface:     #ffffff;
-            --c-surface-2:   #f1f5f9;
-            --c-border:      #cbd5e1;
-            --c-border-muted:rgba(203,213,225,0.8);
-            --c-text:        #0f172a;
-            --c-text-muted:  #334155;
-            --c-text-dim:    #64748b;
-        }
-
-        html, body {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--c-bg);
-            color: var(--c-text);
-            min-height: 100%;
-        }
-
-        html.light-theme,
-        html.light-theme body {
-            background-color: var(--c-bg) !important;
-            color: var(--c-text) !important;
-        }
-
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-        /* Custom Scrollbar Styling */
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: var(--c-bg); }
-        ::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 9999px; }
-        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
-
-        /* Card surface — uses tokens so light/dark just works */
-        .glass-card {
-            background: var(--c-surface);
-            border: 1px solid var(--c-border);
-            color: var(--c-text);
-        }
-
-        .glass-card-hover { transition: all 0.15s ease-out; }
-        .glass-card-hover:hover {
-            border-color: #3f3f46;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-        }
-        html.light-theme .glass-card-hover:hover {
-            border-color: #09090b;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-        }
-
-        /* Broad light-theme surface sweep — covers Tailwind bg-zinc-* panels */
-        html.light-theme header,
-        html.light-theme footer,
-        html.light-theme nav,
-        html.light-theme main,
-        html.light-theme section,
-        html.light-theme .log-entry,
-        html.light-theme [id^="approval-"],
-        html.light-theme #console-logs,
-        html.light-theme #artifact-viewer-modal > div,
-        html.light-theme #artifact-modal-content-wrapper {
-            background-color: var(--c-surface) !important;
-            border-color: var(--c-border) !important;
-            color: var(--c-text) !important;
-        }
-
-        /* Tailwind zinc-background utility overrides (dark panels → light) */
-        html.light-theme .bg-zinc-950, html.light-theme .bg-zinc-900,
-        html.light-theme .bg-zinc-850, html.light-theme .bg-zinc-800,
-        html.light-theme .bg-slate-950, html.light-theme .bg-slate-900,
-        html.light-theme .bg-black,
-        html.light-theme .bg-black\/80,
-        html.light-theme .bg-zinc-950\/80, html.light-theme .bg-zinc-950\/60,
-        html.light-theme .bg-zinc-950\/40,
-        html.light-theme .bg-zinc-900\/90, html.light-theme .bg-zinc-900\/80,
-        html.light-theme .bg-zinc-900\/60, html.light-theme .bg-zinc-900\/50,
-        html.light-theme .bg-zinc-900\/40 {
-            background-color: var(--c-surface-2) !important;
-            color: var(--c-text) !important;
-        }
-
-        html.light-theme .border-zinc-800, html.light-theme .border-zinc-800\/90,
-        html.light-theme .border-zinc-800\/80, html.light-theme .border-zinc-800\/60,
-        html.light-theme .border-zinc-800\/40,
-        html.light-theme .border-zinc-700, html.light-theme .border-zinc-900 {
-            border-color: var(--c-border) !important;
-        }
-
-        /* Text utility overrides */
-        html.light-theme .text-zinc-100, html.light-theme .text-zinc-200,
-        html.light-theme .text-zinc-300, html.light-theme .text-white { color: var(--c-text) !important; }
-        html.light-theme .text-zinc-400 { color: var(--c-text-muted) !important; }
-        html.light-theme .text-zinc-500 { color: var(--c-text-dim) !important; }
-
-        /* Form controls */
-        html.light-theme input[type="text"], html.light-theme textarea, html.light-theme select {
-            background-color: var(--c-surface) !important;
-            color: var(--c-text) !important;
-            border-color: var(--c-border) !important;
-        }
-        html.light-theme input::placeholder, html.light-theme textarea::placeholder { color: #94a3b8 !important; }
-
-        /* Preserve white text on solid colored action buttons */
-        html.light-theme .bg-emerald-600, html.light-theme .bg-rose-600 { color: #ffffff !important; }
-
-        /* Crisp contrast for header & action buttons in light theme */
-        html.light-theme #theme-toggle-btn,
-        html.light-theme #auto-pilot-btn:not(.bg-white),
-        html.light-theme button[onclick="clearChatThread()"] {
-            background-color: #ffffff !important;
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-        }
-        html.light-theme #theme-toggle-btn:hover,
-        html.light-theme #auto-pilot-btn:not(.bg-white):hover,
-        html.light-theme button[onclick="clearChatThread()"]:hover {
-            background-color: #f1f5f9 !important;
-            border-color: #94a3b8 !important;
-            color: #000000 !important;
-        }
-        html.light-theme button.bg-white,
-        html.light-theme a.bg-white {
-            background-color: #09090b !important;
-            color: #ffffff !important;
-            border-color: #09090b !important;
-        }
-        html.light-theme button.bg-white:hover,
-        html.light-theme a.bg-white:hover {
-            background-color: #27272a !important;
-            color: #ffffff !important;
-        }
-        html.light-theme #auto-pilot-btn.bg-white {
-            background-color: #09090b !important;
-            color: #ffffff !important;
-        }
-        html.light-theme #auto-pilot-btn.bg-white span.bg-zinc-950 {
-            background-color: #ffffff !important;
-        }
-
-        /* ---- Semantic badge overrides (amber/emerald/rose) ---- */
-        html.light-theme .warning-banner  { background-color:#fffbeb !important; border-color:#fcd34d !important; color:#78350f !important; }
-        html.light-theme .warning-title-badge { background-color:#b45309 !important; color:#ffffff !important; }
-        html.light-theme .warning-subtitle { color:#92400e !important; font-weight:700 !important; }
-        html.light-theme .warning-list li  { color:#78350f !important; font-weight:600 !important; }
-
-        html.light-theme .text-amber-400, html.light-theme .text-amber-300,
-        html.light-theme .text-yellow-400, html.light-theme .text-yellow-300 { color:#92400e !important; font-weight:700 !important; }
-        html.light-theme .bg-amber-500\/10, html.light-theme .bg-amber-950\/60 { background-color:#fef3c7 !important; color:#92400e !important; }
-
-        html.light-theme .text-emerald-400, html.light-theme .text-emerald-300 { color:#047857 !important; font-weight:700 !important; }
-        html.light-theme .bg-emerald-500\/10, html.light-theme .bg-emerald-950\/60 { background-color:#d1fae5 !important; color:#065f46 !important; }
-
-        html.light-theme .text-rose-400, html.light-theme .text-rose-300 { color:#be123c !important; font-weight:700 !important; }
-        html.light-theme .bg-rose-500\/10, html.light-theme .bg-rose-950\/60 { background-color:#ffe4e6 !important; color:#9f1239 !important; }
-
-        /* Sender/recipient badges */
-        html.light-theme .sender-badge  { background-color:#e2e8f0 !important; color:#1e293b !important; border-color:var(--c-border) !important; }
-        html.light-theme .recipient-badge { background-color:#f1f5f9 !important; color:#475569 !important; border-color:var(--c-border) !important; }
-
-        /* Preset task buttons */
-        html.light-theme .bg-emerald-950\/60 { background-color:#d1fae5 !important; color:#065f46 !important; border-color:#a7f3d0 !important; }
-        html.light-theme .bg-cyan-950\/60 { background-color:#cffaff !important; color:#164e63 !important; border-color:#a5f3fc !important; }
-
-        /* Markdown content */
-        html.light-theme .md-content h1, html.light-theme .md-content h2,
-        html.light-theme .md-content h3, html.light-theme .md-content strong { color:var(--c-text) !important; }
-        html.light-theme .md-content p, html.light-theme .md-content li { color:#1e293b !important; }
-        html.light-theme .md-content code { background:#e2e8f0 !important; border-color:var(--c-border) !important; color:#0369a1 !important; }
-        html.light-theme .md-content pre  { background:#0f172a !important; color:#f8fafc !important; border-color:#334155 !important; }
-
-        /* Markdown rendered inside log entries */
-        .md-content h1, .md-content h2, .md-content h3, .md-content h4 {
-            font-weight: 600; margin-top: 0.5em; margin-bottom: 0.25em; color: #ffffff;
-        }
-        .md-content h1 { font-size: 1.02em; border-bottom: 1px solid var(--c-border); padding-bottom: 0.2em; }
-        .md-content h2 { font-size: 0.95em; }
-        .md-content h3, .md-content h4 { font-size: 0.9em; }
-        .md-content p { margin: 0.25em 0; line-height: 1.55; }
-        .md-content strong { font-weight: 600; color: #ffffff; }
-        .md-content em { font-style: italic; color: #a1a1aa; }
-        .md-content code {
-            font-family: 'JetBrains Mono', monospace;
-            background: var(--c-surface-2);
-            border: 1px solid var(--c-border);
-            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: var(--c-text);
-        }
-        .md-content pre code { background: none; border: none; padding: 0; color: var(--c-text); }
-        .approval-content code {
-            font-family: 'JetBrains Mono', monospace;
-            background: var(--c-surface-2);
-            border: 1px solid var(--c-border);
-            border-radius: 4px; padding: 1px 5px; font-size: 0.88em; color: var(--c-text);
-        }
-        .approval-content pre {
-            background: var(--c-bg); border: 1px solid var(--c-border);
-            border-radius: 8px; padding: 12px 16px; overflow-x: auto;
-            margin: 0.5em 0; font-size: 0.86em; line-height: 1.55;
-        }
-        .approval-content pre code { background: none; border: none; padding: 0; color: var(--c-text); }
-        .md-content ul { list-style: disc; padding-left: 1.3em; margin: 0.3em 0; }
-        .md-content ol { list-style: decimal; padding-left: 1.3em; margin: 0.3em 0; }
-        .md-content li { margin: 0.15em 0; }
-        .md-content a { color: var(--c-text); text-decoration: underline; text-underline-offset: 2px; }
-        .md-content blockquote {
-            border-left: 2px solid #52525b; padding-left: 10px;
-            color: #a1a1aa; margin: 0.4em 0; font-style: italic; background: var(--c-surface-2);
-            border-radius: 0 4px 4px 0; padding-top: 4px; padding-bottom: 4px;
-        }
-        .md-content hr { border-color: var(--c-border); margin: 0.6em 0; }
-        .md-content table { border-collapse: collapse; width: 100%; font-size: 0.86em; margin: 0.4em 0; }
-        .md-content th { background: var(--c-surface-2); font-weight: 600; color: var(--c-text); }
-        .md-content th, .md-content td { border: 1px solid var(--c-border); padding: 5px 8px; text-align: left; }
-
-        /* ----------------------------------------------------------------- */
-        /* Conversational Interface Tokens & Claude/Gemini-Style Components  */
-        /* ----------------------------------------------------------------- */
-        .chat-canvas {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            max-width: 860px;
-            margin: 0 auto;
-            position: relative;
-        }
-
-        .user-bubble {
-            background: linear-gradient(135deg, #1c1c24 0%, #15151a 100%);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 18px 18px 4px 18px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-            color: #f4f4f5;
-        }
-        html.light-theme .user-bubble {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-            color: #0f172a;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-
-        .assistant-bubble {
-            color: #e4e4e7;
-            font-size: 14.5px;
-            line-height: 1.7;
-        }
-        .assistant-bubble h1 {
-            font-size: 1.45em !important;
-            font-weight: 700 !important;
-            margin-top: 1.1em !important;
-            margin-bottom: 0.4em !important;
-            color: #ffffff !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
-            padding-bottom: 0.3em !important;
-        }
-        .assistant-bubble h2 {
-            font-size: 1.25em !important;
-            font-weight: 700 !important;
-            margin-top: 1em !important;
-            margin-bottom: 0.35em !important;
-            color: #f4f4f5 !important;
-        }
-        .assistant-bubble h3 {
-            font-size: 1.12em !important;
-            font-weight: 600 !important;
-            margin-top: 0.85em !important;
-            margin-bottom: 0.3em !important;
-            color: #e4e4e7 !important;
-        }
-        .assistant-bubble h4 {
-            font-size: 1.02em !important;
-            font-weight: 600 !important;
-            margin-top: 0.7em !important;
-            margin-bottom: 0.25em !important;
-            color: #d4d4d8 !important;
-        }
-        .assistant-bubble p {
-            margin: 0.6em 0 !important;
-            line-height: 1.75 !important;
-        }
-        .assistant-bubble ul {
-            list-style: disc !important;
-            padding-left: 1.5em !important;
-            margin: 0.6em 0 !important;
-        }
-        .assistant-bubble ol {
-            list-style: decimal !important;
-            padding-left: 1.5em !important;
-            margin: 0.6em 0 !important;
-        }
-        .assistant-bubble li {
-            margin: 0.3em 0 !important;
-            line-height: 1.65 !important;
-        }
-        .assistant-bubble strong {
-            font-weight: 700 !important;
-            color: #ffffff !important;
-        }
-        .assistant-bubble blockquote {
-            border-left: 3px solid #71717a !important;
-            background: rgba(255, 255, 255, 0.03) !important;
-            padding: 0.5em 1em !important;
-            margin: 0.7em 0 !important;
-            border-radius: 0 8px 8px 0 !important;
-            color: #d4d4d8 !important;
-        }
-
-        html.light-theme .assistant-bubble {
-            color: #1e293b !important;
-        }
-        html.light-theme .assistant-bubble h1,
-        html.light-theme .assistant-bubble h2,
-        html.light-theme .assistant-bubble h3,
-        html.light-theme .assistant-bubble h4,
-        html.light-theme .assistant-bubble strong {
-            color: #0f172a !important;
-            border-color: #e2e8f0 !important;
-        }
-        html.light-theme .assistant-bubble p,
-        html.light-theme .assistant-bubble li {
-            color: #1e293b !important;
-        }
-        html.light-theme .assistant-bubble blockquote {
-            background: #f1f5f9 !important;
-            border-left-color: #475569 !important;
-            color: #1e293b !important;
-        }
-
-        /* Swarm Thinking Accordion — Claude 3.7 / Gemini 2.0 Style */
-        .swarm-thinking {
-            border: 1px solid var(--c-border);
-            background: var(--c-surface);
-            border-radius: 14px;
-            backdrop-filter: blur(12px);
-            transition: all 0.2s ease-in-out;
-        }
-        .swarm-thinking.is-running {
-            border-color: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.04);
-        }
-        html.light-theme .swarm-thinking {
-            background: #ffffff !important;
-            border-color: #cbd5e1 !important;
-        }
-        html.light-theme .swarm-thinking.is-running {
-            border-color: #09090b !important;
-            box-shadow: 0 0 16px rgba(0, 0, 0, 0.06) !important;
-        }
-
-        /* Shimmering Pulse for Active Thinking */
-        @keyframes pulseGlow {
-            0%, 100% { opacity: 0.6; transform: scale(0.98); }
-            50% { opacity: 1; transform: scale(1.02); }
-        }
-        .thinking-pulse {
-            animation: pulseGlow 2.2s infinite ease-in-out;
-        }
-
-        /* Code Block Container with Language Header & Copy Button */
-        .code-container {
-            margin: 0.9em 0;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid var(--c-border);
-            background: #0d0e14;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-        html.light-theme .code-container {
-            background: #0f172a;
-            border-color: #334155;
-        }
-        .code-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 7px 14px;
-            background: rgba(255, 255, 255, 0.04);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: #94a3b8;
-        }
-        .code-copy-btn {
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #cbd5e1;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 10px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .code-copy-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-        }
-
-        /* Floating Bottom Composer Capsule */
-        .composer-capsule {
-            background: rgba(18, 18, 23, 0.94);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 24px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .composer-capsule:focus-within {
-            border-color: rgba(255, 255, 255, 0.35);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.15);
-        }
-        html.light-theme .composer-capsule {
-            background: #ffffff !important;
-            border-color: #cbd5e1 !important;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08) !important;
-        }
-        html.light-theme .composer-capsule:focus-within {
-            border-color: #09090b !important;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(9, 9, 11, 0.12) !important;
-        }
-
-        /* Bottom Floating Dock Gradient Bar */
-        .composer-dock-wrapper {
-            background: linear-gradient(to top, #09090b 0%, rgba(9, 9, 11, 0.94) 70%, transparent 100%);
-        }
-        html.light-theme .composer-dock-wrapper {
-            background: linear-gradient(to top, #f8fafc 0%, rgba(248, 250, 252, 0.96) 70%, transparent 100%) !important;
-        }
-
-        #chat-composer-input {
-            background-color: transparent !important;
-            color: var(--c-text) !important;
-            border: none !important;
-        }
-        #chat-composer-input::placeholder {
-            color: var(--c-text-muted) !important;
-            opacity: 0.9;
-        }
-
-        /* Prompt Starter Cards & Typography */
-        .starter-card {
-            background: var(--c-surface);
-            border: 1px solid var(--c-border);
-            border-radius: 12px;
-            padding: 10px 12px;
-            cursor: pointer;
-            transition: all 0.2s ease-out;
-        }
-        .starter-card:hover {
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-        }
-        .starter-card .starter-title {
-            color: var(--c-text);
-            font-weight: 700;
-        }
-        .starter-card .starter-desc {
-            color: var(--c-text-muted);
-        }
-        html.light-theme .starter-card {
-            background: #ffffff !important;
-            border-color: #cbd5e1 !important;
-        }
-        html.light-theme .starter-card .starter-title {
-            color: #0f172a !important;
-        }
-        html.light-theme .starter-card .starter-desc {
-            color: #334155 !important;
-        }
-        html.light-theme .starter-card:hover {
-            border-color: #09090b !important;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05) !important;
-        }
-        html.light-theme .starter-card:hover .starter-title {
-            color: #09090b !important;
-        }
-
-        /* Light-theme hero icon and typography styling */
-        html.light-theme #chat-hero .bg-zinc-800 {
-            background-color: #e2e8f0 !important;
-            border-color: #cbd5e1 !important;
-        }
-        html.light-theme #chat-hero .bg-zinc-950 {
-            background-color: #ffffff !important;
-            color: #09090b !important;
-        }
-        html.light-theme .chat-hero-heading {
-            color: #09090b !important;
-        }
-        html.light-theme #chat-hero p {
-            color: #475569 !important;
-        }
-
-        /* Light-theme Network Legend Bar */
-        html.light-theme .network-legend-bar {
-            background-color: #ffffff !important;
-            border-color: #cbd5e1 !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-        }
-        html.light-theme .network-legend-bar .text-zinc-300 {
-            color: #334155 !important;
-        }
-        html.light-theme .network-orchestrator-dot {
-            background-color: #0f172a !important;
-        }
-
-        /* Swarm Thinking Contrast & Readability */
-        .swarm-thinking summary {
-            color: var(--c-text-muted);
-        }
-        .swarm-thinking .thinking-title {
-            color: var(--c-text);
-            font-weight: 600;
-        }
-        .swarm-thinking .timeline-step {
-            color: var(--c-text);
-        }
-        .swarm-thinking .step-icon {
-            color: var(--c-text-dim);
-        }
-        .tool-step-badge {
-            background: #27272a;
-            border: 1px solid #3f3f46;
-            color: #f4f4f5;
-        }
-
-        html.light-theme .swarm-thinking {
-            background: #ffffff !important;
-            border-color: #cbd5e1 !important;
-        }
-        html.light-theme .swarm-thinking summary {
-            background: #f8fafc !important;
-            color: #09090b !important;
-            border-bottom-color: #e2e8f0 !important;
-        }
-        html.light-theme .swarm-thinking .thinking-title {
-            color: #09090b !important;
-            font-weight: 700 !important;
-        }
-        html.light-theme .swarm-thinking .thinking-timeline {
-            border-color: #cbd5e1 !important;
-            background: #ffffff !important;
-        }
-        html.light-theme .swarm-thinking .timeline-step {
-            color: #1e293b !important;
-        }
-        html.light-theme .swarm-thinking .step-icon {
-            color: #475569 !important;
-        }
-        html.light-theme .orchestration-check {
-            color: #047857 !important;
-            font-weight: 700 !important;
-        }
-        html.light-theme .tool-step-badge {
-            background-color: #e2e8f0 !important;
-            border-color: #cbd5e1 !important;
-            color: #1e293b !important;
-            font-weight: 700 !important;
-        }
-
-        /* User Bubble High Contrast */
-        .bubble-timestamp {
-            color: #a1a1aa;
-        }
-        .bubble-file-chip {
-            background: #27272a;
-            border: 1px solid #3f3f46;
-            color: #f4f4f5;
-            font-weight: 600;
-        }
-        html.light-theme .user-bubble {
-            background: #f1f5f9 !important;
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-        }
-        html.light-theme .bubble-timestamp {
-            color: #64748b !important;
-        }
-        html.light-theme .bubble-file-chip {
-            background: #f1f5f9 !important;
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-        }
-
-        /* Preset Prompt Chips */
-        .prompt-chip {
-            background: #18181b;
-            border: 1px solid #27272a;
-            color: #e4e4e7;
-        }
-        .prompt-chip:hover {
-            background: #27272a;
-            color: #ffffff;
-            border-color: #3f3f46;
-        }
-        html.light-theme .prompt-chip {
-            background: #ffffff !important;
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-            font-weight: 600 !important;
-        }
-        html.light-theme .prompt-chip:hover {
-            background: #f1f5f9 !important;
-            color: #000000 !important;
-            border-color: #94a3b8 !important;
-        }
-        html.light-theme .prompt-label {
-            color: #475569 !important;
-        }
-
-        /* Subview Switcher Contrast */
-        .subview-switcher-wrapper {
-            background: #18181b;
-            border: 1px solid #27272a;
-        }
-        .subview-btn-inactive {
-            color: #d4d4d8;
-        }
-        .subview-btn-inactive:hover {
-            color: #ffffff;
-        }
-        html.light-theme .subview-switcher-wrapper {
-            background: #e2e8f0 !important;
-            border-color: #cbd5e1 !important;
-        }
-        html.light-theme .subview-btn-inactive {
-            color: #334155 !important;
-        }
-        html.light-theme .subview-btn-inactive:hover {
-            color: #0f172a !important;
-        }
-
-        /* Top Nav Tabs High Contrast */
-        nav button[id^="tab-btn-"]:not(.border-white) {
-            color: #a1a1aa !important;
-        }
-        nav button[id^="tab-btn-"]:not(.border-white):hover {
-            color: #f4f4f5 !important;
-        }
-        html.light-theme nav button[id^="tab-btn-"]:not(.border-white) {
-            color: #52525b !important;
-        }
-        html.light-theme nav button[id^="tab-btn-"]:not(.border-white):hover {
-            color: #09090b !important;
-        }
-        html.light-theme nav button.border-white {
-            border-color: #09090b !important;
-            color: #09090b !important;
-        }
-
-        /* Inputs & Selects Contrast */
-        #chat-orchestration-mode {
-            background-color: #18181b;
-            border: 1px solid #27272a;
-            color: #f4f4f5;
-        }
-        html.light-theme #chat-orchestration-mode {
-            background-color: #ffffff !important;
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-            font-weight: 600 !important;
-        }
-        html.light-theme #composer-file-chip {
-            background-color: #f1f5f9 !important;
-            border-color: #cbd5e1 !important;
-            color: #0f172a !important;
-        }
-        html.light-theme #composer-file-chip button {
-            color: #475569 !important;
-        }
-        html.light-theme #composer-file-chip button:hover {
-            color: #09090b !important;
-        }
-
-        /* Conversational Approval Section & Panel */
-        .chat-approval-panel {
-            background-color: rgba(24, 24, 27, 0.9);
-            border-color: #27272a;
-            transition: all 0.3s ease;
-        }
-        .chat-approval-panel.has-pending {
-            border-color: rgba(245, 158, 11, 0.6) !important;
-            box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
-        }
-        .chat-approval-card {
-            background-color: rgba(9, 9, 11, 0.95);
-            border-color: #27272a;
-            transition: all 0.2s ease;
-        }
-
-        html.light-theme .chat-approval-panel {
-            background-color: #ffffff !important;
-            border-color: #e2e8f0 !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02) !important;
-        }
-        html.light-theme .chat-approval-panel.has-pending {
-            border-color: #f59e0b !important;
-            box-shadow: 0 0 20px -3px rgba(245, 158, 11, 0.25) !important;
-        }
-        html.light-theme .chat-approval-panel h2 {
-            color: #0f172a !important;
-        }
-        html.light-theme .chat-approval-card {
-            background-color: #f8fafc !important;
-            border-color: #cbd5e1 !important;
-            border-left-color: #d97706 !important;
-        }
-        html.light-theme .chat-approval-sender {
-            color: #0f172a !important;
-            font-weight: 700 !important;
-        }
-        html.light-theme .chat-approval-content {
-            background-color: #ffffff !important;
-            color: #1e293b !important;
-            border-color: #cbd5e1 !important;
-        }
-        html.light-theme #chat-approvals-empty {
-            background-color: #f8fafc !important;
-            color: #475569 !important;
-            border-color: #cbd5e1 !important;
-        }
-        html.light-theme .chat-approval-btn-deny {
-            background-color: #ffffff !important;
-            color: #b91c1c !important;
-            border-color: #fca5a5 !important;
-        }
-        html.light-theme .chat-approval-btn-deny:hover {
-            background-color: #fef2f2 !important;
-            color: #991b1b !important;
-        }
-
-        /* Chat hero typography & modal text styling in light mode */
-        html.light-theme .chat-hero-heading {
-            color: #0f172a !important;
-        }
-        html.light-theme #chat-hero p {
-            color: #475569 !important;
-        }
-        html.light-theme #artifact-modal-text-content {
-            background-color: #f8fafc !important;
-            color: #0f172a !important;
-            border: 1px solid #e2e8f0;
-            padding: 1rem;
-            border-radius: 0.75rem;
-        }
-    </style>
 </head>
-<body hx-ext="sse" sse-connect="/stream/logs" class="min-h-screen flex flex-col selection:bg-zinc-800 selection:text-white">
-
-    <!-- Top Header -->
-    <header class="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 p-[1px] shadow-sm">
-                    <div class="w-full h-full bg-zinc-950 rounded-[7px] flex items-center justify-center font-bold text-white text-sm">
-                        ⚡
-                    </div>
+<body hx-ext="sse" sse-connect="/stream/logs">
+    <!-- Top Header & Navigation -->
+    <header class="app-header">
+        <div class="header-inner">
+            <a href="/" class="brand-wrapper">
+                <div class="brand-badge">⚡</div>
+                <div class="brand-titles">
+                    <span class="brand-title">SYNAPSE</span>
+                    <span class="brand-subtitle">Autonomous Swarm Control</span>
                 </div>
-                <div>
-                    <h1 class="text-sm font-extrabold tracking-wider text-zinc-100 uppercase flex items-center gap-2">
-                        <span>Agentic Control Center</span>
-                        <span class="text-[9px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded-full lowercase">v2.4.0</span>
-                    </h1>
-                    <p class="text-[10px] text-zinc-500 font-mono">Go Orchestration Tier // Ephemeral WASM &amp; Docker Sandboxing</p>
-                </div>
-            </div>
+            </a>
 
-            <!-- Live Status & System Indicators -->
-            <div class="flex items-center gap-4">
-                <button id="theme-toggle-btn" onclick="toggleTheme()" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-sm">
-                    <span id="theme-toggle-icon">☀️</span> <span id="theme-toggle-text" class="hidden sm:inline">Light Mode</span>
+            <!-- Primary Navigation Tabs -->
+            <nav class="header-nav" aria-label="Main Navigation">
+                <button id="tab-btn-dashboard" onclick="switchTab('dashboard')" class="nav-tab-btn active">
+                    <span>🛸</span> <span>Cockpit</span>
                 </button>
-
-                <!-- Auto-Pilot / HITL Instant Toggle -->
-                {{ if .CriticalActions.AutoApproveAll }}
-                <button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-white text-zinc-950 hover:bg-zinc-200 border border-white rounded-full text-xs font-mono font-bold transition-all cursor-pointer shadow-sm" title="Auto-Pilot is ON: all HITL checkpoints are auto-approved. Click to switch to Gated Mode.">
-                    <span class="w-2 h-2 rounded-full bg-zinc-950 animate-ping"></span>
-                    <span>⚡ Auto-Pilot: ON</span>
+                <button id="tab-btn-studio" onclick="switchTab('studio')" class="nav-tab-btn">
+                    <span>🎨</span> <span>Agent Studio</span>
                 </button>
-                {{ else }}
-                <button id="auto-pilot-btn" hx-post="/api/hitl/toggle-auto-approve" hx-swap="outerHTML" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-full text-xs font-mono font-medium transition-all cursor-pointer shadow-sm" title="HITL Gated Mode: high-risk actions prompt operator. Click to enable Auto-Pilot.">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    <span>🛡️ Auto-Pilot: OFF</span>
+                <button id="tab-btn-audit" onclick="switchTab('audit')" class="nav-tab-btn">
+                    <span>📊</span> <span>Cost &amp; Audit</span>
                 </button>
-                {{ end }}
+                <button id="tab-btn-network" onclick="switchTab('network')" class="nav-tab-btn">
+                    <span>📡</span> <span>Network Radar</span>
+                </button>
+                <button id="tab-btn-scheduler" onclick="switchTab('scheduler')" class="nav-tab-btn">
+                    <span>⏱️</span> <span>Schedules</span>
+                </button>
+                <button id="tab-btn-config" onclick="switchTab('config')" class="nav-tab-btn">
+                    <span>⚙️</span> <span>Settings</span>
+                </button>
+            </nav>
 
-                {{ if .Warnings }}
-                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-full text-[10px] font-mono uppercase tracking-wider" title="System warnings or mock settings connected">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> <span>Warnings Active</span>
+            <!-- Header Right Area: Telemetry Pulse & Theme Toggle -->
+            <div class="header-status-area">
+                <div class="status-pill" id="chat-live-indicator">
+                    <span class="status-dot"></span>
+                    <span>Swarm Ready</span>
                 </div>
-                {{ end }}
-
-                <div class="hidden md:flex items-center gap-3 border-r border-zinc-800 pr-4">
-                    <div class="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span>Docker: Connected</span>
-                    </div>
-                    <div class="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
-                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
-                        <span>Wasm: Active</span>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full shadow-inner">
-                    <span class="relative flex h-2 w-2">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span class="text-[10px] font-medium text-zinc-300 font-mono tracking-wider uppercase">SSE Stream Live</span>
-                </div>
+                <button id="theme-toggle-btn" onclick="toggleTheme()" class="theme-btn" title="Toggle Dark/Light Theme">
+                    <span id="theme-toggle-icon">🌙</span>
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- Navigation Tabs -->
-    <div class="border-b border-zinc-800/80 bg-zinc-950">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav class="flex space-x-6" aria-label="Tabs">
-                <button id="tab-btn-dashboard" onclick="switchTab('dashboard')" class="border-b-2 border-white py-3.5 px-2 text-xs font-semibold uppercase tracking-wider text-white flex items-center gap-2 transition-all cursor-pointer">
-                    <span>Chat &amp; Swarm</span>
-                </button>
-                <button id="tab-btn-studio" onclick="switchTab('studio')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>Agent Studio</span>
-                </button>
-                <button id="tab-btn-audit" onclick="switchTab('audit')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>Cost &amp; Audit</span>
-                </button>
-                <button id="tab-btn-network" onclick="switchTab('network')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>Network Graph</span>
-                </button>
-                <button id="tab-btn-config" onclick="switchTab('config')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>System Settings</span>
-                </button>
-                <button id="tab-btn-scheduler" onclick="switchTab('scheduler')" class="border-b-2 border-transparent py-3.5 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-300 flex items-center gap-2 transition-all cursor-pointer">
-                    <span>Cron Scheduler</span>
-                </button>
-            </nav>
-        </div>
-    </div>
-
-    <!-- System Config Warnings Banner -->
+    <!-- System Configuration Warnings Banner -->
     {{ if .Warnings }}
-    <div class="bg-zinc-900 border-b border-zinc-800 px-4 py-3 text-zinc-300 warning-banner">
-        <div class="max-w-7xl mx-auto flex flex-col gap-2">
-            <div class="flex items-center gap-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-200 border border-zinc-700 px-2 py-0.5 rounded font-mono shadow-sm warning-title-badge">System Warnings</span>
-                <span class="text-xs text-zinc-400 font-mono warning-subtitle">Environment setup recommendations:</span>
+    <div style="background: var(--bg-surface-elevated); border-bottom: 1px solid var(--border-subtle); padding: 0.75rem 1.25rem;">
+        <div style="max-width: 1680px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.4rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; background: var(--status-amber-dim); color: var(--status-amber); border: 1px solid var(--status-amber-border); padding: 0.15rem 0.5rem; border-radius: 4px; text-transform: uppercase;">System Warnings</span>
+                <span style="font-size: 0.75rem; color: var(--text-secondary); font-family: var(--font-mono);">Setup recommendations:</span>
             </div>
-            <ul class="list-disc list-inside text-xs space-y-1 text-zinc-400 font-mono warning-list">
+            <ul style="margin-left: 1.25rem; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); line-height: 1.4;">
                 {{ range .Warnings }}
                 <li>{{ . }}</li>
                 {{ end }}
@@ -884,927 +79,609 @@
     </div>
     {{ end }}
 
-    <!-- Workspace & Conversational Tab Content -->
-    <div id="tab-content-dashboard" class="tab-pane flex-1 flex flex-col relative">
-
-        <!-- Sub-View Switcher Bar -->
-        <div class="border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md sticky top-16 z-30">
-            <div class="max-w-5xl w-full mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
-                <div class="subview-switcher-wrapper inline-flex p-1 rounded-xl shadow-inner">
-                    <button id="subview-btn-chat" onclick="switchDashboardSubview('chat')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 bg-white text-zinc-950 shadow-sm transition-all cursor-pointer">
-                        <span>💬</span> <span>Conversational Agent</span>
-                        <span id="subview-approval-indicator" class="hidden px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400 text-zinc-950 animate-pulse shadow-sm">0</span>
-                    </button>
-                    <button id="subview-btn-matrix" onclick="switchDashboardSubview('matrix')" class="subview-btn-inactive px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all cursor-pointer">
-                        <span>⚡</span> <span>Swarm Matrix &amp; Logs</span>
-                    </button>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <button onclick="clearChatThread()" class="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-200 hover:text-white rounded-lg text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95">
-                        <span>✨</span> <span class="hidden sm:inline font-semibold">New Session</span>
-                    </button>
-                    <span id="chat-live-indicator" class="inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-3 py-1 rounded-full font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="hidden sm:inline">Swarm Ready</span>
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Conversational Chat Canvas (Gemini & Claude Experience) -->
-        <div id="dashboard-subview-chat" class="flex-1 flex flex-col items-center w-full min-h-[calc(100vh-160px)] relative pb-36 sm:pb-40">
-            
-            <div class="w-full max-w-3xl px-4 sm:px-6 pt-5 flex-1 flex flex-col">
-
-                <!-- Conversational Agent Human-in-the-Loop Approval Section -->
-                <section id="chat-approvals-section" class="w-full mb-6 transition-all duration-300 hidden">
-                    <div id="chat-approval-panel" class="chat-approval-panel rounded-2xl p-4 sm:p-5 border shadow-xl backdrop-blur-md">
-                        <div class="flex items-center justify-between pb-3 border-b border-zinc-800/80 flex-wrap gap-2">
-                            <div class="flex items-center gap-2.5">
-                                <span class="relative flex h-2.5 w-2.5">
-                                    <span id="chat-approvals-ping" class="hidden animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                    <span id="chat-approvals-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-zinc-500"></span>
-                                </span>
-                                <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
-                                    <span>🛡️</span> Human-in-the-Loop Steering Queue
-                                </h2>
-                                <span id="chat-approvals-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 transition-colors">0 Pending</span>
-                            </div>
-                            
-                            <div class="flex items-center gap-3">
-                                <span class="text-[10px] font-mono text-zinc-400 hidden md:inline">Security Gateways Active</span>
-                                <button type="button" onclick="toggleChatApprovalsList()" id="chat-approvals-toggle-btn" class="text-[11px] font-mono text-zinc-400 hover:text-zinc-200 cursor-pointer transition-colors flex items-center gap-1">
-                                    <span id="chat-approvals-toggle-icon">▼</span>
-                                    <span id="chat-approvals-toggle-text">Collapse</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Dynamic list of pending human approvals -->
-                        <div id="chat-approvals-list" class="space-y-3 pt-3">
-                            <div id="chat-approvals-empty" class="text-[11px] text-zinc-400 italic p-4 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
-                                AWAITING INSTRUCTIONS. CRITICAL ACTIONS (SHELL COMMANDS, SENSITIVE CODE, WORKBOOK MODIFICATIONS) WILL PAUSE HERE FOR OPERATOR SIGN-OFF.
-                            </div>
-                        </div>
-                    </div>
-                </section>
+    <div class="app-viewport">
+        <!-- ==================================================================
+             TAB 1: UNIFIED AGENT STEERING COCKPIT
+             ================================================================== -->
+        <div id="tab-content-dashboard" class="tab-pane active">
+            <div class="cockpit-grid">
                 
-                <!-- Welcome Hero (Displayed when conversation has no messages) -->
-                <div id="chat-hero" class="pt-1 sm:pt-2 pb-2 flex flex-col items-center text-center space-y-2.5 animate-in fade-in duration-500">
-                    <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 p-[1.5px] shadow-md">
-                        <div class="w-full h-full bg-zinc-950 rounded-[10px] flex items-center justify-center text-lg text-white">
-                            ✦
+                <!-- ZONE 1: LEFT AGENT FLEET RAIL -->
+                <aside class="glass-panel cockpit-left-rail">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>🤖</span> <span>Active Fleet ({{ len .AgentBlueprints }})</span>
                         </div>
-                    </div>
-                    
-                    <div class="space-y-1 max-w-lg">
-                        <h1 class="chat-hero-heading text-xl sm:text-2xl font-extrabold tracking-tight text-white leading-tight">
-                            What can the swarm accomplish for you?
-                        </h1>
-                        <p class="text-xs text-zinc-400 leading-normal font-normal">
-                            Autonomous multi-agent intelligence with live web extraction, Docker sandboxed Python execution, and financial workbook auditing.
-                        </p>
+                        <span style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--status-emerald); font-weight: 700;">DYNAMIC</span>
                     </div>
 
-                    <!-- 4 Quick-Start Suggestion Cards (Claude / Gemini style) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-2xl pt-1 text-left">
-                        <div onclick="dispatchQuickPrompt('Search the web for latest AI agent architecture trends and compile an executive PDF report', 'autonomous')" class="starter-card group">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-sm">🌐</span>
-                                <span class="starter-title text-xs font-bold transition-colors">Deep Web Research &amp; PDF</span>
+                    <!-- Dynamic List of all 17+ Registered Agents -->
+                    <div class="fleet-scroll-area">
+                        {{ range .AgentBlueprints }}
+                        <div class="agent-fleet-card" onclick="setPromptTask('Instruct {{.ID}} to ')" title="Click to draft task for {{.ID}}">
+                            <div class="agent-card-header">
+                                <span class="agent-card-id">{{.ID}}</span>
+                                <span class="agent-card-role-badge">{{if .Role}}{{.Role}}{{else}}Specialist{{end}}</span>
                             </div>
-                            <p class="starter-desc text-[10.5px] leading-snug">Extracts live web context and synthesizes a structured executive PDF brief.</p>
-                        </div>
-
-                        <div onclick="dispatchQuickPrompt('Inspect financial workbook in chicago_offsite_budget.xlsx, calculate variance metrics, and audit formulas', 'autonomous')" class="starter-card group">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-sm">📊</span>
-                                <span class="starter-title text-xs font-bold transition-colors">Excel Financial Audit</span>
+                            <p class="agent-card-desc">{{.Description}}</p>
+                            <div class="agent-card-tools">
+                                {{ range .Capabilities }}
+                                <span class="tool-tag" style="color: var(--accent-primary); border-color: var(--accent-primary-dim);">{{.}}</span>
+                                {{ end }}
+                                {{ range .Tools }}
+                                <span class="tool-tag">{{.}}</span>
+                                {{ end }}
                             </div>
-                            <p class="starter-desc text-[10.5px] leading-snug">Audits spreadsheet assumptions, cell formulas, and generates variance tables.</p>
-                        </div>
-
-                        <div onclick="dispatchQuickPrompt('Inspect host system hardware and query spot GPU rental prices across providers', 'autonomous')" class="starter-card group">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-sm">💻</span>
-                                <span class="starter-title text-xs font-bold transition-colors">Compute &amp; GPU Arbitrage</span>
-                            </div>
-                            <p class="starter-desc text-[10.5px] leading-snug">Queries pricing oracles and hardware metrics to identify low-cost compute.</p>
-                        </div>
-
-                        <div onclick="dispatchQuickPrompt('Plan and decompose a multi-agent quantitative financial analysis workflow', 'steered')" class="starter-card group">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-sm">⚡</span>
-                                <span class="starter-title text-xs font-bold transition-colors">Steered Task Decomposition</span>
-                            </div>
-                            <p class="starter-desc text-[10.5px] leading-snug">Creates a DAG execution plan requiring human review before running.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chat Stream Messages Container -->
-                <div id="chat-messages" class="space-y-6 pt-2 pb-8 w-full">
-                    <!-- Dynamic user turns and assistant response turns appended here -->
-                </div>
-
-            </div>
-
-            <!-- Floating Bottom Composer Dock (Signature Claude / Gemini Experience) -->
-            <div class="fixed bottom-0 left-0 right-0 z-40 pb-5 pt-3 px-4 pointer-events-none composer-dock-wrapper">
-                <div class="max-w-3xl w-full mx-auto pointer-events-auto">
-                    <!-- Composer Pill Capsule -->
-                    <div class="composer-capsule p-3 sm:p-3.5 space-y-2.5">
-                        
-                        <!-- Chosen file chip (if attachment selected) -->
-                        <div id="composer-file-chip" class="hidden inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium">
-                            <span>📎</span>
-                            <span id="composer-file-name" class="max-w-[200px] truncate">file</span>
-                            <button type="button" onclick="clearComposerFile()" class="ml-1 font-bold cursor-pointer">×</button>
-                        </div>
-
-                        <!-- Auto-expanding Textarea -->
-                        <div class="relative flex items-center">
-                            <textarea id="chat-composer-input" rows="1"
-                                placeholder="Message the agent swarm... (Enter to send, Shift+Enter for newline)"
-                                class="w-full bg-transparent border-0 focus:ring-0 text-sm sm:text-[15px] leading-relaxed resize-none outline-none max-h-48 overflow-y-auto font-sans"></textarea>
-                        </div>
-
-                        <!-- Bottom Controls: Attachment, Orchestration Mode, Send Button -->
-                        <div class="flex items-center justify-between pt-1 border-t border-zinc-800/60 flex-wrap gap-2">
-                            <div class="flex items-center gap-2.5">
-                                <label for="chat-file-input" class="p-2 rounded-xl hover:bg-zinc-800 text-zinc-300 hover:text-white cursor-pointer transition-colors" title="Attach file context (CSV, PDF, TXT, MD)">
-                                    <span class="text-base">📎</span>
-                                    <input type="file" id="chat-file-input" class="hidden" onchange="handleComposerFileSelected(this)">
-                                </label>
-
-                                <div class="relative">
-                                    <select id="chat-orchestration-mode" class="rounded-lg px-2.5 py-1 text-[11px] font-mono focus:outline-none cursor-pointer">
-                                        <option value="autonomous" selected>⚡ Autonomous</option>
-                                        <option value="steered">🛡️ Steered Review</option>
-                                        <option value="deferred">⏱️ Deferred</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <button id="chat-send-btn" type="button" onclick="submitChatComposer()" class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                                <span>Send</span>
-                                <span class="text-sm font-bold">↑</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Observability Swarm Matrix & Trace View (Existing 3-Column Layout) -->
-        <div id="dashboard-subview-matrix" class="hidden flex-1 flex flex-col">
-        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- Left Column: Tasks, Controls & Event Stream (Taking 2/3 width) -->
-            <div class="space-y-8 lg:col-span-2">
-                
-                <!-- Task Dispatcher Card -->
-                <section class="glass-card rounded-xl p-6 shadow-sm relative overflow-hidden">
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-zinc-100"></span>
-                            <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-100">Task Dispatcher</h2>
-                        </div>
-                        <span class="text-[9px] font-mono bg-zinc-900 text-zinc-400 border border-zinc-800 px-2.5 py-0.5 rounded-full uppercase">Dynamic Routing</span>
-                    </div>
-
-                    <form id="task-form" hx-post="/api/task" hx-swap="none" enctype="multipart/form-data" class="space-y-4">
-                        <p class="text-xs text-zinc-400 leading-relaxed">
-                            Specify your task goal below. The system triage-agent will evaluate requirements, select the optimal specialist agent, and execute sandboxed actions.
-                        </p>
-                        
-                        <div>
-                            <div class="flex items-center gap-2 flex-wrap mb-2.5">
-                                <span class="text-[10px] font-mono text-zinc-500 uppercase font-medium">Preset Launchers:</span>
-                                <button type="button" onclick="setPromptTask('Search the web for AI market news and compile an executive PDF report')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Web Search &amp; PDF Report</button>
-                                <button type="button" onclick="setPromptTask('Inspect financial workbook in chicago_offsite_budget.xlsx and audit expense metrics')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Excel Model Audit</button>
-                                <button type="button" onclick="setPromptTask('Inspect host system hardware and query spot GPU rental prices')" class="text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer">Host Hardware Audit</button>
-                            </div>
-                            <textarea name="content" id="content" rows="3" required 
-                                placeholder="e.g. Search web for latest tech news and compile a PDF summary report" 
-                                class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700 text-zinc-100 placeholder-zinc-600 resize-none transition-all"></textarea>
-                        </div>
-
-                        <!-- File Attachment & Orchestration Settings Grid -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                            <div class="space-y-1.5">
-                                <label class="block text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Context Attachment (Optional)</label>
-                                <div class="flex items-center gap-3">
-                                    <input type="file" name="file" id="task-file" class="hidden" onchange="document.getElementById('file-chosen').textContent = this.files[0] ? this.files[0].name : 'No file chosen'" />
-                                    <label for="task-file" class="px-3.5 py-2 border border-zinc-800 hover:border-zinc-700 rounded-lg text-[10px] font-medium uppercase tracking-wider transition-all cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-zinc-200 active:scale-95 shadow-sm inline-flex items-center gap-2">
-                                        <span>📁</span> <span>Choose File</span>
-                                    </label>
-                                    <span id="file-chosen" class="text-[10px] text-zinc-500 font-mono italic truncate max-w-[140px]">No file chosen</span>
-                                </div>
-                            </div>
-
-                            <div class="space-y-1.5">
-                                <label class="block text-[10px] font-medium text-zinc-400 uppercase tracking-wider font-mono">Orchestration Mode</label>
-                                <select name="orchestration_mode" id="orchestration_mode" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700 cursor-pointer shadow-sm">
-                                    <option value="autonomous" selected>Fully Autonomous (Execute immediately)</option>
-                                    <option value="steered">Steered (Review &amp; Approve Plan first)</option>
-                                    <option value="deferred">Off-Peak Deferred (Oracle schedules optimal low-cost time)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="w-full py-3 bg-white hover:bg-zinc-200 text-zinc-950 font-semibold rounded-lg text-xs uppercase tracking-wider transition-all shadow-sm active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2">
-                            <span>Dispatch Autonomous Task</span>
-                            <span class="text-sm">➔</span>
-                        </button>
-                    </form>
-                </section>
-
-                <!-- Steering Controls (HITL Approval Queue) -->
-                <section class="glass-card rounded-2xl p-6 shadow-2xl">
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3">
-                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-                            Human-in-the-Loop Steering Queue
-                        </h2>
-                        <span class="text-[9px] font-mono text-zinc-400">Security Gateways Active</span>
-                    </div>
-                    
-                    <div id="approvals-list" sse-swap="hitl-request" hx-swap="beforeend" class="space-y-4">
-                        {{ if .PendingApprovalsHTML }}
-                            {{ .PendingApprovalsHTML }}
-                        {{ else }}
-                        <div class="empty-state text-[11px] text-zinc-400 italic p-6 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
-                            AWAITING INSTRUCTIONS. STEERING CONTROLS WILL POPULATE HERE UPON CRITICAL ACTIONS.
                         </div>
                         {{ end }}
                     </div>
-                </section>
 
-                <!-- Parallel Execution Swimlane Matrix -->
-                <section class="glass-card rounded-2xl p-6 shadow-2xl">
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3 flex-wrap gap-2">
-                        <div>
-                            <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
-                                <span>⚡</span> Multi-Agent Parallel Execution Matrix
-                            </h2>
+                    <!-- System Daemons Health Indicator Box -->
+                    <div class="system-health-box">
+                        <div class="health-item">
+                            <span>DOCKER RUNTIME</span>
+                            <span class="health-dot online" id="health-docker-dot" title="Docker Daemon Connected"></span>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-[9px] font-mono text-zinc-400 bg-zinc-950 border border-zinc-800 px-2.5 py-1 rounded-md" id="parallel-concurrency-badge">Active Threads: 0 Parallel</span>
-                            <button onclick="resetParallelismMatrix()" class="text-[9px] font-mono bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 px-2 py-1 rounded cursor-pointer transition-all active:scale-95">Reset Matrix</button>
+                        <div class="health-item">
+                            <span>SQLITE LEDGER</span>
+                            <span class="health-dot online" id="health-sqlite-dot" title="SQLite Database Connected"></span>
+                        </div>
+                        <div class="health-item">
+                            <span>ACTIVE AGENTS</span>
+                            <span style="font-weight: 700; color: var(--text-primary);">{{ len .AgentBlueprints }} Online</span>
                         </div>
                     </div>
+                </aside>
 
-                    <div id="parallelism-matrix" class="space-y-2.5 font-mono text-[11px]">
-                        <!-- Dynamic agent swimlanes generated & managed by AgentStateMachine -->
-                    </div>
-                </section>
-
-                <!-- Real-time Console Log Stream -->
-                <section class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col h-[560px]">
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3 flex-wrap gap-2">
-                        <div class="flex items-center gap-2 flex-wrap" id="log-filter-bar">
-                            <span class="text-xs font-semibold uppercase tracking-widest text-zinc-200 flex items-center gap-2 mr-2">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Event Stream
+                <!-- ZONE 2: CENTER INTERACTIVE STEERING CANVAS -->
+                <main class="glass-panel cockpit-center-canvas">
+                    <!-- Top Steering Control Bar -->
+                    <div class="panel-header" style="justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="panel-title">
+                                <span>💬</span> <span>Conversational Agent &amp; Swarm Steering</span>
                             </span>
-                            <!-- Category Filter Buttons -->
-                            <button onclick="setLogCategoryFilter('all')" id="filter-btn-all" class="px-2.5 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white text-zinc-950 rounded-md cursor-pointer transition-all active:scale-95 shadow-sm">All</button>
-                            <button onclick="setLogCategoryFilter('tool_call')" id="filter-btn-tool_call" class="px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Tool Calls ⚡</button>
-                            <button onclick="setLogCategoryFilter('supervisor')" id="filter-btn-supervisor" class="px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Supervisor QA 🔍</button>
-                            <button onclick="setLogCategoryFilter('dispatch')" id="filter-btn-dispatch" class="px-2.5 py-1 text-[9px] font-mono font-medium uppercase tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-md cursor-pointer transition-all active:scale-95">Dispatches ➔</button>
-
-                            <!-- Agent Filter Select -->
-                            <select id="agent-filter-select" onchange="applyLogFilters()" class="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] font-mono rounded px-2.5 py-1 focus:outline-none focus:border-zinc-700 cursor-pointer">
-                                <option value="all">All Agents</option>
-                            </select>
-
-                            <!-- Search Bar -->
-                            <input type="text" id="log-search-input" onkeyup="applyLogFilters()" placeholder="Filter logs..." class="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] font-mono rounded px-2.5 py-1 w-36 focus:outline-none focus:border-zinc-700">
+                            <span id="subview-approval-indicator" class="hidden" style="font-family: var(--font-mono); font-size: 0.65rem; font-weight: 800; background: var(--status-amber); color: #000; padding: 0.15rem 0.5rem; border-radius: var(--radius-full);">0</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button hx-post="/api/session/new" hx-target="#console-logs" hx-swap="innerHTML" hx-confirm="Start a new session? This will clear active conversation history and event log." class="px-2.5 py-1 text-[9px] font-mono font-semibold uppercase tracking-wider bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-md cursor-pointer transition-all active:scale-95 shadow-sm inline-flex items-center gap-1">
+
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button onclick="clearChatThread()" style="padding: 0.35rem 0.75rem; border-radius: var(--radius-md); background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all var(--transition-fast);">
                                 <span>✨ New Session</span>
                             </button>
-                            <span class="text-[9px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded select-none">SSE Live Feed</span>
                         </div>
                     </div>
 
-                    <div id="console-logs" sse-swap="log-message" hx-swap="beforeend"
-                         hx-on::after-settle="this.scrollTop = this.scrollHeight"
-                         class="flex-1 font-mono text-[11px] overflow-y-auto bg-zinc-950 text-zinc-200 p-4 rounded-xl border border-zinc-800/90 space-y-2 scroll-smooth shadow-inner">
-                        <div class="text-zinc-500 italic font-mono text-xs text-center py-8">[Ready to process autonomous agent telemetry...]</div>
-                    </div>
-                </section>
-
-                <!-- Agent Artifacts Panel -->
-                <section class="glass-card rounded-2xl p-6 shadow-2xl">
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3">
-                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
-                            <span>📎</span>
-                            Agent Artifacts &amp; Generated Deliverables
-                        </h2>
-                        <div class="flex items-center gap-3 font-mono">
-                            <span class="text-[9px] text-zinc-400">Reports, Code, PDF &amp; Workbooks</span>
-                            <button hx-post="/api/artifact/delete-all" hx-target="#artifacts-list" hx-swap="innerHTML" hx-confirm="Are you sure you want to delete ALL generated artifacts from disk?"
-                                    class="px-2.5 py-1 bg-zinc-900 hover:bg-rose-950/80 text-zinc-400 hover:text-rose-300 border border-zinc-800 hover:border-rose-800 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer flex items-center gap-1">
-                                <span>🗑️</span> <span>Clear All</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="artifacts-list" sse-swap="artifact-ready" hx-swap="afterbegin" class="space-y-3">
-                        {{if .ArtifactsHTML}}
-                            {{.ArtifactsHTML}}
-                        {{else}}
-                            <div id="artifacts-empty" class="text-[11px] text-zinc-400 italic p-6 border border-dashed border-zinc-800 rounded-xl text-center font-mono bg-zinc-950/40">
-                                NO ARTIFACTS PRODUCED YET. GENERATED DELIVERABLES WILL BE CAPTURED HERE.
-                            </div>
-                        {{end}}
-                    </div>
-                </section>
-            </div>
-
-            <!-- Right Column: Agent Registry Sidebar (Taking 1/3 width) -->
-            <div class="space-y-8 lg:col-span-1">
-                <section class="glass-card rounded-2xl p-6 shadow-2xl overflow-y-auto max-h-[920px]">
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3">
-                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200">Registered Blueprints</h2>
-                        <span class="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase">Dynamic Active</span>
-                    </div>
-                    <div class="space-y-4">
+                    <!-- Interactive Feed Container -->
+                    <div id="dashboard-subview-chat" class="stream-scroll-container">
                         
-                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-zinc-100 text-xs font-mono">triage-agent</span>
-                                <span class="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded uppercase">Gatekeeper</span>
-                            </div>
-                            <p class="text-xs text-zinc-400 leading-relaxed">Analyzes prompt requirements, resolves target capabilities, and routes compute efficiently.</p>
-                            <div class="flex flex-wrap gap-1 mt-1">
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">query_pricing_oracle</span>
-                            </div>
-                        </div>
-
-                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-zinc-100 text-xs font-mono">developer-agent</span>
-                                <span class="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded uppercase">Developer</span>
-                            </div>
-                            <p class="text-xs text-zinc-400 leading-relaxed">Executes code, inspects workspace directories, refactors codebases, and performs git operations.</p>
-                            <div class="flex flex-wrap gap-1.5 mt-1">
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">execute_bash_docker</span>
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">replace_file_content</span>
-                            </div>
-                        </div>
-
-                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-zinc-100 text-xs font-mono">quant-agent</span>
-                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Quant Sandboxer</span>
-                            </div>
-                            <p class="text-xs text-zinc-400 leading-relaxed">Writes Python code to perform financial modeling and Monte Carlo simulations inside Docker containers.</p>
-                            <div class="flex flex-wrap gap-1 mt-1">
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">execute_python_docker</span>
-                            </div>
-                        </div>
-
-                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-zinc-100 text-xs font-mono">excel-agent</span>
-                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Spreadsheet Hero</span>
-                            </div>
-                            <p class="text-xs text-zinc-400 leading-relaxed">Modifies financial spreadsheets, updates cell formulas, and extracts model assumptions natively.</p>
-                            <div class="flex flex-wrap gap-1 mt-1">
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">modify_excel_workbook</span>
-                            </div>
-                        </div>
-
-                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-zinc-100 text-xs font-mono">researcher-agent</span>
-                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Deep Researcher</span>
-                            </div>
-                            <p class="text-xs text-zinc-400 leading-relaxed">Searches live web context, parses search extracts, and compiles PDF research reports natively.</p>
-                            <div class="flex flex-wrap gap-1.5 mt-1">
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">web_search_and_extract</span>
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">generate_pdf_report</span>
-                            </div>
-                        </div>
-
-                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-zinc-100 text-xs font-mono">email-agent</span>
-                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Email Assistant</span>
-                            </div>
-                            <p class="text-xs text-zinc-400 leading-relaxed">Drafts formatted emails with automatic recipient extraction and security checks for external domains.</p>
-                            <div class="flex flex-wrap gap-1 mt-1">
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">write_email</span>
-                            </div>
-                        </div>
-
-                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-zinc-100 text-xs font-mono">browser-agent</span>
-                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Web Browser Agent</span>
-                            </div>
-                            <p class="text-xs text-zinc-400 leading-relaxed">Navigates websites statefully, enters input values, and submits forms step-by-step.</p>
-                            <div class="flex flex-wrap gap-1.5 mt-1">
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">browser_navigate</span>
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">browser_input</span>
-                            </div>
-                        </div>
-
-                        <div class="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col gap-2 shadow-sm glass-card-hover">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-zinc-100 text-xs font-mono">planner-agent</span>
-                                <span class="text-[9px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded uppercase">Task Planner</span>
-                            </div>
-                            <p class="text-xs text-zinc-400 leading-relaxed">Dissects complex instructions into sub-tasks with dependencies and executes them in parallel.</p>
-                            <div class="flex flex-wrap gap-1 mt-1">
-                                <span class="text-[9px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-800 px-2 py-0.5 rounded">dag scheduling</span>
-                            </div>
-                        </div>
-
-                    </div>
-                </section>
-            </div>
-        </main>
-        </div>
-    </div>
-
-    <!-- Configurations Tab Content -->
-    <div id="tab-content-config" class="tab-pane hidden flex-1 flex flex-col">
-        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="glass-card rounded-2xl p-8 shadow-2xl">
-                
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 border-b border-zinc-800 pb-5 gap-4">
-                    <div>
-                        <h2 class="text-sm font-extrabold uppercase tracking-wider text-zinc-100">System Configurations</h2>
-                        <p class="text-xs text-zinc-400 mt-1">Configure agent system prompts, tool blocklists, and core LLM provider models.</p>
-                    </div>
-                    <div>
-                        <button type="submit" form="config-form" class="px-6 py-2.5 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer">
-                            Save Configurations
-                        </button>
-                    </div>
-                </div>
-
-                <form id="config-form" hx-post="/api/config/save" hx-target="#save-status" class="space-y-8">
-                    <!-- Status Box -->
-                    <div id="save-status"></div>
-
-                    <!-- Dynamic Agent Prompts Grid -->
-                    <div>
-                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 mb-4 border-b border-zinc-800 pb-2">Agent System Prompts</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            
-                            {{ range $id, $prompt := .AgentsConfig }}
-                            <div class="space-y-1.5">
-                                <label for="{{$id}}_prompt" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">{{$id}} Prompt</label>
-                                <textarea name="{{$id}}_prompt" id="{{$id}}_prompt" rows="7" 
-                                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner transition-all">{{$prompt}}</textarea>
-                            </div>
-                            {{ end }}
-
-                        </div>
-                    </div>
-
-                    <!-- Human-in-the-Loop Command & Tool Approvals -->
-                    <div class="pt-6 border-t border-zinc-800">
-                        <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3 flex-wrap gap-2">
-                            <div>
-                                <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200">Human-in-the-Loop &amp; Security Controls</h3>
-                                <p class="text-[10px] text-zinc-400 font-mono mt-0.5">Configure command blocklists, risky Python syscalls, and tool approval triggers (.agents/critical_actions.json).</p>
-                            </div>
-                            <label class="flex items-center space-x-2 cursor-pointer bg-zinc-900 border border-zinc-800 px-3.5 py-2 rounded-lg hover:bg-zinc-800 transition-colors">
-                                <input type="checkbox" name="auto_approve_all" {{if .CriticalActions.AutoApproveAll}}checked{{end}} class="w-4 h-4 accent-zinc-200 border-zinc-700 rounded">
-                                <span class="text-[10px] font-bold font-mono text-zinc-300 uppercase">Auto-Approve All (Auto-Pilot Mode)</span>
-                            </label>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="space-y-1.5">
-                                <label for="risky_bash_keywords" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Risky Bash Commands (comma/newline separated)</label>
-                                <textarea name="risky_bash_keywords" id="risky_bash_keywords" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner" placeholder="rm, rmdir, sudo, chmod, curl, pkill">{{.RiskyBashKeywordsStr}}</textarea>
-                            </div>
-
-                            <div class="space-y-1.5">
-                                <label for="risky_python_keywords" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Risky Python Syscalls (comma/newline separated)</label>
-                                <textarea name="risky_python_keywords" id="risky_python_keywords" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner" placeholder="shutil.rmtree, os.remove, os.system, subprocess, eval">{{.RiskyPythonKeywordsStr}}</textarea>
-                            </div>
-
-                            <div class="space-y-1.5">
-                                <label for="require_approval_tools" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Tools Requiring HITL Approval (comma/newline separated)</label>
-                                <textarea name="require_approval_tools" id="require_approval_tools" rows="5" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner" placeholder="execute_bash_docker, write_email">{{.RequireApprovalToolsStr}}</textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- LLM Providers raw JSON editing -->
-                    <div class="pt-6 border-t border-zinc-800">
-                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 mb-2 border-b border-zinc-800 pb-2">LLM Providers (models.json)</h3>
-                        <p class="text-[10px] text-zinc-400 font-mono mb-4">Edit the active provider endpoints below. Updates require a server restart to take effect.</p>
-                        <div class="space-y-1.5">
-                            <textarea name="models_json" id="models_json" rows="10" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner">{{.ModelsConfig}}</textarea>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </main>
-    </div>
-
-    <!-- Agent Studio Tab Content (No-Code Builder & Blueprint Studio) -->
-    <div id="tab-content-studio" class="tab-pane hidden flex-1 flex flex-col">
-        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-            
-            <!-- Header & Admin Controls -->
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between border-b border-zinc-800 pb-5 gap-4">
-                <div>
-                    <h2 class="text-sm font-extrabold uppercase tracking-wider text-zinc-100 flex items-center gap-2">
-                        <span>🎨 Agent Studio &amp; No-Code Builder</span>
-                        <span class="text-[9px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 px-2.5 py-0.5 rounded-full uppercase">Dynamic Registry</span>
-                    </h2>
-                    <p class="text-xs text-zinc-400 mt-1">Create custom specialized agents, assign tool permissions visually, and import/export team blueprints without modifying Go source code.</p>
-                </div>
-                
-                <!-- Admin Policy Toggle for Docker Tier 3 Tools -->
-                <div class="glass-card px-4 py-3 rounded-xl border border-zinc-800 flex items-center gap-4 shadow-md">
-                    <div class="flex flex-col">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-200 font-mono">Tier 3 Docker Tools</span>
-                        <span id="docker-policy-status-label" class="text-[9px] font-mono text-amber-400 font-bold">Gated by Admin Policy</span>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="docker-policy-checkbox" onchange="toggleDockerAdminPolicy(this.checked)" class="sr-only peer">
-                        <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Two Column Studio Layout -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <!-- Left 2 Columns: Visual Agent Creator Form -->
-                <div class="lg:col-span-2 space-y-6">
-                    <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-6">
-                        <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
-                            <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
-                                Visual Agent Creator
-                            </h3>
-                            <span class="text-[9px] font-mono text-zinc-400">Instant Orchestrator Binding</span>
-                        </div>
-
-                        <form id="studio-agent-form" onsubmit="createStudioAgent(event)" class="space-y-6">
-                            <div id="studio-alert" class="hidden p-4 rounded-xl text-xs font-mono"></div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div class="space-y-1.5">
-                                    <label for="studio_agent_id" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Agent Unique ID</label>
-                                    <input type="text" id="studio_agent_id" required placeholder="e.g. market-analyst-agent" 
-                                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400" />
-                                </div>
-                                <div class="space-y-1.5">
-                                    <label for="studio_description" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Role / Capability Summary</label>
-                                    <input type="text" id="studio_description" required placeholder="e.g. Evaluates market research and builds financial forecasts" 
-                                        class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400" />
-                                </div>
-                            </div>
-
-                            <!-- System Prompt Textarea with Templates -->
-                            <div class="space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <label for="studio_system_prompt" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">System Prompt Instructions</label>
-                                    <div class="flex gap-2">
-                                        <button type="button" onclick="insertPromptTemplate('analyst')" class="text-[9px] font-mono text-zinc-400 hover:text-white hover:underline cursor-pointer">Insert Analyst Template</button>
-                                        <button type="button" onclick="insertPromptTemplate('researcher')" class="text-[9px] font-mono text-zinc-400 hover:text-white hover:underline cursor-pointer">Insert Researcher Template</button>
+                        <!-- Human-in-the-Loop Approval Queue (Active Gates) -->
+                        <section id="chat-approvals-section" class="hitl-section hidden">
+                            <div class="hitl-card">
+                                <div class="hitl-header">
+                                    <div class="hitl-title-row">
+                                        <span class="hitl-alert-label">
+                                            <span class="hitl-ping-dot"></span> Human-in-the-Loop Steering Gate
+                                        </span>
+                                        <span style="font-size: 0.75rem; color: var(--text-secondary); font-family: var(--font-mono);">Critical actions awaiting operator sign-off</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 0.65rem;">
+                                        <span id="chat-approvals-badge" style="font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; background: var(--status-amber-dim); color: var(--status-amber); border: 1px solid var(--status-amber-border); padding: 0.15rem 0.6rem; border-radius: var(--radius-full);">0 Pending</span>
+                                        <button type="button" onclick="toggleChatApprovalsList()" id="chat-approvals-toggle-btn" style="background: transparent; border: none; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); cursor: pointer;">
+                                            <span id="chat-approvals-toggle-icon">▼</span>
+                                            <span id="chat-approvals-toggle-text">Collapse</span>
+                                        </button>
                                     </div>
                                 </div>
-                                <textarea id="studio_system_prompt" rows="6" required 
-                                    placeholder="You are a specialized agent responsible for processing..." 
-                                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-xs font-mono text-zinc-100 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 resize-y shadow-inner"></textarea>
+
+                                <div id="chat-approvals-list" class="space-y-3" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                    {{ if .PendingApprovalsHTML }}
+                                        {{ .PendingApprovalsHTML }}
+                                    {{ end }}
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Welcome Hero (Displayed when thread is empty) -->
+                        <div id="chat-hero" class="steering-hero">
+                            <div class="hero-icon-bubble">✦</div>
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <h1 class="hero-heading">What can the agent swarm accomplish for you?</h1>
+                                <p class="hero-subtext">Autonomous multi-agent intelligence with live web extraction, Docker sandboxed code execution, and financial workbook auditing.</p>
                             </div>
 
-                            <!-- Tool Permissions Checklist -->
-                            <div class="space-y-3">
-                                <label class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Assign Tool Capabilities</label>
-                                <div id="studio-tools-checklist" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto p-3 bg-zinc-950 rounded-xl border border-zinc-800/90 shadow-inner">
-                                    <div class="text-xs text-zinc-500 italic">Loading framework tools...</div>
+                            <!-- 4 Signature Quick Prompt Cards -->
+                            <div class="quick-prompts-grid">
+                                <div onclick="dispatchQuickPrompt('Search the web for latest AI agent architecture trends and compile an executive PDF report', 'autonomous')" class="quick-prompt-card">
+                                    <span class="quick-prompt-title"><span>🌐</span> Deep Web Research &amp; PDF</span>
+                                    <p class="quick-prompt-desc">Queries live web search endpoints, cleans markdown content, and synthesizes an executive PDF.</p>
+                                </div>
+
+                                <div onclick="dispatchQuickPrompt('Inspect financial workbook in test_connectivity.xlsx, calculate variance metrics, and audit formulas', 'autonomous')" class="quick-prompt-card">
+                                    <span class="quick-prompt-title"><span>📊</span> Excel Financial Audit</span>
+                                    <p class="quick-prompt-desc">Audits spreadsheet assumptions, cell formulas, and generates variance tables.</p>
+                                </div>
+
+                                <div onclick="dispatchQuickPrompt('Inspect host system hardware and query spot GPU rental prices across cloud providers', 'autonomous')" class="quick-prompt-card">
+                                    <span class="quick-prompt-title"><span>💻</span> Compute &amp; GPU Arbitrage</span>
+                                    <p class="quick-prompt-desc">Queries pricing oracles and hardware metrics to identify low-cost compute.</p>
+                                </div>
+
+                                <div onclick="dispatchQuickPrompt('Plan and decompose a multi-agent quantitative financial analysis workflow', 'steered')" class="quick-prompt-card">
+                                    <span class="quick-prompt-title"><span>⚡</span> Steered Task Decomposition</span>
+                                    <p class="quick-prompt-desc">Creates a DAG execution plan requiring human review before running sub-tasks.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Active Conversational Stream Container -->
+                        <div id="chat-messages" style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                            <!-- Dynamic user turns and synthesized assistant turns append here -->
+                        </div>
+                    </div>
+
+                    <!-- Bottom Unified Command Composer Dock -->
+                    <div class="composer-dock-container">
+                        <div class="composer-capsule">
+                            <!-- Chosen File Chip (if context attached) -->
+                            <div id="composer-file-chip" class="composer-file-chip hidden">
+                                <span>📎</span>
+                                <span id="composer-file-name">attachment</span>
+                                <button type="button" onclick="clearComposerFile()" class="composer-file-remove">×</button>
+                            </div>
+
+                            <!-- Auto-Expanding Multiline Textarea -->
+                            <textarea id="chat-composer-input" rows="1"
+                                placeholder="Message the agent swarm... (Enter to dispatch, Shift+Enter for newline)"
+                                class="composer-textarea"></textarea>
+
+                            <!-- Bottom Action Row -->
+                            <div class="composer-controls">
+                                <div class="composer-left-actions">
+                                    <label for="chat-file-input" class="btn-attach-file" title="Attach Context File (CSV, PDF, XLSX, TXT, MD)">
+                                        <span style="font-size: 15px;">📎</span>
+                                        <input type="file" id="chat-file-input" class="hidden" onchange="handleComposerFileSelected(this)">
+                                    </label>
+
+                                    <select id="chat-orchestration-mode" class="orchestration-select" title="Select Orchestration Execution Mode">
+                                        <option value="autonomous" selected>⚡ Autonomous Swarm</option>
+                                        <option value="steered">🛡️ Steered Review (HITL Plan)</option>
+                                        <option value="deferred">⏱️ Off-Peak Deferred</option>
+                                    </select>
+                                </div>
+
+                                <button id="chat-send-btn" type="button" onclick="submitChatComposer()" class="btn-send-task">
+                                    <span>Dispatch</span>
+                                    <span>➔</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+
+                <!-- ZONE 3: RIGHT CONTEXT, ARTIFACTS & TELEMETRY DRAWER -->
+                <aside class="glass-panel cockpit-right-drawer">
+                    <!-- Drawer Navigation Tabs -->
+                    <div class="drawer-tabs-bar">
+                        <button id="drawer-btn-telemetry" onclick="switchDrawerTab('telemetry')" class="drawer-tab-btn active">
+                            <span>⚡ Swarm Matrix &amp; Logs</span>
+                        </button>
+                        <button id="drawer-btn-artifacts" onclick="switchDrawerTab('artifacts')" class="drawer-tab-btn">
+                            <span>📎 Deliverables</span>
+                        </button>
+                        <button id="drawer-btn-stream" onclick="switchDrawerTab('stream')" class="drawer-tab-btn">
+                            <span>📡 Event Stream</span>
+                        </button>
+                    </div>
+
+                    <!-- Drawer Pane 1: Concurrency Swimlanes -->
+                    <div id="drawer-pane-telemetry" class="drawer-pane active">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem;">
+                            <span id="parallel-concurrency-badge" style="font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; color: var(--text-secondary);">Active Threads: 0 Parallel</span>
+                            <button onclick="resetParallelismMatrix()" style="background: transparent; border: none; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); cursor: pointer;">Reset</button>
+                        </div>
+                        <div id="parallelism-matrix" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <!-- Dynamic agent execution swimlanes -->
+                        </div>
+                    </div>
+
+                    <!-- Drawer Pane 2: Generated Deliverables Gallery -->
+                    <div id="drawer-pane-artifacts" class="drawer-pane">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem;">
+                            <span style="font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; color: var(--text-secondary);">Generated Reports &amp; Code</span>
+                            <button hx-post="/api/artifact/delete-all" hx-target="#artifacts-list" hx-swap="innerHTML" hx-confirm="Are you sure you want to delete generated deliverables from disk?"
+                                    style="background: transparent; border: none; font-family: var(--font-mono); font-size: 0.65rem; color: var(--status-rose); cursor: pointer;">
+                                Clear All
+                            </button>
+                        </div>
+                        <div id="artifacts-list" sse-swap="artifact-ready" hx-swap="afterbegin" style="display: flex; flex-direction: column; gap: 0.65rem;">
+                            {{if .ArtifactsHTML}}
+                                {{.ArtifactsHTML}}
+                            {{else}}
+                                <div id="artifacts-empty" style="padding: 2rem 1rem; text-align: center; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);">
+                                    NO ARTIFACTS PRODUCED YET. DELIVERABLES WILL POPULATE HERE.
+                                </div>
+                            {{end}}
+                        </div>
+                    </div>
+
+                    <!-- Drawer Pane 3: Raw Event Stream Telemetry -->
+                    <div id="drawer-pane-stream" class="drawer-pane">
+                        <div id="log-filter-bar" style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                            <button onclick="setLogCategoryFilter('all')" id="filter-btn-all" style="padding: 0.2rem 0.5rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700; border: none; cursor: pointer; background: var(--bg-surface-elevated); color: var(--text-primary);">All</button>
+                            <button onclick="setLogCategoryFilter('tool_call')" id="filter-btn-tool_call" style="padding: 0.2rem 0.5rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; border: none; cursor: pointer; background: transparent; color: var(--text-muted);">Tools ⚡</button>
+                            <button onclick="setLogCategoryFilter('dispatch')" id="filter-btn-dispatch" style="padding: 0.2rem 0.5rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; border: none; cursor: pointer; background: transparent; color: var(--text-muted);">Dispatches ➔</button>
+                            <select id="agent-filter-select" onchange="applyLogFilters()" style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.65rem; padding: 0.2rem; border-radius: 4px; outline: none;">
+                                <option value="all">All Agents</option>
+                            </select>
+                        </div>
+                        <input type="text" id="log-search-input" onkeyup="applyLogFilters()" placeholder="Filter logs..." style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm); outline: none;">
+                        <div id="console-logs" sse-swap="log-message" hx-swap="beforeend"
+                             hx-on::after-settle="this.scrollTop = this.scrollHeight"
+                             style="flex: 1; overflow-y: auto; background: var(--bg-app); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; min-height: 250px;">
+                            <div style="text-align: center; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); padding: 2rem 0;">[SSE telemetry stream online]</div>
+                        </div>
+                    </div>
+                </aside>
+
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             TAB 2: AGENT STUDIO & NO-CODE BUILDER
+             ================================================================== -->
+        <div id="tab-content-studio" class="tab-pane">
+            <div class="page-container">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h2><span>🎨</span> Agent Studio &amp; No-Code Builder</h2>
+                        <p>Visually create custom specialist agents, grant tool permissions, and export team blueprints.</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem; background: var(--bg-surface); padding: 0.65rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Tier 3 Docker Tools</span>
+                            <span id="docker-policy-status-label" style="font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; color: var(--status-amber);">Gated by Admin Policy</span>
+                        </div>
+                        <input type="checkbox" id="docker-policy-checkbox" onchange="toggleDockerAdminPolicy(this.checked)" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--status-emerald);">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+                    <!-- Creator Form -->
+                    <div class="glass-panel" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                        <h3 class="panel-title"><span>✨</span> Create New Specialist Agent</h3>
+                        <form id="studio-agent-form" onsubmit="createStudioAgent(event)" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                            <div id="studio-alert" class="hidden" style="padding: 0.75rem 1rem; border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 0.75rem;"></div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div class="form-group">
+                                    <label class="form-label" for="studio_agent_id">Agent Unique ID</label>
+                                    <input type="text" id="studio_agent_id" required placeholder="e.g. market-analyst-agent" class="form-input">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="studio_description">Role / Capability Summary</label>
+                                    <input type="text" id="studio_description" required placeholder="e.g. Evaluates financial data and model assumptions" class="form-input">
                                 </div>
                             </div>
 
-                            <button type="submit" class="w-full py-3.5 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer flex items-center justify-center gap-2">
-                                <span>✨ Register &amp; Deploy Agent</span>
-                                <span>➔</span>
+                            <div class="form-group">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <label class="form-label" for="studio_system_prompt">System Prompt Instructions</label>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <button type="button" onclick="insertPromptTemplate('analyst')" style="background: transparent; border: none; font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-primary); cursor: pointer;">+ Analyst Template</button>
+                                        <button type="button" onclick="insertPromptTemplate('researcher')" style="background: transparent; border: none; font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-primary); cursor: pointer;">+ Researcher Template</button>
+                                    </div>
+                                </div>
+                                <textarea id="studio_system_prompt" rows="5" required placeholder="You are an autonomous specialist agent responsible for..." class="form-textarea"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Assign Tool Permissions</label>
+                                <div id="studio-tools-checklist" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-height: 200px; overflow-y: auto; padding: 0.75rem; background: var(--bg-app); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+                                    <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); font-style: italic;">Loading framework tools...</div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn-send-task" style="width: 100%; justify-content: center; padding: 0.75rem;">
+                                <span>Register &amp; Bind Dynamic Agent</span>
                             </button>
                         </form>
-                    </section>
-                </div>
+                    </div>
 
-                <!-- Right 1 Column: Blueprint Import/Export & Active Blueprints -->
-                <div class="space-y-6 lg:col-span-1">
-                    
-                    <!-- Blueprint Import/Export Card -->
-                    <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
-                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 border-b border-zinc-800 pb-3 flex items-center gap-2">
-                            <span>📦</span> Blueprint Import &amp; Export
-                        </h3>
-                        <p class="text-xs text-zinc-400 leading-relaxed">Share agent blueprints across teams using standard .json configuration files.</p>
-                        
-                        <!-- Import Blueprint Form -->
-                        <div class="p-4 bg-zinc-950 rounded-xl border border-zinc-800/90 space-y-3">
-                            <span class="block text-[10px] font-bold text-zinc-300 uppercase font-mono">Import Blueprint File</span>
-                            <input type="file" id="blueprint-file-input" accept=".json" class="hidden" onchange="importAgentBlueprint(event)" />
-                            <label for="blueprint-file-input" class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-500 text-zinc-200 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer inline-flex items-center justify-center gap-2 text-center shadow-sm">
-                                <span>📥 Choose .json Blueprint File</span>
+                    <!-- Blueprint Share & Registered List -->
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                        <div class="glass-panel" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem;">
+                            <h3 class="panel-title"><span>📦</span> Blueprint Import &amp; Export</h3>
+                            <p style="font-size: 0.75rem; color: var(--text-muted);">Share blueprints across deployments using standard JSON definitions.</p>
+                            <input type="file" id="blueprint-file-input" accept=".json" class="hidden" onchange="importAgentBlueprint(event)">
+                            <label for="blueprint-file-input" style="padding: 0.65rem; border-radius: var(--radius-md); background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--text-primary); text-align: center; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                <span>📥 Choose .json Blueprint</span>
                             </label>
                         </div>
-                    </section>
 
-                    <!-- Active Blueprints Registry -->
-                    <section class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
-                        <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 border-b border-zinc-800 pb-3 flex items-center gap-2">
-                            <span>⚡</span> Active Registered Blueprints
-                        </h3>
-                        <div id="studio-registered-agents-list" class="space-y-3 max-h-80 overflow-y-auto">
-                            <!-- Dynamic cards populated via JS -->
+                        <div class="glass-panel" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem;">
+                            <h3 class="panel-title"><span>⚡</span> Registered Studio Agents</h3>
+                            <div id="studio-registered-agents-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 280px; overflow-y: auto;">
+                                <!-- Dynamic items loaded via studio.js -->
+                            </div>
                         </div>
-                    </section>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Audit Explorer Tab Content -->
-    <div id="tab-content-audit" class="tab-pane hidden flex-1 flex flex-col">
-        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-            <!-- Header Banner -->
-            <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-emerald-500">
-                <div>
-                    <h2 class="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                        <span>📊 Token Cost &amp; Execution Audit Explorer</span>
-                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">SQLite Ledger</span>
-                    </h2>
-                    <p class="text-xs text-zinc-400 mt-1">Real-time token metrics, estimated USD LLM execution costs, latency breakdown, and historical audit reports.</p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="exportAuditCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-2 cursor-pointer">
-                        <span>📥 Export CSV Report</span>
-                    </button>
-                    <button onclick="pruneAuditRecords()" class="px-3 py-2 bg-zinc-800 hover:bg-rose-900/40 text-rose-300 border border-rose-800/40 rounded-xl text-xs font-medium transition-all cursor-pointer">
-                        <span>🗑️ Prune (&gt;30 Days)</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Top Metric Cards Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
-                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Total Spent (USD)</div>
-                    <div id="audit-kpi-total-cost" class="text-2xl font-extrabold text-emerald-400 mt-1">$0.0000</div>
-                    <div class="text-[9px] text-zinc-500 mt-1">Calculated via LLM node rates</div>
-                </div>
-                <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
-                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Total Tokens Processed</div>
-                    <div id="audit-kpi-total-tokens" class="text-2xl font-extrabold text-zinc-100 mt-1">0 Tokens</div>
-                    <div class="text-[9px] text-zinc-500 mt-1">Prompt &amp; Completion tokens</div>
-                </div>
-                <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
-                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Avg Execution Duration</div>
-                    <div id="audit-kpi-avg-duration" class="text-2xl font-extrabold text-amber-400 mt-1">0 ms</div>
-                    <div class="text-[9px] text-zinc-500 mt-1">Average task turn latency</div>
-                </div>
-                <div class="glass-card rounded-xl p-5 border border-zinc-800/80 bg-zinc-900/50">
-                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Total Execution Turns</div>
-                    <div id="audit-kpi-total-tasks" class="text-2xl font-extrabold text-sky-400 mt-1">0 Turns</div>
-                    <div class="text-[9px] text-zinc-500 mt-1">Recorded audit ledger rows</div>
-                </div>
-            </div>
-
-            <!-- Cost Breakdown Section -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Agent Cost Distribution -->
-                <div class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
-                    <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 border-b border-zinc-800 pb-3 flex items-center justify-between">
-                        <span>Cost Distribution by Agent</span>
-                        <span class="text-[9px] text-zinc-400 font-mono">USD ($)</span>
-                    </h3>
-                    <div id="audit-agent-cost-bars" class="space-y-3 max-h-60 overflow-y-auto pr-1">
-                        <div class="text-xs text-zinc-500 italic">No audit records recorded yet.</div>
-                    </div>
-                </div>
-
-                <!-- Model Cost Distribution -->
-                <div class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
-                    <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 border-b border-zinc-800 pb-3 flex items-center justify-between">
-                        <span>Cost Distribution by Model Node</span>
-                        <span class="text-[9px] text-zinc-400 font-mono">USD ($)</span>
-                    </h3>
-                    <div id="audit-model-cost-bars" class="space-y-3 max-h-60 overflow-y-auto pr-1">
-                        <div class="text-xs text-zinc-500 italic">No audit records recorded yet.</div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Filterable Audit Table -->
-            <div class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
-                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
-                    <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200">Execution Telemetry Ledger</h3>
-                    <div class="flex items-center gap-3 w-full sm:w-auto">
-                        <input type="text" id="audit-search-input" onkeyup="fetchAuditExplorerData()" placeholder="Filter by Agent, Model or Correlation ID..." class="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500 w-full sm:w-64" />
-                        <button onclick="fetchAuditExplorerData()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer">🔄 Refresh</button>
+        <!-- ==================================================================
+             TAB 3: TOKEN COST & EXECUTION AUDIT EXPLORER
+             ================================================================== -->
+        <div id="tab-content-audit" class="tab-pane">
+            <div class="page-container">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h2><span>📊</span> Token Cost &amp; Execution Audit Explorer</h2>
+                        <p>Real-time token metrics, estimated USD execution costs, and SQLite audit telemetry.</p>
                     </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-zinc-800/80 text-[10px] font-mono text-zinc-400 uppercase tracking-wider bg-zinc-950/40">
-                                <th class="py-3 px-3">Timestamp</th>
-                                <th class="py-3 px-3">Correlation ID</th>
-                                <th class="py-3 px-3">Agent ID</th>
-                                <th class="py-3 px-3">Model Node</th>
-                                <th class="py-3 px-3">Prompt / Comp</th>
-                                <th class="py-3 px-3">Est. Cost (USD)</th>
-                                <th class="py-3 px-3">Duration</th>
-                                <th class="py-3 px-3">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="audit-records-table-body" class="divide-y divide-zinc-800/40 text-xs">
-                            <tr>
-                                <td colspan="8" class="py-6 text-center text-zinc-500 italic">Loading audit telemetry records...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Agent Network Topology Graph Tab Content -->
-    <div id="tab-content-network" class="tab-pane hidden flex-1 flex flex-col">
-        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex flex-col">
-            <!-- Header Banner -->
-            <div class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-l-4 border-zinc-500">
-                <div>
-                    <h2 class="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                        <span>📡 Mission Control Radar &amp; Network Topology</span>
-                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> RADAR SWEEP ACTIVE
-                        </span>
-                    </h2>
-                    <p class="text-xs text-zinc-400 mt-1 font-mono">Tactical agent radar telemetry, real-time azimuth bearings, and active signal firing pulses.</p>
-                </div>
-                <div class="flex items-center gap-3 font-mono">
-                    <button onclick="resetNetworkLayout()" class="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-bold transition-all cursor-pointer border border-zinc-700">🔄 Reset Radar Grid</button>
-                    <button onclick="triggerSamplePulse()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-600/20 cursor-pointer">📡 Fire Pulse</button>
-                </div>
-            </div>
-
-            <!-- Tactical Mission Control Legend & Status Bar -->
-            <div class="network-legend-bar flex flex-wrap items-center justify-between gap-4 bg-zinc-950/80 p-3.5 rounded-xl border border-zinc-800 font-mono shadow-inner">
-                <div class="flex items-center gap-4 flex-wrap text-xs">
-                    <span class="text-emerald-400 font-bold uppercase text-[10px] tracking-wider">HUD RETICLE:</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> <span class="text-zinc-300">User Client</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="network-orchestrator-dot w-3 h-3 rounded-full bg-zinc-400 shadow-sm shadow-zinc-400/50"></span> <span class="text-zinc-300">Orchestrator</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> <span class="text-zinc-300">Specialist Node</span></span>
-                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span> <span class="text-cyan-300 font-bold">SSE Signal Pulse</span></span>
-                </div>
-                <div class="text-[10px] text-emerald-400/90 font-bold tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>FREQUENCY: 2.4GHZ // ALL SYSTEMS NOMINAL</span>
-                </div>
-            </div>
-
-            <!-- Canvas Container & Side Inspector Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-[550px]">
-                <!-- Interactive Canvas (3 Cols) -->
-                <div class="lg:col-span-3 glass-card rounded-2xl p-2 relative overflow-hidden border border-zinc-800 flex flex-col h-[540px]">
-                    <canvas id="network-canvas" class="w-full h-[520px] rounded-xl bg-zinc-950/80 cursor-grab active:cursor-grabbing block" style="width: 100%; height: 520px;"></canvas>
-                </div>
-
-                <!-- Node Inspector Drawer (1 Col) -->
-                <div class="lg:col-span-1 glass-card rounded-2xl p-5 border border-zinc-800 flex flex-col space-y-4">
-                    <h3 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200 border-b border-zinc-800 pb-3 flex items-center justify-between">
-                        <span>Node Inspector</span>
-                        <span id="inspector-badge" class="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">SELECT NODE</span>
-                    </h3>
-                    <div id="inspector-content" class="space-y-4 text-xs font-mono text-zinc-300 flex-1 overflow-y-auto">
-                        <div class="text-center text-zinc-500 italic py-12">Click any agent or tool node in the network to inspect properties and recent activity.</div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Schedules Tab Content -->
-    <div id="tab-content-scheduler" class="tab-pane hidden flex-1 flex flex-col">
-        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Left Column: Add Schedule Form (Taking 1/3 width) -->
-            <div class="lg:col-span-1 space-y-8">
-                <section class="glass-card rounded-2xl p-6 shadow-2xl">
-                    <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-100 mb-4 border-b border-zinc-800 pb-3">Create Cron Schedule</h2>
-                    <form id="schedule-form" hx-post="/api/schedules" hx-target="#schedules-list" hx-swap="innerHTML" class="space-y-4">
-                        <div class="space-y-1.5">
-                            <label for="sched_name" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Schedule Name</label>
-                            <input type="text" name="name" id="sched_name" required placeholder="e.g. Daily Market Briefing" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 text-zinc-200" />
-                        </div>
-                        <div class="space-y-1.5">
-                            <label for="sched_cron" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Cron Expression (5-field)</label>
-                            <input type="text" name="cron" id="sched_cron" required placeholder="e.g. 0 9 * * 1-5" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 text-zinc-200" />
-                            <div class="text-[9px] text-zinc-500 font-mono">Min Hour DOM Month DOW</div>
-                        </div>
-                        <div class="space-y-1.5">
-                            <label for="sched_task" class="block text-[10px] font-bold text-zinc-400 uppercase font-mono">Goal/Task Prompt</label>
-                            <textarea name="task" id="sched_task" rows="4" required placeholder="e.g. Research options volatility surfaces and compile a report" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 text-zinc-200 resize-none"></textarea>
-                        </div>
-                        <button type="submit" class="w-full py-3 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-center">
-                            Add Cron Schedule
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <button onclick="exportAuditCSV()" class="btn-send-task">
+                            <span>📥 Export CSV</span>
                         </button>
+                        <button onclick="pruneAuditRecords()" style="padding: 0.45rem 0.85rem; border-radius: var(--radius-md); background: var(--bg-surface-elevated); border: 1px solid var(--status-rose-border); color: var(--status-rose); font-family: var(--font-mono); font-size: 0.72rem; cursor: pointer;">
+                            <span>🗑️ Prune (&gt;30d)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Metric Cards Grid -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-label">Total Spent (USD)</span>
+                        <span id="audit-kpi-total-cost" class="kpi-val" style="color: var(--status-emerald);">$0.0000</span>
+                        <span class="kpi-desc">Calculated via active LLM provider rates</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Total Tokens Processed</span>
+                        <span id="audit-kpi-total-tokens" class="kpi-val">0 Tokens</span>
+                        <span class="kpi-desc">Prompt &amp; Completion tokens combined</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Avg Execution Latency</span>
+                        <span id="audit-kpi-avg-duration" class="kpi-val" style="color: var(--status-amber);">0 ms</span>
+                        <span class="kpi-desc">Average task turn turnaround time</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Total Execution Turns</span>
+                        <span id="audit-kpi-total-tasks" class="kpi-val" style="color: var(--status-cyan);">0 Turns</span>
+                        <span class="kpi-desc">Audit ledger recorded actions</span>
+                    </div>
+                </div>
+
+                <!-- Filterable Audit Table -->
+                <div class="glass-panel" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                        <h3 class="panel-title"><span>📋</span> Telemetry Execution Ledger</h3>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="text" id="audit-search-input" onkeyup="fetchAuditExplorerData()" placeholder="Filter by Agent, Model, or Correlation ID..." class="form-input" style="width: 280px; padding: 0.4rem 0.75rem;">
+                            <button onclick="fetchAuditExplorerData()" style="padding: 0.4rem 0.75rem; border-radius: var(--radius-md); background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.72rem; cursor: pointer;">🔄 Refresh</button>
+                        </div>
+                    </div>
+
+                    <div class="data-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Correlation ID</th>
+                                    <th>Agent ID</th>
+                                    <th>Model Node</th>
+                                    <th>Prompt / Comp</th>
+                                    <th>Est. Cost (USD)</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-records-table-body">
+                                <tr>
+                                    <td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-dim); font-style: italic;">Loading audit telemetry records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             TAB 4: MISSION CONTROL RADAR & NETWORK TOPOLOGY
+             ================================================================== -->
+        <div id="tab-content-network" class="tab-pane">
+            <div class="page-container">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h2><span>📡</span> Mission Control Radar &amp; Network Topology</h2>
+                        <p>Real-time agent message passing, tool invocations, and live signal telemetry.</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.65rem;">
+                        <button onclick="resetNetworkLayout()" style="padding: 0.45rem 0.85rem; border-radius: var(--radius-md); background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.72rem; cursor: pointer;">🔄 Reset Layout</button>
+                        <button onclick="triggerSamplePulse()" class="btn-send-task"><span>📡 Fire Signal</span></button>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1.25rem; min-height: 560px;">
+                    <div class="glass-panel" style="padding: 0.5rem; position: relative;">
+                        <canvas id="network-canvas" style="width: 100%; height: 540px; border-radius: var(--radius-md); background: var(--bg-app); cursor: grab; display: block;"></canvas>
+                    </div>
+                    <div class="glass-panel" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <h3 class="panel-title"><span>🔍</span> Node Inspector</h3>
+                        <div id="inspector-content" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); line-height: 1.5;">
+                            Click any agent or tool node in the canvas radar to inspect attributes and connections.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             TAB 5: CRON SCHEDULER
+             ================================================================== -->
+        <div id="tab-content-scheduler" class="tab-pane">
+            <div class="page-container">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h2><span>⏱️</span> Recurring Task Cron Scheduler</h2>
+                        <p>Automate recurring agent prompts with persistent SQLite scheduling.</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+                    <!-- Create Schedule Form -->
+                    <div class="glass-panel" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                        <h3 class="panel-title"><span>➕</span> Create Schedule</h3>
+                        <form id="schedule-form" hx-post="/api/schedules" hx-target="#schedules-list" hx-swap="innerHTML" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="form-group">
+                                <label class="form-label" for="sched_name">Schedule Name</label>
+                                <input type="text" name="name" id="sched_name" required placeholder="e.g. Daily Market Briefing" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="sched_cron">Cron Expression (5-Field)</label>
+                                <input type="text" name="cron" id="sched_cron" required placeholder="e.g. 0 9 * * 1-5" class="form-input font-mono">
+                                <span style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim);">Minute Hour DOM Month DOW</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="sched_task">Goal / Task Prompt</label>
+                                <textarea name="task" id="sched_task" rows="3" required placeholder="e.g. Search web for tech headlines and compile PDF brief" class="form-textarea"></textarea>
+                            </div>
+                            <button type="submit" class="btn-send-task" style="width: 100%; justify-content: center; padding: 0.75rem;">
+                                Add Cron Schedule
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Active Schedules List -->
+                    <div class="glass-panel" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <h3 class="panel-title"><span>📅</span> Active Cron Jobs</h3>
+                        <div id="schedules-list" style="display: flex; flex-direction: column; gap: 1rem;">
+                            {{ template "schedules-list-tmpl" .Schedules }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             TAB 6: SYSTEM SETTINGS & GUARDRAILS
+             ================================================================== -->
+        <div id="tab-content-config" class="tab-pane">
+            <div class="page-container">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h2><span>⚙️</span> System Configurations &amp; Guardrails</h2>
+                        <p>Configure agent system prompts, tool blocklists, and core LLM provider models.</p>
+                    </div>
+                    <button type="submit" form="config-form" class="btn-send-task">
+                        Save Configurations
+                    </button>
+                </div>
+
+                <div class="glass-panel" style="padding: 1.5rem;">
+                    <form id="config-form" hx-post="/api/config/save" hx-target="#save-status" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                        <div id="save-status"></div>
+
+                        <!-- Dynamic Agent Prompts -->
+                        <div>
+                            <h3 class="panel-title" style="margin-bottom: 1rem;">Agent System Prompts</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                                {{ range $id, $prompt := .AgentsConfig }}
+                                <div class="form-group">
+                                    <label class="form-label" for="{{$id}}_prompt">{{$id}} Prompt</label>
+                                    <textarea name="{{$id}}_prompt" id="{{$id}}_prompt" rows="6" class="form-textarea">{{$prompt}}</textarea>
+                                </div>
+                                {{ end }}
+                            </div>
+                        </div>
+
+                        <!-- HITL Guardrails -->
+                        <div style="border-top: 1px solid var(--border-subtle); padding-top: 1.25rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                                <h3 class="panel-title">Human-in-the-Loop &amp; Security Controls</h3>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary);">
+                                    <input type="checkbox" name="auto_approve_all" {{if .CriticalActions.AutoApproveAll}}checked{{end}} style="width: 16px; height: 16px; accent-color: var(--status-emerald);">
+                                    <span>Auto-Approve All (Auto-Pilot Mode)</span>
+                                </label>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                                <div class="form-group">
+                                    <label class="form-label" for="risky_bash_keywords">Risky Bash Commands</label>
+                                    <textarea name="risky_bash_keywords" id="risky_bash_keywords" rows="4" class="form-textarea" placeholder="rm, sudo, pkill">{{.RiskyBashKeywordsStr}}</textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="risky_python_keywords">Risky Python Syscalls</label>
+                                    <textarea name="risky_python_keywords" id="risky_python_keywords" rows="4" class="form-textarea" placeholder="os.system, subprocess">{{.RiskyPythonKeywordsStr}}</textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="require_approval_tools">Approval Required Tools</label>
+                                    <textarea name="require_approval_tools" id="require_approval_tools" rows="4" class="form-textarea" placeholder="execute_bash_docker">{{.RequireApprovalToolsStr}}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Models Config -->
+                        <div style="border-top: 1px solid var(--border-subtle); padding-top: 1.25rem;">
+                            <h3 class="panel-title" style="margin-bottom: 0.5rem;">LLM Providers (models.json)</h3>
+                            <div class="form-group">
+                                <textarea name="models_json" id="models_json" rows="8" class="form-textarea">{{.ModelsConfig}}</textarea>
+                            </div>
+                        </div>
                     </form>
-                </section>
+                </div>
             </div>
+        </div>
 
-            <!-- Right Column: Active Schedules (Taking 2/3 width) -->
-            <div class="lg:col-span-2 space-y-8">
-                <section class="glass-card rounded-2xl p-6 shadow-2xl flex flex-col h-[560px]">
-                    <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-3">
-                        <h2 class="text-xs font-extrabold uppercase tracking-widest text-zinc-200">Active Cron Schedules</h2>
-                        <span class="text-[9px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 px-2 py-0.5 rounded">Persistent SQLite</span>
-                    </div>
-                    <div id="schedules-list" class="flex-1 overflow-y-auto space-y-4">
-                        {{ template "schedules-list-tmpl" .Schedules }}
-                    </div>
-                </section>
-            </div>
-        </main>
     </div>
-
-    <!-- Footer -->
-    <footer class="border-t border-zinc-800/80 bg-zinc-950/80 py-4 text-center text-[10px] text-zinc-500 font-mono uppercase tracking-widest mt-auto">
-        Go Engine // HTMX SSE Telemetry // Ephemeral WASM &amp; Docker Runtime
-    </footer>
-
-    <!-- HTMX Local -->
-    <script src="/static/htmx.min.js"></script>
-    <!-- HTMX SSE Extension Local -->
-    <script src="/static/sse.js"></script>
-
-    <!-- Security (C-3): CSRF Token injection for all HTMX mutating requests.
-         Reads the _csrf_token cookie (set by the server on page load) and
-         attaches it as an X-CSRF-Token header on every state-mutating request. -->
-    <script src="/static/js/dashboard.js?v=20260911_v4"></script>
-    <script src="/static/js/studio.js?v=20260911_v4"></script>
-    <script src="/static/js/network.js?v=20260911_v4"></script>
-    <script src="/static/js/artifacts.js?v=20260911_v4"></script>
 
     <!-- Artifact Viewer Modal Overlay -->
-    <div id="artifact-viewer-modal" style="display: none;" onclick="if(event.target===this)closeArtifactViewer()" class="fixed inset-0 z-50 items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6 transition-all duration-300">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between px-6 py-4 bg-zinc-950 text-white border-b border-zinc-800">
-                <div class="flex items-center gap-3 overflow-hidden">
-                    <span id="artifact-modal-icon" class="text-xl">📄</span>
-                    <div class="flex flex-col truncate">
-                        <div class="flex items-center gap-2">
-                            <span id="artifact-modal-title" class="font-mono text-sm font-bold text-white truncate">artifact</span>
-                            <span id="artifact-modal-badge" class="text-[9px] font-mono font-bold bg-zinc-800 text-zinc-300 px-2.5 py-0.5 rounded border border-zinc-700 uppercase">FILE</span>
+    <div id="artifact-viewer-modal" class="modal-overlay" style="display: none;" onclick="if(event.target===this)closeArtifactViewer()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <span id="artifact-modal-icon" style="font-size: 1.25rem;">📄</span>
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex; align-items: center; gap: 0.45rem;">
+                            <span id="artifact-modal-title" style="font-family: var(--font-mono); font-weight: 700; color: var(--text-primary); font-size: 0.85rem;">artifact</span>
+                            <span id="artifact-modal-badge" class="artifact-type-badge">FILE</span>
                         </div>
-                        <span id="artifact-modal-agent" class="text-[10px] text-zinc-400 font-mono">produced by agent</span>
+                        <span id="artifact-modal-agent" style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted);">agent</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button id="artifact-modal-copy-btn" onclick="copyArtifactToClipboard()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer border border-zinc-700">
+
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <button id="artifact-modal-copy-btn" onclick="copyArtifactToClipboard()" class="btn-artifact-preview">
                         <span>📋</span> <span>Copy</span>
                     </button>
-                    <a id="artifact-modal-download-btn" href="#" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer shadow-sm">
-                        <span>↗️</span> <span>Download / Open</span>
+                    <a id="artifact-modal-download-btn" href="#" target="_blank" class="btn-artifact-download">
+                        <span>↗️</span> <span>Download</span>
                     </a>
-                    <button onclick="closeArtifactViewer()" class="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-all cursor-pointer text-lg font-bold">
-                        ✕
-                    </button>
+                    <button id="artifact-modal-close-btn" onclick="closeArtifactViewer()" style="background: transparent; border: none; font-size: 1.15rem; color: var(--text-muted); cursor: pointer; padding: 0.25rem 0.5rem;" title="Close Preview">✕</button>
                 </div>
             </div>
 
-            <!-- Modal Content Body -->
-            <div class="flex-1 overflow-auto bg-zinc-950 p-6 text-zinc-100 font-mono text-xs leading-relaxed" id="artifact-modal-content-wrapper">
-                <!-- Text / Code Viewer -->
-                <pre id="artifact-modal-text-content" class="whitespace-pre-wrap break-all hidden selection:bg-zinc-800 selection:text-white"></pre>
-
-                <!-- PDF Viewer Iframe -->
-                <iframe id="artifact-modal-pdf-iframe" class="w-full h-[65vh] border-0 rounded-xl hidden bg-white"></iframe>
-
-                <!-- Image Viewer -->
-                <div id="artifact-modal-image-wrapper" class="flex justify-center items-center min-h-[400px] hidden bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
-                    <img id="artifact-modal-image" src="" class="max-h-[65vh] max-w-full object-contain rounded-lg shadow-2xl" alt="Artifact Preview" />
+            <div class="modal-body" id="artifact-modal-content-wrapper">
+                <pre id="artifact-modal-text-content" style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-all;" class="hidden"></pre>
+                <iframe id="artifact-modal-pdf-iframe" style="width: 100%; height: 65vh; border: none; border-radius: var(--radius-md);" class="hidden"></iframe>
+                <div id="artifact-modal-image-wrapper" style="display: flex; justify-content: center; align-items: center; min-height: 380px;" class="hidden">
+                    <img id="artifact-modal-image" src="" alt="Artifact Preview" style="max-height: 65vh; max-width: 100%; object-contain: contain; border-radius: var(--radius-md);">
                 </div>
-
-                <!-- Loading Spinner -->
-                <div id="artifact-modal-loading" class="flex flex-col items-center justify-center py-20 gap-3 text-zinc-400 font-mono">
-                    <div class="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
-                    <span>Loading artifact content...</span>
+                <div id="artifact-modal-loading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; gap: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.75rem;">
+                    <span>Loading artifact preview...</span>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Scripts: HTMX, SSE Extension & Application Modules -->
+    <script src="/static/htmx.min.js"></script>
+    <script src="/static/sse.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/studio.js"></script>
+    <script src="/static/js/network.js"></script>
+    <script src="/static/js/artifacts.js"></script>
 </body>
 </html>

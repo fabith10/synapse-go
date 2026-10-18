@@ -50,12 +50,25 @@ func (ps *PlannerScheduler) StartPlan(goal, planJSON, corrID string, meta map[st
 	cleanedJSON := tools.ExtractJSON(planJSON)
 
 	var parsed struct {
-		OriginalGoal string             `json:"original_goal"`
+		OriginalGoal string              `json:"original_goal"`
 		Tasks        map[string]*SubTask `json:"tasks"`
 	}
 
 	if err := json.Unmarshal([]byte(cleanedJSON), &parsed); err != nil {
-		return fmt.Errorf("failed to parse task plan: %w (plan content: %s)", err, planJSON)
+		var parsedArray struct {
+			OriginalGoal string     `json:"original_goal"`
+			Tasks        []*SubTask `json:"tasks"`
+		}
+		if errArray := json.Unmarshal([]byte(cleanedJSON), &parsedArray); errArray != nil {
+			return fmt.Errorf("failed to parse task plan: %w (plan content: %s)", err, planJSON)
+		}
+		parsed.OriginalGoal = parsedArray.OriginalGoal
+		parsed.Tasks = make(map[string]*SubTask)
+		for _, t := range parsedArray.Tasks {
+			if t != nil && t.ID != "" {
+				parsed.Tasks[t.ID] = t
+			}
+		}
 	}
 
 	// If parsed tasks are empty, it might be that the model returned raw text synthesis.
@@ -327,7 +340,12 @@ func (bo *bytesOutput) String() string {
 // Middleware returns an Orchestrator middleware to intercept plan, subtask, and progress messages.
 func (ps *PlannerScheduler) Middleware() MiddlewareFunc {
 	return func(ctx context.Context, msg Message, next func(Message)) {
-		// 1. Intercept planner-agent plan output
+		// 1. Intercept progress messages to avoid blocking the orchestrator or prompting the user
+		if msg.Recipient == "USER" && msg.Metadata != nil && msg.Metadata["Type"] == "PROGRESS" {
+			return // Suppress sending progress updates to the human HITL channel
+		}
+
+		// 2. Intercept planner-agent plan output
 		if msg.Sender == "planner-agent" && msg.Recipient == "USER" && (msg.Metadata == nil || msg.Metadata["phase"] != "synthesis") {
 			goal := msg.Metadata["correlation_id"]
 			if msg.Metadata != nil && msg.Metadata["goal"] != "" {
@@ -340,7 +358,7 @@ func (ps *PlannerScheduler) Middleware() MiddlewareFunc {
 			logger.WithComponent("planner_scheduler").Warn("Parsing error, falling back to direct delivery", "error", err)
 		}
 
-		// 2. Intercept completed subtasks
+		// 3. Intercept completed subtasks
 		if msg.Recipient == "USER" && msg.Metadata != nil && msg.Metadata["is_subtask"] == "true" {
 			subtaskID := msg.Metadata["subtask_id"]
 			corrID := msg.Metadata["correlation_id"]
@@ -348,11 +366,6 @@ func (ps *PlannerScheduler) Middleware() MiddlewareFunc {
 				ps.HandleSubTaskResponse(ctx, subtaskID, msg.Content, corrID)
 				return // Suppress sending raw sub-task output to user HITL
 			}
-		}
-
-		// 3. Intercept progress messages to avoid blocking the orchestrator or prompting the user
-		if msg.Recipient == "USER" && msg.Metadata != nil && msg.Metadata["Type"] == "PROGRESS" {
-			return // Suppress sending progress updates to the human HITL channel
 		}
 
 		// Continue downstream

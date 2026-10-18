@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,7 +31,7 @@ import (
 	"github.com/fabith10/synapse-go/pkg/logger"
 )
 
-//go:embed static/* static/js/*
+//go:embed static/* static/js/* static/css/*
 var staticFS embed.FS
 
 // ---------------------------------------------------------------------------
@@ -61,7 +62,9 @@ func generateCSRFToken() (string, error) {
 func csrfMiddleware(next http.Handler) http.Handler {
 	// These paths use GET semantics or are safe to exclude.
 	exempt := map[string]bool{
-		"/stream/logs": true, // SSE — GET-based streaming
+		"/stream/logs":   true, // SSE — GET-based streaming
+		"/stream/events": true, // JSON SSE — GET-based streaming
+		"/api/v1/stream": true, // JSON SSE — GET-based streaming
 	}
 
 	safeMethods := map[string]bool{
@@ -83,6 +86,28 @@ func csrfMiddleware(next http.Handler) http.Handler {
 						SameSite: http.SameSiteStrictMode,
 					})
 				}
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Allow machine clients and SDKs authenticated via Bearer token or X-API-Key.
+		authHeader := r.Header.Get("Authorization")
+		apiKeyHeader := r.Header.Get("X-API-Key")
+		configuredAPIKey := os.Getenv("API_KEY")
+
+		if authHeader != "" || apiKeyHeader != "" {
+			token := apiKeyHeader
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimPrefix(authHeader, "Bearer ")
+			} else if token == "" {
+				token = authHeader
+			}
+			token = strings.TrimSpace(token)
+
+			if configuredAPIKey != "" && token != configuredAPIKey {
+				http.Error(w, "Unauthorized: invalid API key", http.StatusUnauthorized)
+				return
 			}
 			next.ServeHTTP(w, r)
 			return
@@ -180,8 +205,12 @@ type ArtifactItem struct {
 type Server struct {
 	runtime     *adk.Runtime
 	logBroker   *LogBroker
+	jsonBroker  *LogBroker
 	approvals   map[string]adk.Message
 	approvalsMu sync.Mutex
+
+	waiters   map[string]chan adk.Message
+	waitersMu sync.Mutex
 
 	// convHistory keeps the last maxHistoryTurns turns so every new task
 	// dispatch arrives at triage with full conversation context.
@@ -202,7 +231,9 @@ func NewServer(rt *adk.Runtime) *Server {
 	s := &Server{
 		runtime:       rt,
 		logBroker:     NewLogBroker(),
+		jsonBroker:    NewLogBroker(),
 		approvals:     make(map[string]adk.Message),
+		waiters:       make(map[string]chan adk.Message),
 		mockTaskStore: NewMockTaskStore(),
 	}
 
@@ -244,10 +275,80 @@ func formatSSE(event, data string) string {
 	return sb.String()
 }
 
-// LogEvent helper to broadcast formatted logs.
-func (s *Server) LogEvent(sender, recipient, content string) {
-	logger.WithComponent("web").Info("LogEvent", "sender", sender, "recipient", recipient, "content", content)
+// TelemetryEvent represents a typed, structured framework event without string parsing heuristics.
+type TelemetryEvent struct {
+	Time       string            `json:"time"`
+	Sender     string            `json:"sender"`
+	Recipient  string            `json:"recipient"`
+	EventType  string            `json:"event_type"` // TASK_DISPATCH, TOOL_CALL, SUBTASK_COMPLETE, TASK_COMPLETE, QA_EVAL, PROGRESS, INFO
+	Category   string            `json:"category"`   // dispatch, tool_call, outcome, supervisor, general
+	ActiveTool string            `json:"active_tool,omitempty"`
+	Model      string            `json:"model,omitempty"`
+	Content    string            `json:"content"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
+}
 
+// EmitTelemetry broadcasts an explicitly typed telemetry event to web UI and NATS broker.
+func (s *Server) EmitTelemetry(evt TelemetryEvent) {
+	if evt.Time == "" {
+		evt.Time = time.Now().Format("15:04:05")
+	}
+	if evt.EventType == "" {
+		evt.EventType = "INFO"
+	}
+	if evt.Category == "" {
+		evt.Category = "general"
+	}
+
+	logger.WithComponent("web").Info("TelemetryEvent",
+		"sender", evt.Sender,
+		"recipient", evt.Recipient,
+		"type", evt.EventType,
+		"tool", evt.ActiveTool,
+		"model", evt.Model,
+	)
+
+	rawJSONBytes, _ := json.Marshal(evt.Content)
+	rawB64 := base64.StdEncoding.EncodeToString([]byte(evt.Content))
+
+	var buf bytes.Buffer
+	LogSnippetTemplate.Execute(&buf, map[string]interface{}{
+		"Time":       evt.Time,
+		"Sender":     evt.Sender,
+		"Recipient":  evt.Recipient,
+		"Content":    evt.Content,
+		"EventType":  evt.EventType,
+		"Category":   evt.Category,
+		"ActiveTool": evt.ActiveTool,
+		"Model":      evt.Model,
+		"RawJSON":    template.JS(rawJSONBytes),
+		"RawB64":     rawB64,
+	})
+	sseMsg := formatSSE("log-message", buf.String())
+	s.logBroker.Broadcast(sseMsg)
+
+	// Broadcast structured JSON SSE to jsonBroker for SDKs and machine clients
+	if evtJSON, err := json.Marshal(evt); err == nil {
+		s.jsonBroker.Broadcast(formatSSE("telemetry", string(evtJSON)))
+	}
+
+	// Publish to NATS telemetry subject if NATS broker is connected
+	if nats := broker.GetGlobalNATSBroker(); nats != nil {
+		_ = nats.Publish("agents.telemetry", map[string]interface{}{
+			"sender":      evt.Sender,
+			"recipient":   evt.Recipient,
+			"event_type":  evt.EventType,
+			"category":    evt.Category,
+			"active_tool": evt.ActiveTool,
+			"model":       evt.Model,
+			"content":     evt.Content,
+			"timestamp":   time.Now().Format(time.RFC3339),
+		})
+	}
+}
+
+// LogEvent helper to broadcast formatted logs with backward-compatibility inference.
+func (s *Server) LogEvent(sender, recipient, content string) {
 	eventType := "INFO"
 	category := "general"
 	activeTool := ""
@@ -259,7 +360,10 @@ func (s *Server) LogEvent(sender, recipient, content string) {
 	} else if strings.Contains(cleanContent, "[Plan Execution]") || strings.Contains(cleanContent, "Triggering new task:") {
 		eventType = "TASK_DISPATCH"
 		category = "dispatch"
-	} else if strings.Contains(cleanContent, "[Final Outcome]") || strings.Contains(cleanContent, "Verdict: DONE") || strings.Contains(cleanContent, "action\":\"done") {
+	} else if recipient == "SUBTASK" {
+		eventType = "SUBTASK_COMPLETE"
+		category = "outcome"
+	} else if recipient == "USER" || strings.Contains(cleanContent, "[Final Outcome]") || strings.Contains(cleanContent, "Verdict: DONE") || strings.Contains(cleanContent, "action\":\"done") {
 		eventType = "TASK_COMPLETE"
 		category = "outcome"
 	} else if strings.Contains(cleanContent, "Action Result:") || strings.Contains(cleanContent, "\"action\":") || strings.Contains(cleanContent, "Step ") {
@@ -276,37 +380,14 @@ func (s *Server) LogEvent(sender, recipient, content string) {
 		}
 	}
 
-	rawJSONBytes, _ := json.Marshal(content)
-	rawB64 := base64.StdEncoding.EncodeToString([]byte(content))
-
-	var buf bytes.Buffer
-	LogSnippetTemplate.Execute(&buf, map[string]interface{}{
-		"Time":       time.Now().Format("15:04:05"),
-		"Sender":     sender,
-		"Recipient":  recipient,
-		"Content":    content,
-		"EventType":  eventType,
-		"Category":   category,
-		"ActiveTool": activeTool,
-		"RawJSON":    template.JS(rawJSONBytes),
-		"RawB64":     rawB64,
+	s.EmitTelemetry(TelemetryEvent{
+		Sender:     sender,
+		Recipient:  recipient,
+		EventType:  eventType,
+		Category:   category,
+		ActiveTool: activeTool,
+		Content:    content,
 	})
-	sseMsg := formatSSE("log-message", buf.String())
-	logger.WithComponent("web").Debug("SSE Broadcast payload", "payload", sseMsg)
-	s.logBroker.Broadcast(sseMsg)
-
-	// Publish to NATS telemetry subject if NATS broker is connected
-	if nats := broker.GetGlobalNATSBroker(); nats != nil {
-		_ = nats.Publish("agents.telemetry", map[string]interface{}{
-			"sender":     sender,
-			"recipient":  recipient,
-			"event_type": eventType,
-			"category":   category,
-			"active_tool": activeTool,
-			"content":    content,
-			"timestamp":  time.Now().Format(time.RFC3339),
-		})
-	}
 }
 
 // addToHistory appends a turn to the rolling conversation window (capped at maxHistoryTurns).
@@ -414,8 +495,37 @@ func (s *Server) StartHITLListener(ctx context.Context) {
 					// Record agent final output into conversation history for follow-up tasks.
 					s.addToHistory(msg.Sender, msg.Content)
 
-					// Broadcast final outcome to event log
-					s.LogEvent(msg.Sender, "USER", fmt.Sprintf("[Final Outcome] %s", msg.Content))
+					// Broadcast structured final outcome to event log
+					s.EmitTelemetry(TelemetryEvent{
+						Sender:    msg.Sender,
+						Recipient: "USER",
+						EventType: "TASK_COMPLETE",
+						Category:  "outcome",
+						Content:   msg.Content,
+					})
+
+					// Notify any synchronous client waiting on this correlation ID
+					s.waitersMu.Lock()
+					corr := ""
+					if msg.Metadata != nil {
+						corr = msg.Metadata["correlation_id"]
+					}
+					if corr != "" {
+						if ch, ok := s.waiters[corr]; ok {
+							select {
+							case ch <- msg:
+							default:
+							}
+						}
+					} else {
+						for _, ch := range s.waiters {
+							select {
+							case ch <- msg:
+							default:
+							}
+						}
+					}
+					s.waitersMu.Unlock()
 
 					// Extract any artifact paths referenced in metadata or message body
 					var artifactPaths []string
@@ -549,12 +659,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleDashboard)
 	mux.HandleFunc("/stream/logs", s.handleSSE)
+	mux.HandleFunc("/stream/events", s.handleJSONSSE)
+	mux.HandleFunc("/api/v1/stream", s.handleJSONSSE)
 	mux.HandleFunc("/api/task", s.handleTaskDispatch)
+	mux.HandleFunc("/api/v1/task", s.handleTaskDispatch)
 	mux.HandleFunc("/api/hitl/respond", s.handleHITLResponse)
+	mux.HandleFunc("/api/v1/hitl/respond", s.handleHITLResponse)
 	mux.HandleFunc("/api/hitl/pending", s.handleHITLPending)
+	mux.HandleFunc("/api/v1/hitl/pending", s.handleHITLPending)
 	mux.HandleFunc("/api/hitl/toggle-auto-approve", s.handleToggleAutoApprove)
 	mux.HandleFunc("/api/config/save", s.handleConfigSave)
 	mux.HandleFunc("/api/config/pricing-provider", s.handlePricingProviderConfig)
+	mux.HandleFunc("/api/artifacts", s.handleArtifactsList)
 	mux.HandleFunc("/api/artifact", s.handleArtifact)
 	mux.HandleFunc("/api/artifact/delete", s.handleArtifactDelete)
 	mux.HandleFunc("/api/artifact/delete-all", s.handleArtifactDeleteAll)
@@ -621,9 +737,20 @@ type ScheduleWithNext struct {
 	NextFire string
 }
 
+type AgentBlueprintItem struct {
+	ID           string
+	Description  string
+	Role         string
+	Capabilities []string
+	Tools        []string
+	Prompt       string
+	HardwareTier string
+}
+
 type DashboardData struct {
 	Warnings                []string
 	AgentsConfig            map[string]string
+	AgentBlueprints         []AgentBlueprintItem
 	ModelsConfig            string
 	CriticalActions         agenttools.CriticalActionsConfig
 	RiskyBashKeywordsStr    string
@@ -638,8 +765,11 @@ func isProtectedSystemFile(filePath string) bool {
 	baseName := strings.ToLower(filepath.Base(filePath))
 	ext := strings.ToLower(filepath.Ext(baseName))
 
-	// Strictly protect shell scripts, Go source/modules, and repository files
-	if ext == ".go" || ext == ".sh" || ext == ".mod" || ext == ".sum" {
+	// Strictly protect shell scripts, Go source/modules, database, and env files
+	if ext == ".go" || ext == ".sh" || ext == ".mod" || ext == ".sum" || ext == ".db" || ext == ".db-wal" || ext == ".db-shm" {
+		return true
+	}
+	if baseName == ".env" || strings.HasPrefix(baseName, ".env.") || strings.HasPrefix(baseName, ".env") {
 		return true
 	}
 
@@ -652,6 +782,9 @@ func isProtectedSystemFile(filePath string) bool {
 		"dockerfile":             true,
 		".gitignore":             true,
 		".dockerignore":          true,
+		".env":                   true,
+		"agent.db":               true,
+		"agent_framework.db":     true,
 		"agents.json":            true,
 		"models.json":            true,
 		"mock_models.json":       true,
@@ -739,18 +872,27 @@ func (s *Server) scanArtifactsFromDisk() []ArtifactItem {
 			}
 
 			agentName := "agent"
-			if dir == "emails" || strings.Contains(name, "email") {
-				agentName = "email-agent"
-			} else if strings.Contains(name, "resume") || strings.Contains(name, "cv") {
-				agentName = "writer-agent"
-			} else if dir == "reports" || strings.Contains(name, "report") || extLower == ".pdf" {
-				agentName = "researcher-agent"
-			} else if extLower == ".xlsx" || extLower == ".xls" || extLower == ".csv" {
-				agentName = "excel-agent"
-			} else if extLower == ".py" || dir == "scripts" {
-				agentName = "developer-agent"
-			} else if strings.Contains(name, "job") || strings.Contains(name, "match") {
-				agentName = "browser-agent"
+			for id := range agent.GetLoadedAgentConfigs() {
+				cleanID := strings.TrimSuffix(id, "-agent")
+				if strings.Contains(name, id) || strings.Contains(name, cleanID) {
+					agentName = id
+					break
+				}
+			}
+			if agentName == "agent" {
+				if dir == "emails" || strings.Contains(name, "email") {
+					agentName = "email-agent"
+				} else if strings.Contains(name, "resume") || strings.Contains(name, "cv") {
+					agentName = "writer-agent"
+				} else if dir == "reports" || strings.Contains(name, "report") || extLower == ".pdf" {
+					agentName = "researcher-agent"
+				} else if extLower == ".xlsx" || extLower == ".xls" || extLower == ".csv" {
+					agentName = "excel-agent"
+				} else if extLower == ".py" || dir == "scripts" {
+					agentName = "developer-agent"
+				} else if strings.Contains(name, "job") || strings.Contains(name, "match") {
+					agentName = "browser-agent"
+				}
 			}
 
 			info, err := entry.Info()
@@ -798,11 +940,36 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fallback to active dynamic prompts if not present
-	for id := range agent.GetLoadedAgentConfigs() {
+	loadedConfigs := agent.GetLoadedAgentConfigs()
+	for id := range loadedConfigs {
 		if agents[id] == "" {
 			agents[id] = agent.GetPromptByID(id)
 		}
 	}
+
+	// Build sorted dynamic agent blueprints list
+	var blueprintItems []AgentBlueprintItem
+	for id, cfg := range loadedConfigs {
+		desc := cfg.Description
+		if desc == "" {
+			desc = cfg.Role
+		}
+		if desc == "" {
+			desc = "Autonomous Specialist Agent"
+		}
+		blueprintItems = append(blueprintItems, AgentBlueprintItem{
+			ID:           id,
+			Description:  desc,
+			Role:         cfg.Role,
+			Capabilities: cfg.Capabilities,
+			Tools:        cfg.Tools,
+			Prompt:       agents[id],
+			HardwareTier: cfg.HardwareTier,
+		})
+	}
+	sort.Slice(blueprintItems, func(i, j int) bool {
+		return blueprintItems[i].ID < blueprintItems[j].ID
+	})
 
 	// Load models config
 	modelsBytes, err := os.ReadFile("models.json")
@@ -876,6 +1043,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	data := DashboardData{
 		Warnings:                warnings,
 		AgentsConfig:            agents,
+		AgentBlueprints:         blueprintItems,
 		ModelsConfig:            modelsConfig,
 		CriticalActions:         agenttools.CriticalActions,
 		RiskyBashKeywordsStr:    strings.Join(agenttools.CriticalActions.RiskyBashKeywords, ", "),
@@ -890,6 +1058,11 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Accept") == "application/json" || r.URL.Query().Get("format") == "json" {
+		s.handleJSONSSE(w, r)
+		return
+	}
+
 	logger.WithComponent("web").Debug("SSE client connected", "remote_addr", r.RemoteAddr)
 	defer logger.WithComponent("web").Debug("SSE client disconnected", "remote_addr", r.RemoteAddr)
 
@@ -933,18 +1106,116 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleJSONSSE(w http.ResponseWriter, r *http.Request) {
+	logger.WithComponent("web").Debug("JSON SSE client connected", "remote_addr", r.RemoteAddr)
+	defer logger.WithComponent("web").Debug("JSON SSE client disconnected", "remote_addr", r.RemoteAddr)
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	if allowedOrigin := os.Getenv("CORS_ALLOW_ORIGIN"); allowedOrigin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+
+	rc := http.NewResponseController(w)
+
+	logChan, pastLogs := s.jsonBroker.Subscribe()
+	defer s.jsonBroker.Unsubscribe(logChan)
+
+	for _, pastLine := range pastLogs {
+		_, _ = fmt.Fprint(w, pastLine)
+	}
+	_ = rc.Flush()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case logLine, ok := <-logChan:
+			if !ok {
+				return
+			}
+			_, _ = fmt.Fprint(w, logLine)
+			_ = rc.Flush()
+		}
+	}
+}
+
 func (s *Server) handleTaskDispatch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// 1. Parse Multipart Form (10MB limit)
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		_ = r.ParseForm()
+	var content string
+	var mode string
+	var corrIDParam string
+	var wait bool
+	var timeoutSeconds int
+	var customMeta map[string]string
+
+	contentType := r.Header.Get("Content-Type")
+	isJSON := strings.Contains(contentType, "application/json")
+
+	if isJSON {
+		var payload struct {
+			Prompt            string            `json:"prompt"`
+			Content           string            `json:"content"`
+			Mode              string            `json:"mode"`
+			OrchestrationMode string            `json:"orchestration_mode"`
+			CorrelationID     string            `json:"correlation_id"`
+			Wait              bool              `json:"wait"`
+			TimeoutSeconds    int               `json:"timeout_seconds"`
+			Metadata          map[string]string `json:"metadata"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
+			http.Error(w, fmt.Sprintf("Invalid JSON payload: %v", err), http.StatusBadRequest)
+			return
+		}
+		content = payload.Content
+		if content == "" {
+			content = payload.Prompt
+		}
+		mode = payload.Mode
+		if mode == "" {
+			mode = payload.OrchestrationMode
+		}
+		corrIDParam = payload.CorrelationID
+		wait = payload.Wait
+		timeoutSeconds = payload.TimeoutSeconds
+		customMeta = payload.Metadata
+	} else {
+		// 1. Parse Multipart Form (10MB limit)
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			_ = r.ParseForm()
+		}
+
+		content = r.FormValue("content")
+		if content == "" {
+			content = r.FormValue("prompt")
+		}
+		mode = r.FormValue("orchestration_mode")
+		if mode == "" {
+			mode = r.FormValue("mode")
+		}
+		corrIDParam = r.FormValue("correlation_id")
+		if r.URL.Query().Get("wait") == "true" || r.FormValue("wait") == "true" {
+			wait = true
+		}
+		if ts := r.FormValue("timeout_seconds"); ts != "" {
+			if v, err := strconv.Atoi(ts); err == nil {
+				timeoutSeconds = v
+			}
+		}
 	}
 
-	content := r.FormValue("content")
+	if r.URL.Query().Get("wait") == "true" {
+		wait = true
+	}
+
 	if content == "" {
 		http.Error(w, "Missing task content", http.StatusBadRequest)
 		return
@@ -952,9 +1223,10 @@ func (s *Server) handleTaskDispatch(w http.ResponseWriter, r *http.Request) {
 
 	// 1b. Check if there is an active pending approval and the user provided an approval intent
 	s.approvalsMu.Lock()
-	hasPending := len(s.approvals) > 0
 	var targetCorrID string
-	if hasPending {
+	if corrIDParam != "" && s.approvals[corrIDParam].Content != "" {
+		targetCorrID = corrIDParam
+	} else if len(s.approvals) == 1 {
 		for id := range s.approvals {
 			targetCorrID = id
 		}
@@ -965,59 +1237,84 @@ func (s *Server) handleTaskDispatch(w http.ResponseWriter, r *http.Request) {
 	isApprove := trimmed == "approve" || trimmed == "approved" || trimmed == "yes" || trimmed == "proceed" || trimmed == "go ahead" || trimmed == "ok" || trimmed == "sure" || trimmed == "confirm" || trimmed == "confirmed" || trimmed == "continue" || trimmed == "y"
 	isReject := trimmed == "deny" || trimmed == "denied" || trimmed == "reject" || trimmed == "rejected" || trimmed == "cancel" || trimmed == "no" || trimmed == "stop" || trimmed == "abort" || trimmed == "n"
 
-	if hasPending && targetCorrID != "" && (isApprove || isReject) {
+	if targetCorrID != "" && (isApprove || isReject) {
 		decision := "APPROVED"
 		if isReject {
 			decision = "REJECTED"
 		}
 		s.resolveApproval(targetCorrID, decision)
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":           true,
+			"resolved_approval": targetCorrID,
+			"decision":          decision,
+		})
 		return
 	}
 
-	mode := r.FormValue("orchestration_mode")
-
-	corrID := fmt.Sprintf("web-%d", time.Now().UnixNano())
+	corrID := corrIDParam
+	if corrID == "" {
+		corrID = fmt.Sprintf("web-%d", time.Now().UnixNano())
+	}
 	meta := map[string]string{
 		"correlation_id": corrID,
 	}
 	if mode != "" {
 		meta["orchestration_mode"] = mode
 	}
+	for k, v := range customMeta {
+		meta[k] = v
+	}
 
 	// 2. Handle File Upload if present
-	file, header, err := r.FormFile("file")
-	if err == nil {
-		defer file.Close()
+	if !isJSON {
+		file, header, err := r.FormFile("file")
+		if err == nil {
+			defer file.Close()
 
-		uploadsDir := "uploads"
-		if err := os.MkdirAll(uploadsDir, 0755); err == nil {
-			filePath := filepath.Join(uploadsDir, filepath.Base(header.Filename))
-			out, err := os.Create(filePath)
-			if err == nil {
-				_, _ = io.Copy(out, file)
-				out.Close()
+			uploadsDir := "uploads"
+			if err := os.MkdirAll(uploadsDir, 0755); err == nil {
+				filePath := filepath.Join(uploadsDir, filepath.Base(header.Filename))
+				out, err := os.Create(filePath)
+				if err == nil {
+					_, _ = io.Copy(out, file)
+					out.Close()
 
-				ext := strings.ToLower(filepath.Ext(header.Filename))
-				switch ext {
-				case ".txt", ".md":
-					textBytes, err := os.ReadFile(filePath)
-					if err == nil {
-						content = fmt.Sprintf("%s\n\n--- Attachment: %s ---\n%s\n--- End Attachment ---", content, header.Filename, string(textBytes))
+					ext := strings.ToLower(filepath.Ext(header.Filename))
+					switch ext {
+					case ".txt", ".md":
+						textBytes, err := os.ReadFile(filePath)
+						if err == nil {
+							content = fmt.Sprintf("%s\n\n--- Attachment: %s ---\n%s\n--- End Attachment ---", content, header.Filename, string(textBytes))
+						}
+					case ".csv":
+						textBytes, err := os.ReadFile(filePath)
+						if err == nil {
+							formatted := formatCSVAsMarkdownTable(string(textBytes))
+							content = fmt.Sprintf("%s\n\n--- Attachment Table: %s ---\n%s\n--- End Attachment ---", content, header.Filename, formatted)
+						}
+					default:
+						content = fmt.Sprintf("%s\n\n[Attachment uploaded and saved to: %s]", content, filePath)
 					}
-				case ".csv":
-					textBytes, err := os.ReadFile(filePath)
-					if err == nil {
-						formatted := formatCSVAsMarkdownTable(string(textBytes))
-						content = fmt.Sprintf("%s\n\n--- Attachment Table: %s ---\n%s\n--- End Attachment ---", content, header.Filename, formatted)
-					}
-				default:
-					content = fmt.Sprintf("%s\n\n[Attachment uploaded and saved to: %s]", content, filePath)
+
+					s.LogEvent("SYSTEM", "triage-agent", fmt.Sprintf("[Uploaded File: %s]", filePath))
 				}
-
-				s.LogEvent("SYSTEM", "triage-agent", fmt.Sprintf("[Uploaded File: %s]", filePath))
 			}
 		}
+	}
+
+	var waitChan chan adk.Message
+	if wait {
+		waitChan = make(chan adk.Message, 1)
+		s.waitersMu.Lock()
+		s.waiters[corrID] = waitChan
+		s.waitersMu.Unlock()
+		defer func() {
+			s.waitersMu.Lock()
+			delete(s.waiters, corrID)
+			s.waitersMu.Unlock()
+		}()
 	}
 
 	// 3. Inject rolling conversation history so triage & specialists have context.
@@ -1038,7 +1335,47 @@ func (s *Server) handleTaskDispatch(w http.ResponseWriter, r *http.Request) {
 		Metadata:  meta,
 	})
 
+	if wait {
+		timeout := 120 * time.Second
+		if timeoutSeconds > 0 {
+			timeout = time.Duration(timeoutSeconds) * time.Second
+		}
+
+		select {
+		case finalMsg := <-waitChan:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":  true,
+				"task_id":  corrID,
+				"status":   "COMPLETED",
+				"sender":   finalMsg.Sender,
+				"response": finalMsg.Content,
+				"metadata": finalMsg.Metadata,
+			})
+			return
+		case <-time.After(timeout):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusGatewayTimeout)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"task_id": corrID,
+				"status":  "TIMEOUT",
+				"error":   fmt.Sprintf("Task execution timed out after %v", timeout),
+			})
+			return
+		case <-r.Context().Done():
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"task_id": corrID,
+		"message": "Task dispatched to autonomous agent swarm",
+	})
 }
 
 func (s *Server) resolveApproval(corrID, decision string) (adk.Message, string, bool, bool) {
@@ -1103,8 +1440,21 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	corrID := r.FormValue("correlation_id")
-	decision := r.FormValue("decision") // APPROVED, REJECTED, or APPROVE_ALL
+
+	var corrID, decision string
+	contentType := r.Header.Get("Content-Type")
+	if strings.Contains(contentType, "application/json") {
+		var body struct {
+			CorrelationID string `json:"correlation_id"`
+			Decision      string `json:"decision"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		corrID = body.CorrelationID
+		decision = body.Decision
+	} else {
+		corrID = r.FormValue("correlation_id")
+		decision = r.FormValue("decision") // APPROVED, REJECTED, or APPROVE_ALL
+	}
 
 	if corrID == "" || decision == "" {
 		http.Error(w, "Missing correlation_id or decision", http.StatusBadRequest)
@@ -1114,6 +1464,17 @@ func (s *Server) handleHITLResponse(w http.ResponseWriter, r *http.Request) {
 	_, displayDecision, isAutoApprove, ok := s.resolveApproval(corrID, decision)
 	if !ok {
 		http.Error(w, "Approval request not found or already resolved", http.StatusNotFound)
+		return
+	}
+
+	if r.Header.Get("Accept") == "application/json" || strings.Contains(contentType, "application/json") {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":        true,
+			"correlation_id": corrID,
+			"decision":       displayDecision,
+			"auto_approved":  isAutoApprove,
+		})
 		return
 	}
 
@@ -1278,6 +1639,44 @@ func (s *Server) handleConfigSave(w http.ResponseWriter, r *http.Request) {
     </div>`))
 }
 
+// handleArtifactsList returns all discovered artifacts as JSON or rendered HTML cards.
+func (s *Server) handleArtifactsList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	discovered := s.scanArtifactsFromDisk()
+
+	format := r.URL.Query().Get("format")
+	if format == "html" || strings.Contains(r.Header.Get("Accept"), "text/html") {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if len(discovered) == 0 {
+			_, _ = w.Write([]byte(`<div id="artifacts-empty" style="padding: 2rem 1rem; text-align: center; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);">NO ARTIFACTS PRODUCED YET. DELIVERABLES WILL POPULATE HERE.</div>`))
+			return
+		}
+		for _, art := range discovered {
+			if err := RenderArtifactCard(w, map[string]string{
+				"ArtifactType": art.ArtifactType,
+				"Filename":     art.Filename,
+				"Agent":        art.Agent,
+				"Time":         art.Time,
+				"Path":         art.Path,
+			}); err != nil {
+				logger.WithComponent("web").Warn("Failed rendering artifact card snippet", "error", err)
+			}
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":    "success",
+		"artifacts": discovered,
+		"count":     len(discovered),
+	})
+}
+
 // handleArtifact serves agent-produced files (reports, email drafts, workbooks).
 // Only files within the allowlisted directories or workspace are served to prevent path traversal.
 func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
@@ -1292,10 +1691,17 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Clean path prefixes and trailing/leading backticks, quotes, spaces, and punctuation
+	// 1. Clean path prefixes and trailing punctuation while preserving leading dot for hidden/env files
 	rawPath = strings.TrimPrefix(rawPath, "file://")
 	rawPath = strings.TrimPrefix(rawPath, "file:")
-	rawPath = strings.Trim(rawPath, " \t\n\r`\"'()[]{}.,;:")
+	rawPath = strings.TrimLeft(rawPath, " \t\n\r`\"'([{<")
+	rawPath = strings.TrimRight(rawPath, " \t\n\r`\"')]}.,;:>")
+
+	baseName := strings.TrimRight(filepath.Base(rawPath), " \t\n\r`\"')]}.,;:>")
+	if isProtectedSystemFile(baseName) || isProtectedSystemFile(rawPath) {
+		http.Error(w, "Forbidden: protected system file", http.StatusForbidden)
+		return
+	}
 
 	wd, _ := os.Getwd()
 	absWd, _ := filepath.Abs(wd)
@@ -1315,7 +1721,7 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Fallback resolution if file does not exist directly at absPath
 	if _, statErr := os.Stat(absPath); os.IsNotExist(statErr) {
-		baseName := strings.Trim(filepath.Base(rawPath), " \t\n\r`\"'()[]{}.,;:")
+		baseName := strings.TrimRight(filepath.Base(rawPath), " \t\n\r`\"')]}.,;:>")
 		candidates := []string{
 			filepath.Join(absWd, rawPath),
 			filepath.Join(absWd, baseName),
@@ -1450,7 +1856,14 @@ func (s *Server) handleArtifactDelete(w http.ResponseWriter, r *http.Request) {
 
 	rawPath = strings.TrimPrefix(rawPath, "file://")
 	rawPath = strings.TrimPrefix(rawPath, "file:")
-	rawPath = strings.Trim(rawPath, " \t\n\r`\"'()[]{}.,;:")
+	rawPath = strings.TrimLeft(rawPath, " \t\n\r`\"'([{<")
+	rawPath = strings.TrimRight(rawPath, " \t\n\r`\"')]}.,;:>")
+
+	baseName := strings.TrimRight(filepath.Base(rawPath), " \t\n\r`\"')]}.,;:>")
+	if isProtectedSystemFile(baseName) || isProtectedSystemFile(rawPath) {
+		http.Error(w, "Forbidden: protected system file", http.StatusForbidden)
+		return
+	}
 
 	wd, _ := os.Getwd()
 	absWd, _ := filepath.Abs(wd)
@@ -1468,7 +1881,7 @@ func (s *Server) handleArtifactDelete(w http.ResponseWriter, r *http.Request) {
 
 	// Fallback resolution if not found directly
 	if _, statErr := os.Stat(absPath); os.IsNotExist(statErr) {
-		baseName := strings.Trim(filepath.Base(rawPath), " \t\n\r`\"'()[]{}.,;:")
+		baseName := strings.TrimRight(filepath.Base(rawPath), " \t\n\r`\"')]}.,;:>")
 		candidates := []string{
 			filepath.Join(absWd, rawPath),
 			filepath.Join(absWd, baseName),

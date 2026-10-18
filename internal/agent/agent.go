@@ -57,7 +57,15 @@ func ResolveTargetAgent(targetID string, taskContent string) string {
 
 	lowerTarget := strings.ToLower(targetID)
 	lowerContent := strings.ToLower(taskContent)
-	contentWords := strings.Fields(lowerContent)
+
+	// Clean punctuation from content words for accurate token matching
+	cleanedContent := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			return r
+		}
+		return ' '
+	}, lowerContent)
+	contentWords := strings.Fields(cleanedContent)
 
 	type agentScore struct {
 		id    string
@@ -68,6 +76,10 @@ func ResolveTargetAgent(targetID string, taskContent string) string {
 	for id, cfg := range loaded {
 		// Do not route general tasks directly to core orchestrator agents
 		if id == "triage-agent" || id == "planner-agent" || id == "supervisor-agent" {
+			continue
+		}
+		// generalist-agent is the generic fallback; only consider it if explicitly targeted or requested
+		if id == "generalist-agent" && !strings.Contains(lowerTarget, "generalist") && !strings.Contains(lowerContent, "generalist") {
 			continue
 		}
 
@@ -82,8 +94,14 @@ func ResolveTargetAgent(targetID string, taskContent string) string {
 		}
 
 		// Match against agent ID in task content
+		cleanID := strings.TrimSuffix(idLower, "-agent")
+		stemID := strings.TrimSuffix(cleanID, "er")
 		if strings.Contains(lowerContent, idLower) {
-			score += 5
+			score += 10
+		} else if len(cleanID) >= 3 && strings.Contains(lowerContent, cleanID) {
+			score += 8
+		} else if len(stemID) >= 4 && strings.Contains(lowerContent, stemID) {
+			score += 8
 		}
 
 		// Match against declared capabilities
@@ -93,11 +111,11 @@ func ResolveTargetAgent(targetID string, taskContent string) string {
 				score += 8
 			}
 			if strings.Contains(lowerContent, capLower) {
-				score += 5
+				score += 6
 			}
 			for _, w := range contentWords {
 				if len(w) > 3 && strings.Contains(capLower, w) {
-					score += 2
+					score += 3
 				}
 			}
 		}
@@ -106,7 +124,13 @@ func ResolveTargetAgent(targetID string, taskContent string) string {
 		for _, tool := range cfg.Tools {
 			toolLower := strings.ToLower(tool)
 			if strings.Contains(lowerContent, toolLower) {
-				score += 4
+				score += 6
+			} else {
+				for _, w := range contentWords {
+					if len(w) > 3 && strings.Contains(toolLower, w) {
+						score += 3
+					}
+				}
 			}
 		}
 

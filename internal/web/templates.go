@@ -11,12 +11,12 @@ import (
 var templatesFS embed.FS
 
 // DashboardPage is the HTML template for the main status page in ultra-premium dark glassmorphic design.
-var DashboardPage = template.Must(template.Must(template.New("dashboard.html").ParseFS(templatesFS, "templates/dashboard.html")).ParseFS(templatesFS, "templates/schedules_list.html"))
+var DashboardPage = template.Must(template.New("dashboard.html").ParseFS(templatesFS, "templates/*.html"))
 
 // RenderDashboard renders dashboard, reloading from disk if available in development.
 func RenderDashboard(w io.Writer, data any) error {
 	if _, err := os.Stat("internal/web/templates/dashboard.html"); err == nil {
-		tmpl, err := template.ParseFiles("internal/web/templates/dashboard.html", "internal/web/templates/schedules_list.html")
+		tmpl, err := template.New("dashboard.html").ParseGlob("internal/web/templates/*.html")
 		if err == nil {
 			return tmpl.Execute(w, data)
 		}
@@ -35,3 +35,15 @@ var ActionTakenTemplate = template.Must(template.New("action_taken.html").ParseF
 
 // ArtifactCardTemplate renders a downloadable artifact card pushed via SSE.
 var ArtifactCardTemplate = template.Must(template.New("artifact_card.html").ParseFS(templatesFS, "templates/artifact_card.html"))
+
+// RenderArtifactCard renders a single artifact card, reloading from disk if available in development.
+func RenderArtifactCard(w io.Writer, data any) error {
+	if _, err := os.Stat("internal/web/templates/artifact_card.html"); err == nil {
+		tmpl, err := template.ParseFiles("internal/web/templates/artifact_card.html")
+		if err == nil {
+			return tmpl.Execute(w, data)
+		}
+	}
+	return ArtifactCardTemplate.Execute(w, data)
+}
+

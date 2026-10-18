@@ -484,26 +484,59 @@ func main() {
 
 	// 4. Inject web log logging middleware to intercept A2A events
 	runtime.Orchestrator().Use(func(ctx context.Context, msg adk.Message, next func(adk.Message)) {
-		// Filter out raw JSON plan from log stream
-		if msg.Sender == "planner-agent" && msg.Recipient == "USER" && (msg.Metadata == nil || msg.Metadata["phase"] != "synthesis") {
+		// Skip messages to USER since StartHITLListener in webServer already handles and logs final outcomes
+		if msg.Recipient == "USER" {
+			next(msg)
+			return
+		}
+		if msg.Sender == "USER" && msg.Recipient == "planner-agent" && msg.Metadata != nil && msg.Metadata["phase"] == "synthesis" {
 			next(msg)
 			return
 		}
 		if msg.Metadata == nil || msg.Metadata["Type"] != "HITL_RESPONSE" {
-			content := msg.Content
 			broker.LastUsedModel.RLock()
 			model := broker.LastUsedModel.M[msg.Sender]
 			broker.LastUsedModel.RUnlock()
 
-			if model != "" {
-				content = fmt.Sprintf("[%s] %s", model, content)
+			eventType := "INFO"
+			category := "general"
+			activeTool := ""
+
+			if msg.Metadata != nil {
+				if msg.Metadata["is_subtask"] == "true" {
+					eventType = "SUBTASK_COMPLETE"
+					category = "outcome"
+				} else if msg.Metadata["Type"] == "PROGRESS" {
+					eventType = "PROGRESS"
+					category = "dispatch"
+				}
+				if msg.Metadata["action"] != "" {
+					activeTool = msg.Metadata["action"]
+				} else if msg.Metadata["tool"] != "" {
+					activeTool = msg.Metadata["tool"]
+				}
 			}
-			
+
+			if msg.Sender == "triage-agent" {
+				eventType = "TASK_DISPATCH"
+				category = "dispatch"
+			}
+
 			recipient := msg.Recipient
 			if msg.Recipient == "USER" && msg.Metadata != nil && msg.Metadata["is_subtask"] == "true" {
 				recipient = "SUBTASK"
 			}
-			webServer.LogEvent(msg.Sender, recipient, content)
+
+			webServer.EmitTelemetry(web.TelemetryEvent{
+				Sender:     msg.Sender,
+				Recipient:  recipient,
+				EventType:  eventType,
+				Category:   category,
+				ActiveTool: activeTool,
+				Model:      model,
+				Content:    msg.Content,
+				Metadata:   msg.Metadata,
+			})
 		}
 		next(msg)
 	})

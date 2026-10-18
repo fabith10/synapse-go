@@ -1,30 +1,30 @@
-<div id="approval-{{.CorrelationID}}" class="p-5 bg-zinc-900/90 border border-zinc-800 border-l-4 border-l-amber-500 rounded-xl flex flex-col gap-4 shadow-xl backdrop-blur-md">
-    <div class="flex justify-between items-start">
-        <div class="flex flex-col">
-            <span class="text-[9px] text-amber-400 font-bold font-mono uppercase tracking-widest flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Approval Requested (HITL)
+<div id="approval-{{.CorrelationID}}" class="hitl-card">
+    <div class="hitl-header">
+        <div class="hitl-title-row">
+            <span class="hitl-alert-label">
+                <span class="hitl-ping-dot"></span> Approval Required (HITL Gate)
             </span>
-            <span class="font-bold text-zinc-100 text-xs mt-0.5 font-mono chat-approval-sender">{{.Sender}} ──▶ {{.Metadata.action}}</span>
+            <span class="hitl-sender font-mono">{{.Sender}} ──▶ {{.Metadata.action}}</span>
         </div>
-        <span class="text-[9px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded-full uppercase font-bold">
+        <span class="hitl-risk-badge">
             {{.Metadata.risk_level}} RISK
         </span>
     </div>
     
-    <div id="approval-content-{{.CorrelationID}}" class="approval-content chat-approval-content text-xs text-zinc-300 font-mono bg-zinc-950 p-4 rounded-xl border border-zinc-800/90 leading-relaxed shadow-inner overflow-x-auto max-h-[360px]" data-raw="{{.Content}}" data-b64="{{.RawB64}}">
+    <div id="approval-content-{{.CorrelationID}}" class="hitl-content-box" data-raw="{{.Content}}" data-b64="{{.RawB64}}">
         {{.Content}}
     </div>
 
     <!-- Approval form using htmx POST, replacing the parent card with response HTML -->
-    <form hx-post="/api/hitl/respond" hx-target="#approval-{{.CorrelationID}}" hx-swap="outerHTML" class="flex gap-2.5 justify-end flex-wrap">
+    <form hx-post="/api/hitl/respond" hx-target="#approval-{{.CorrelationID}}" hx-swap="outerHTML" class="hitl-actions-row">
         <input type="hidden" name="correlation_id" value="{{.CorrelationID}}">
-        <button type="submit" name="decision" value="REJECTED" class="chat-approval-btn-deny px-3.5 py-2 bg-zinc-900 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-zinc-700 hover:border-rose-800 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer">
+        <button type="submit" name="decision" value="REJECTED" class="btn-hitl-deny">
             Deny Execution
         </button>
-        <button type="submit" name="decision" value="APPROVED" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer">
+        <button type="submit" name="decision" value="APPROVED" class="btn-hitl-approve">
             Approve &amp; Continue
         </button>
-        <button type="submit" name="decision" value="APPROVE_ALL" class="px-3.5 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5" title="Approve this request and enable Auto-Pilot for all future actions">
+        <button type="submit" name="decision" value="APPROVE_ALL" class="btn-hitl-autopilot" title="Approve this request and enable Auto-Pilot for all future actions">
             <span>⚡</span> Auto-Approve All
         </button>
     </form>
@@ -33,17 +33,9 @@
   var el = document.getElementById("approval-content-{{.CorrelationID}}");
   if (!el) return;
   var raw = (typeof getRawContent === "function") ? getRawContent(el) : (el.getAttribute("data-b64") ? atob(el.getAttribute("data-b64")) : (el.getAttribute("data-raw") || ""));
-
   if (typeof renderMarkdown === "function") {
       el.innerHTML = renderMarkdown(raw);
-  } else if (typeof marked !== "undefined" && typeof marked.parse === "function") {
-      try {
-          el.innerHTML = marked.parse(raw, { breaks: true, gfm: true });
-      } catch(e) {
-          el.textContent = raw;
-      }
   } else {
       el.textContent = raw;
   }
 })();</script>
-

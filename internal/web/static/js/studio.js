@@ -162,14 +162,3 @@ function insertPromptTemplate(type) {
                 }
             }
         });
-
-        // -------------------------------------------------------------------
-        // Agent Network Topology Visualizer Engine
-        // -------------------------------------------------------------------
-        let networkNodes = [];
-        let networkEdges = [];
-        let networkPulses = [];
-        let selectedNode = null;
-        let isSimulating = false;
-        let dragNode = null;
-        let dragOffset = { x: 0, y: 0 };
